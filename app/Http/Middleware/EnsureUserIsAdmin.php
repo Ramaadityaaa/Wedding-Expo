@@ -24,6 +24,4 @@ class EnsureUserIsAdmin
         // Jika tidak, tolak akses (Forbidden)
         abort(403, 'ACCESS DENIED. ADMIN ROLE REQUIRED.');
     }
-    
-    // <-- Pastikan tidak ada fungsi 'handle' lain di bawah sini
 }

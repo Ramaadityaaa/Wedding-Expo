@@ -20,4 +20,4 @@ class Portfolio extends Model
     {
         return $this->belongsTo(WeddingOrganizer::class);
     }
-}
+}   

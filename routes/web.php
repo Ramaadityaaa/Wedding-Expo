@@ -7,7 +7,8 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-// --- Impor semua Controller Admin Anda ---
+// --- Impor semua Controller Anda ---
+use App\Http\Controllers\HomeController; // <-- DI SINI PERBAIKANNYA (1)
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\VendorController;
 use App\Http\Controllers\Admin\ReviewController;
@@ -18,15 +19,10 @@ use App\Http\Controllers\Admin\ReviewController;
 |--------------------------------------------------------------------------
 */
 
-// --- Rute Publik Bawaan Breeze ---
-Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
-});
+// --- Rute Publik (Homepage/Dashboard Customer) ---
+// DI SINI PERBAIKANNYA (2): Mengganti fungsi default dengan HomeController
+Route::get('/', [HomeController::class, 'index'])->name('home');
+
 
 // --- Rute User Terautentikasi (Bawaan Breeze) ---
 // CATATAN: Ini adalah /dashboard untuk USER biasa
