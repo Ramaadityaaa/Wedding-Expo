@@ -5,9 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
-use App\Models\WeddingOrganizer; // <-- Pastikan ini di-import
+use App\Models\WeddingOrganizer; // Pastikan ini di-import
 use Illuminate\Support\Facades\Route;
-use Illuminate\Foundation\Application;
 
 class HomeController extends Controller
 {
@@ -16,18 +15,68 @@ class HomeController extends Controller
      */
     public function index(): Response
     {
-        // 1. Ambil data vendor
         $vendors = WeddingOrganizer::where('isApproved', true)
-                            ->latest()
-                            ->take(12)
-                            ->get();
+                                   ->latest()
+                                   ->take(12) 
+                                   ->get();
 
-        // 2. Render halaman React Anda di lokasi BARU
-        // --- INI PERBAIKANNYA ---
-        return Inertia::render('Customer/Dashboard', [ // <-- Diubah dari 'Welcome'
+        return Inertia::render('Customer/Dashboard', [
             'canLogin' => Route::has('login'),
             'canRegister' => Route::has('register'),
-            'vendors' => $vendors // <-- Kirim props ini ke React
+            'vendors' => $vendors
         ]);
+    }
+
+    /**
+     * Menampilkan halaman detail untuk satu vendor.
+     */
+    public function show(WeddingOrganizer $vendor): Response
+    {
+        if (!$vendor->isApproved) {
+            abort(404);
+        }
+
+        // Anda perlu membuat file: resources/js/Pages/Customer/VendorDetail.jsx
+        return Inertia::render('Customer/VendorDetail', [
+            'vendor' => $vendor,
+        ]);
+    }
+
+    /**
+     * Menampilkan semua vendor (halaman /vendors)
+     */
+    public function allVendors(): Response
+    {
+        $allVendors = WeddingOrganizer::where('isApproved', true)
+                                    ->orderBy('name')
+                                    ->paginate(16); 
+
+        // Anda perlu membuat file: resources/js/Pages/Customer/AllVendors.jsx
+        return Inertia::render('Customer/AllVendors', [
+            'vendors' => $allVendors,
+        ]);
+    }
+
+    /**
+     * Menampilkan halaman Favorit (halaman /favorit)
+     */
+    public function favorites(): Response
+    {
+        // Logika untuk mengambil vendor favorit...
+        $favoriteVendors = []; // Ganti ini dengan logika Anda
+
+        // Anda perlu membuat file: resources/js/Pages/Customer/Favorites.jsx
+        return Inertia::render('Customer/Favorites', [
+            'vendors' => $favoriteVendors,
+        ]);
+    }
+
+    /**
+     * Menampilkan halaman Tentang (halaman /tentang)
+     */
+    public function about(): Response
+    {
+        // Anda perlu membuat file: resources/js/Pages/Customer/About.jsx
+        return Inertia::render('Customer/About');
     }
 }
