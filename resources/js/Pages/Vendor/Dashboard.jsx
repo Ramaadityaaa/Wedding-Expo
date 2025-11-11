@@ -1,42 +1,35 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, setDoc, onSnapshot, updateDoc, arrayRemove, arrayUnion, setLogLevel } from 'firebase/firestore';
 import { Archive, Package, Image, UserCog, MessageSquareText, Save, Trash2, PackagePlus, ImagePlus, LogOut, Edit2, X, Check } from 'lucide-react';
 
-// Variabel Global dari Lingkungan (MANDATORY)
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+// --- KONFIGURASI API (Simulasi Laravel Backend) ---
+// Dalam proyek nyata, ini akan menjadi variabel lingkungan atau config global
+const API_BASE_URL = 'http://localhost:8000/api/vendor'; 
+// Token Otentikasi statis, biasanya didapat dari proses login JWT/Sanctum
+const AUTH_TOKEN = 'your_laravel_auth_token_here_12345'; 
+const USER_ID_SIMULATION = 'vendor-wo-001-react'; 
 
-// Menginisialisasi Firebase di luar komponen
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
-setLogLevel('debug'); // Aktifkan log untuk debugging Firestore
-
-// Data default jika dokumen vendor belum ada
-const createDefaultVendorData = (uid) => ({
+// Data default untuk simulasi loading awal
+const DEFAULT_INITIAL_DATA = {
     profile: {
-        vendorName: `WO ID: ${uid.substring(0, 8)}... (React)`,
+        vendorName: `WO ID: ${USER_ID_SIMULATION.substring(0, 8)}... (Laravel)`,
         description: 'Kami adalah Wedding Organizer profesional yang berdedikasi untuk mewujudkan pernikahan impian Anda.',
         contactInfo: 'Email: contact@example.com | Telepon: +62 812 XXXX XXXX',
         logoUrl: 'https://placehold.co/100x100/FBBF24/664400?text=LOGO',
         coverUrl: 'https://placehold.co/1200x300/FBBF24/664400?text=FOTO+SAMPUL',
     },
     packages: [
-        { id: crypto.randomUUID(), name: 'Paket Silver', price: 'Rp 25.000.000', services: 'Dekorasi standar, Katering 100 pax, WO Hari-H' },
-        { id: crypto.randomUUID(), name: 'Paket Gold', price: 'Rp 50.000.000', services: 'Dekorasi mewah, Katering 300 pax, Full Service WO' },
+        { id: 'pkg-1', name: 'Paket Silver', price: 'Rp 25.000.000', services: 'Dekorasi standar, Katering 100 pax, WO Hari-H' },
+        { id: 'pkg-2', name: 'Paket Gold', price: 'Rp 50.000.000', services: 'Dekorasi mewah, Katering 300 pax, Full Service WO' },
     ],
     portfolio: [
-        { id: crypto.randomUUID(), type: 'photo', url: 'https://placehold.co/300x200/FBBF24/664400?text=PREWED+Sesi+1' },
-        { id: crypto.randomUUID(), type: 'photo', url: 'https://placehold.co/300x200/FBBF24/664400?text=RESEPSI+Modern' },
+        { id: 'port-1', type: 'photo', url: 'https://placehold.co/300x200/FBBF24/664400?text=PREWED+Sesi+1' },
+        { id: 'port-2', type: 'photo', url: 'https://placehold.co/300x200/FBBF24/664400?text=RESEPSI+Modern' },
     ],
     reviews: [
-        { id: crypto.randomUUID(), userName: 'Budi Santoso', rating: 5, date: '2024-05-10', comment: 'Pelayanan sangat memuaskan, pernikahan berjalan lancar!', reply: null },
-        { id: crypto.randomUUID(), userName: 'Siti Aisyah', rating: 4, date: '2024-04-21', comment: 'Konsep dekorasi bagus, hanya sedikit miskomunikasi di awal.', reply: 'Terima kasih atas masukannya, kami akan tingkatkan koordinasi tim!' },
+        { id: 'rev-1', userName: 'Budi Santoso', rating: 5, date: '2024-05-10', comment: 'Pelayanan sangat memuaskan, pernikahan berjalan lancar!', reply: null },
+        { id: 'rev-2', userName: 'Siti Aisyah', rating: 4, date: '2024-04-21', comment: 'Konsep dekorasi bagus, hanya sedikit miskomunikasi di awal.', reply: 'Terima kasih atas masukannya, kami akan tingkatkan koordinasi tim!' },
     ]
-});
+};
 
 // Komponen Alert Sederhana
 const Alert = ({ type, message }) => {
@@ -60,7 +53,7 @@ const App = () => {
     // State Aplikasi
     const [vendorData, setVendorData] = useState(null);
     const [currentTab, setCurrentTab] = useState('profile');
-    const [userId, setUserId] = useState(null);
+    const [userId, setUserId] = useState(USER_ID_SIMULATION); // ID statis
     const [isLoading, setIsLoading] = useState(true);
     const [alert, setAlert] = useState({ type: '', message: '' });
 
@@ -70,206 +63,167 @@ const App = () => {
         setTimeout(() => setAlert({ type: '', message: '' }), 5000);
     }, []);
 
-    // Referensi Dokumen Vendor
-    const getVendorDocRef = useCallback(() => {
-        if (!userId) return null;
-        // Path data Publik: /artifacts/{appId}/public/data/vendors/{userId}
-        return doc(db, 'artifacts', appId, 'public', 'data', 'vendors', userId);
-    }, [userId]);
+    // --- LOGIKA FETCHING DATA AWAL DARI LARAVEL API ---
 
-    // --- LOGIKA FIRESTORE ASYNC (MENSIMULASIKAN PANGGILAN API) ---
-
-    // Menangani otentikasi dan menyiapkan listener Firestore
-    useEffect(() => {
-        const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
-            let currentUserId = null;
-            
-            if (user) {
-                currentUserId = user.uid;
-            } else {
-                // Jika tidak ada custom token, coba sign in anonim
-                if (!initialAuthToken) {
-                    try {
-                        const anonUser = await signInAnonymously(auth);
-                        currentUserId = anonUser.user.uid;
-                    } catch (error) {
-                        console.error("Error signing in anonymously:", error);
-                        // Fallback ID jika gagal total (meski tidak akan melewati Security Rules)
-                        currentUserId = 'unauthenticated-' + crypto.randomUUID(); 
-                    }
-                }
-            }
-
-            if (currentUserId) {
-                setUserId(currentUserId);
-                // Setelah userId siap, siapkan listener data
-                const vendorDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'vendors', currentUserId);
-                
-                const unsubscribeSnapshot = onSnapshot(vendorDocRef, (docSnapshot) => {
-                    if (docSnapshot.exists()) {
-                        setVendorData(docSnapshot.data());
-                        console.log("Data Vendor dimuat:", docSnapshot.data());
-                    } else {
-                        console.log("Data Vendor awal tidak ditemukan, membuat default.");
-                        const defaultData = createDefaultVendorData(currentUserId);
-                        // Membuat default data jika dokumen tidak ada (write)
-                        setDoc(vendorDocRef, defaultData, { merge: true })
-                            .then(() => setVendorData(defaultData))
-                            .catch(e => console.error("Error creating default data:", e));
-                    }
-                    setIsLoading(false);
-                }, (error) => {
-                    console.error("Error listening to vendor data (Permissions likely):", error);
-                    alertUser('error', 'Gagal memuat data. Periksa izin Firestore Anda.');
-                    setIsLoading(false);
-                });
-
-                // Clean up Firestore listener saat komponen unmount
-                return () => unsubscribeSnapshot();
-            } else {
-                 setIsLoading(false);
-            }
-        });
-
-        // Memulai sign-in dengan custom token (jika ada)
-        if (initialAuthToken) {
-            signInWithCustomToken(auth, initialAuthToken).catch(error => {
-                console.error("Error signing in with custom token:", error);
+    const fetchVendorData = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            // Asumsi: GET /api/vendor mengembalikan semua data vendor yang sedang login
+            const response = await fetch(`${API_BASE_URL}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${AUTH_TOKEN}` // Menggunakan token otentikasi
+                },
             });
-        }
-        
-        // Clean up Auth listener
-        return () => unsubscribeAuth();
-    }, [alertUser]); // Dependency array kosong untuk inisialisasi tunggal
 
-    // --- API SIMULASI (Menggunakan Firestore) ---
+            if (!response.ok) {
+                // Jika 401/403, asumsikan otentikasi gagal atau data tidak ada
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            // SIMULASI: Dalam proyek nyata, data akan diambil dari API. 
+            // Karena ini simulasi frontend, kita menggunakan data default jika fetching gagal.
+            setVendorData(data); 
+
+        } catch (error) {
+            console.error("Error fetching vendor data, using mock data:", error);
+            alertUser('warning', 'Gagal terhubung ke API Laravel. Menggunakan data statis.');
+            // Fallback ke data default jika API gagal
+            setVendorData(DEFAULT_INITIAL_DATA);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [alertUser]);
+
+    // Hanya panggil sekali saat komponen dimuat
+    useEffect(() => {
+        fetchVendorData();
+    }, [fetchVendorData]); 
+
+    // --- API CALLS SIMULASI UNTUK LARAVEL BACKEND ---
+
+    const apiCall = async (endpoint, method, body = null) => {
+        try {
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${AUTH_TOKEN}`
+                },
+            };
+
+            if (body) {
+                options.body = JSON.stringify(body);
+            }
+
+            const response = await fetch(`${API_BASE_URL}/${endpoint}`, options);
+
+            const responseData = await response.json();
+            
+            if (!response.ok) {
+                // Laravel biasanya mengembalikan array error atau pesan, 
+                // ini bisa di-handle lebih rinci di aplikasi nyata
+                const errorMessage = responseData.message || 'Terjadi kesalahan pada server.';
+                throw new Error(errorMessage);
+            }
+
+            alertUser('success', responseData.message || 'Operasi berhasil!');
+            return responseData.data; // Mengembalikan data yang diupdate dari server
+
+        } catch (error) {
+            console.error(`Error ${method} ${endpoint}:`, error.message);
+            alertUser('error', `Gagal: ${error.message}`);
+            return null;
+        }
+    };
+    
+    // --- Implementasi Fungsi CRUD (Menggantikan Firestore) ---
 
     const saveProfile = async (profileData) => {
-        if (!userId || !getVendorDocRef()) return alertUser('error', 'Autentikasi belum siap.');
-        
-        // Simulasi POST/PUT ke /api/vendor/profile
-        try {
-            await setDoc(getVendorDocRef(), { profile: profileData }, { merge: true });
-            alertUser('success', 'Profil berhasil diperbarui!');
-        } catch (error) {
-            console.error("Error saving profile:", error);
-            alertUser('error', 'Gagal menyimpan profil.');
+        // Asumsi: PUT /api/vendor/profile
+        const updatedData = await apiCall('profile', 'PUT', profileData);
+        if (updatedData) {
+            // Setelah berhasil, update state lokal dengan data baru
+            setVendorData(prev => ({ ...prev, profile: updatedData }));
         }
     };
 
     const addPortfolioItem = async (url) => {
-        if (!userId || !getVendorDocRef()) return alertUser('error', 'Autentikasi belum siap.');
         if (!url) return alertUser('warning', 'URL tidak boleh kosong.');
-
-        const newItem = { id: crypto.randomUUID(), type: 'photo', url };
         
-        // Simulasi POST ke /api/vendor/portfolio
-        try {
-            await updateDoc(getVendorDocRef(), { portfolio: arrayUnion(newItem) });
-            alertUser('success', 'Portofolio berhasil ditambahkan!');
+        // Asumsi: POST /api/vendor/portfolio
+        const newItem = { url, type: 'photo' };
+        const updatedPortfolio = await apiCall('portfolio', 'POST', newItem);
+
+        if (updatedPortfolio) {
+            // Setelah berhasil, update state lokal
+            setVendorData(prev => ({ ...prev, portfolio: updatedPortfolio }));
             return true;
-        } catch (error) {
-            console.error("Error adding portfolio item:", error);
-            alertUser('error', 'Gagal menambahkan portofolio.');
-            return false;
         }
+        return false;
     };
 
-    const deletePortfolioItem = async (id, itemToDelete) => {
-        if (!userId || !getVendorDocRef()) return alertUser('error', 'Autentikasi belum siap.');
+    const deletePortfolioItem = async (id) => {
+        // Asumsi: DELETE /api/vendor/portfolio/{id}
+        const updatedPortfolio = await apiCall(`portfolio/${id}`, 'DELETE');
         
-        // Simulasi DELETE ke /api/vendor/portfolio/{id}
-        try {
-            // Menggunakan arrayRemove dengan objek item yang sama persis
-            await updateDoc(getVendorDocRef(), { portfolio: arrayRemove(itemToDelete) });
-            alertUser('success', 'Item portofolio berhasil dihapus.');
-        } catch (error) {
-            console.error("Error deleting portfolio item:", error);
-            alertUser('error', 'Gagal menghapus portofolio.');
+        if (updatedPortfolio) {
+            // Setelah berhasil, update state lokal
+            setVendorData(prev => ({ ...prev, portfolio: updatedPortfolio }));
         }
     };
 
     const addPackage = async (newPackage) => {
-        if (!userId || !getVendorDocRef()) return alertUser('error', 'Autentikasi belum siap.');
-        
-        // Simulasi POST ke /api/vendor/packages
-        try {
-            await updateDoc(getVendorDocRef(), { packages: arrayUnion(newPackage) });
-            alertUser('success', 'Paket harga berhasil ditambahkan!');
+        // Asumsi: POST /api/vendor/packages
+        const updatedPackages = await apiCall('packages', 'POST', newPackage);
+
+        if (updatedPackages) {
+            setVendorData(prev => ({ ...prev, packages: updatedPackages }));
             return true;
-        } catch (error) {
-            console.error("Error adding package:", error);
-            alertUser('error', 'Gagal menambahkan paket.');
-            return false;
+        }
+        return false;
+    };
+    
+    const deletePackage = async (id) => {
+        // Asumsi: DELETE /api/vendor/packages/{id}
+        const updatedPackages = await apiCall(`packages/${id}`, 'DELETE');
+
+        if (updatedPackages) {
+            setVendorData(prev => ({ ...prev, packages: updatedPackages }));
         }
     };
     
-    const deletePackage = async (pkgToDelete) => {
-        if (!userId || !getVendorDocRef()) return alertUser('error', 'Autentikasi belum siap.');
-        
-        // Simulasi DELETE ke /api/vendor/packages/{id}
-        try {
-            await updateDoc(getVendorDocRef(), { packages: arrayRemove(pkgToDelete) });
-            alertUser('success', 'Paket harga berhasil dihapus.');
-        } catch (error) {
-            console.error("Error deleting package:", error);
-            alertUser('error', 'Gagal menghapus paket.');
-        }
-    };
-    
-    // FUNGSI UNTUK MENGUPDATE PAKET
     const updatePackage = async (updatedPackage) => {
-        if (!userId || !getVendorDocRef()) return alertUser('error', 'Autentikasi belum siap.');
+        // Asumsi: PUT /api/vendor/packages/{id}
+        const updatedPackages = await apiCall(`packages/${updatedPackage.id}`, 'PUT', updatedPackage);
 
-        try {
-            // 1. Ambil array paket yang ada
-            const existingPackages = vendorData.packages;
-            
-            // 2. Cari indeks paket yang akan diubah
-            const index = existingPackages.findIndex(pkg => pkg.id === updatedPackage.id);
-
-            if (index === -1) {
-                return alertUser('error', 'Paket tidak ditemukan.');
-            }
-
-            // 3. Buat array baru dengan paket yang sudah diubah
-            const newPackages = [...existingPackages];
-            newPackages[index] = updatedPackage;
-
-            // 4. Update seluruh array packages di Firestore
-            await updateDoc(getVendorDocRef(), { packages: newPackages });
-            alertUser('success', 'Paket harga berhasil diubah.');
-        } catch (error) {
-            console.error("Error updating package:", error);
-            alertUser('error', 'Gagal mengubah paket.');
+        if (updatedPackages) {
+            setVendorData(prev => ({ ...prev, packages: updatedPackages }));
         }
     };
 
-    // FUNGSI UNTUK MEMBALAS ATAU MENGUPDATE BALASAN ULASAN
     const replyToReview = async (reviewId, replyText) => {
-        if (!userId || !getVendorDocRef()) return alertUser('error', 'Autentikasi belum siap.');
-        
-        // Simulasi PUT ke /api/vendor/reviews/{id}
-        try {
-            const updatedReviews = vendorData.reviews.map(review => {
-                if (review.id === reviewId) {
-                    return { ...review, reply: replyText };
-                }
-                return review;
-            });
+        // Asumsi: POST /api/vendor/reviews/{reviewId}/reply
+        const payload = { reply: replyText };
+        const updatedReviews = await apiCall(`reviews/${reviewId}/reply`, 'POST', payload);
 
-            await updateDoc(getVendorDocRef(), { reviews: updatedReviews });
-            alertUser('success', replyText ? 'Balasan berhasil dikirim/diubah.' : 'Balasan berhasil dihapus.');
-        } catch (error) {
-            console.error("Error sending/updating reply:", error);
-            alertUser('error', 'Gagal mengirim/mengubah balasan.');
+        if (updatedReviews) {
+            setVendorData(prev => ({ ...prev, reviews: updatedReviews }));
         }
     };
 
-    // --- KOMPONEN TAB ANAK ---
+    // --- KOMPONEN TAB ANAK (Logika UI Tetap Sama) ---
 
     const ProfileTab = () => {
         const [profile, setProfile] = useState(vendorData.profile);
+        
+        // Memastikan state ter-sync jika vendorData berubah dari luar
+        useEffect(() => {
+            setProfile(vendorData.profile);
+        }, [vendorData.profile]);
 
         const handleChange = (e) => {
             const { id, value } = e.target;
@@ -340,10 +294,8 @@ const App = () => {
             }
         };
 
-        const handleDelete = (itemToDelete) => {
-            // itemToDelete adalah objek item portofolio lengkap dari vendorData.portfolio
-            // Fungsi deletePortfolioItem sudah diupdate untuk menerima objek lengkap
-            deletePortfolioItem(itemToDelete.id, itemToDelete);
+        const handleDelete = (id) => {
+            deletePortfolioItem(id);
         };
 
         return (
@@ -373,7 +325,7 @@ const App = () => {
                                 />
                                 {/* Tombol Hapus: Muncul saat hover (group-hover:opacity-100) */}
                                 <button 
-                                    onClick={() => handleDelete(item)} 
+                                    onClick={() => handleDelete(item.id)} 
                                     className="absolute top-2 right-2 p-2 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition duration-300 shadow-xl hover:bg-red-700"
                                 >
                                     <Trash2 className="w-4 h-4" />
@@ -388,9 +340,7 @@ const App = () => {
 
     const PackagesTab = () => {
         const [newPackage, setNewPackage] = useState({ name: '', price: '', services: '' });
-        // State untuk menyimpan ID paket yang sedang diedit
         const [editingPackageId, setEditingPackageId] = useState(null);
-        // State untuk menyimpan data sementara paket yang sedang diedit
         const [editFormData, setEditFormData] = useState({});
 
         const handleChangeNew = (e) => {
@@ -407,15 +357,15 @@ const App = () => {
             if (!newPackage.name || !newPackage.price || !newPackage.services) {
                 return alertUser('warning', 'Semua kolom paket harus diisi.');
             }
-            const pkgToAdd = { id: crypto.randomUUID(), ...newPackage };
-            const success = await addPackage(pkgToAdd);
+            // ID akan dibuat oleh backend Laravel, kita hanya kirim data
+            const success = await addPackage(newPackage); 
             if (success) {
                 setNewPackage({ name: '', price: '', services: '' });
             }
         };
         
-        const handleDelete = (pkgToDelete) => {
-            deletePackage(pkgToDelete);
+        const handleDelete = (pkgId) => {
+            deletePackage(pkgId);
         };
 
         const handleEdit = (pkg) => {
@@ -488,7 +438,7 @@ const App = () => {
                                     <button onClick={() => handleEdit(pkg)} className="text-amber-500 hover:text-amber-700 transition duration-150 p-2 rounded-full hover:bg-amber-50">
                                         <Edit2 className="w-5 h-5" />
                                     </button>
-                                    <button onClick={() => handleDelete(pkg)} className="text-red-500 hover:text-red-700 transition duration-150 p-2 rounded-full hover:bg-red-50">
+                                    <button onClick={() => handleDelete(pkg.id)} className="text-red-500 hover:text-red-700 transition duration-150 p-2 rounded-full hover:bg-red-50">
                                         <Trash2 className="w-5 h-5" />
                                     </button>
                                 </div>
@@ -530,11 +480,8 @@ const App = () => {
     };
 
     const ReviewsTab = () => {
-        // State untuk input balasan baru (sebelum dikirim)
         const [replyInputs, setReplyInputs] = useState({});
-        // State untuk ID ulasan yang sedang dalam mode edit
         const [editingReviewId, setEditingReviewId] = useState(null);
-        // State untuk teks balasan yang sedang diedit
         const [editingReplyText, setEditingReplyText] = useState('');
 
 
@@ -547,29 +494,24 @@ const App = () => {
             if (!replyText) return alertUser('warning', 'Balasan tidak boleh kosong.');
             
             await replyToReview(reviewId, replyText);
-            setReplyInputs(prev => ({ ...prev, [reviewId]: '' })); // Hapus input setelah pengiriman
+            setReplyInputs(prev => ({ ...prev, [reviewId]: '' }));
         };
         
-        // Mulai mode edit
         const handleEditStart = (reviewId, currentReply) => {
             setEditingReviewId(reviewId);
             setEditingReplyText(currentReply);
         };
 
-        // Batal edit
         const handleEditCancel = () => {
             setEditingReviewId(null);
             setEditingReplyText('');
         };
 
-        // Simpan hasil edit
         const handleEditSave = async (reviewId) => {
             const newReplyText = editingReplyText.trim();
             if (!newReplyText) {
-                 // Jika teks kosong, konfirmasi penghapusan
-                 // Menggunakan window.confirm karena aturan CSP tidak memperbolehkan alert/confirm
                  if (window.confirm("Balasan kosong, apakah Anda ingin menghapus balasan ini?")) {
-                    await replyToReview(reviewId, null); // Kirim null untuk menghapus balasan
+                    await replyToReview(reviewId, null); 
                     handleEditCancel();
                  }
                  return;
@@ -696,16 +638,14 @@ const App = () => {
 
     // --- RENDER UTAMA ---
     return (
-        // Menggunakan h-screen dan overflow-hidden untuk menahan pengguliran di tingkat body/wrapper
         <div className="h-screen flex bg-gray-50 overflow-hidden"> 
-            {/* Sidebar Navigation - Menggunakan h-screen agar tingginya penuh */}
+            {/* Sidebar Navigation */}
             <div className="w-64 h-screen bg-white border-r border-gray-200 flex-shrink-0 flex flex-col"> 
                 {/* Logo/Header */}
                 <div className="p-6 border-b border-gray-200">
                     <h1 className="text-3xl font-extrabold text-amber-600">
                         Wedding<span className="text-amber-400">Expo</span>
                     </h1>
-                    {/* Tampilan ID Vendor dan ID lama dikembalikan */}
                     <p id="vendor-name-display" className="text-xs text-gray-500 mt-2 truncate">
                         {vendorData?.profile?.vendorName || 'Vendor Dashboard'}
                     </p>
@@ -713,7 +653,7 @@ const App = () => {
                 </div>
 
                 {/* Navigation Links */}
-                <nav className="flex-grow p-4 space-y-2 overflow-y-auto"> {/* Tambahkan overflow-y-auto di sini jika navigasi terlalu panjang */}
+                <nav className="flex-grow p-4 space-y-2 overflow-y-auto">
                     {[
                         { tab: 'profile', icon: UserCog, label: 'Edit Profil' },
                         { tab: 'portfolio', icon: Image, label: 'Portofolio' },
@@ -735,15 +675,14 @@ const App = () => {
                 
                 {/* Footer/Logout */}
                 <div className="p-4 border-t border-gray-200">
-                    <button onClick={() => console.log('Logout simulated')} className="flex items-center w-full p-3 text-red-500 rounded-xl hover:bg-red-50 transition duration-150">
+                    <button onClick={() => alertUser('warning', 'Simulasi Logout. Hapus token di proyek nyata.')} className="flex items-center w-full p-3 text-red-500 rounded-xl hover:bg-red-50 transition duration-150">
                         <LogOut className="w-5 h-5 mr-3" /> Keluar
                     </button>
-                    {/* Teks "Versi WO" dikembalikan */}
-                    <p className="text-xs text-gray-400 mt-2">Versi WO 1.0 (React)</p>
+                    <p className="text-xs text-gray-400 mt-2">Versi WO 1.0 (React/Laravel)</p>
                 </div>
             </div>
 
-            {/* Main Content Area - Menggunakan flex-1 dan overflow-y-auto agar hanya area ini yang bisa di-scroll */}
+            {/* Main Content Area */}
             <div id="main-content" className="flex-1 p-8 overflow-y-auto"> 
                 
                 {/* Alert Container */}
@@ -751,7 +690,7 @@ const App = () => {
                     <Alert type={alert.type} message={alert.message} />
                 </div>
 
-                {/* User ID Display (For Multi-User Apps) */}
+                {/* User ID Display */}
                 <p className="text-right text-xs text-gray-400 mb-4">
                     Anda login sebagai: <span className="font-mono text-gray-600 text-sm">{userId || 'Memuat...'}</span>
                 </p>
@@ -768,7 +707,7 @@ const App = () => {
                 
                 {/* Dashboard Content Container */}
                 <div id="dashboard-content">
-                    {renderContent()}
+                    {vendorData && renderContent()}
                 </div>
             </div>
         </div>
