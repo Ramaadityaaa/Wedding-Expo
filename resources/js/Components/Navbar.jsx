@@ -1,13 +1,21 @@
-'use client'
-
-import Link from 'next/link'
+// 'use client' // <-- DIHAPUS: Ini adalah arahan khusus Next.js, tidak berlaku di Inertia
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Menu, X } from 'lucide-react'
-import { useFavorites } from '@/hooks/useFavorites'
-import { useState } from 'react'
+
+// --- PERBAIKAN 1 ---
+// Mengganti 'next/link' dengan '@inertiajs/react'
+import { Link } from '@inertiajs/react'
+
+// --- PERBAIKAN 2 (Sementara) ---
+// Hook 'useFavorites' kemungkinan besar adalah bagian dari template Next.js
+// dan akan menyebabkan error jika Context-nya tidak di-setup.
+// Kita nonaktifkan sementara agar halaman bisa tampil.
+// import { useFavorites } from '@/hooks/useFavorites' 
 
 export default function Navbar() {
-  const { favorites } = useFavorites()
+  // const { favorites } = useFavorites() // <-- Di-nonaktifkan sementara
+  const favorites = [] // <-- Pengganti sementara agar kode tidak error
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   return (
@@ -57,6 +65,7 @@ export default function Navbar() {
               className="flex items-center text-black hover:text-yellow-700 font-medium transition-colors"
             >
               Favorit
+              {/* Bagian ini menggunakan 'favorites' yang dinonaktifkan di atas */}
               {favorites.length > 0 && (
                 <span className="ml-1 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black text-xs px-2 py-0.5 rounded-full shadow-sm">
                   {favorites.length}
@@ -137,6 +146,7 @@ export default function Navbar() {
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Favorit
+                {/* Bagian ini menggunakan 'favorites' yang dinonaktifkan di atas */}
                 {favorites.length > 0 && (
                   <span className="ml-2 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black text-xs px-2 py-0.5 rounded-full shadow-sm">
                     {favorites.length}

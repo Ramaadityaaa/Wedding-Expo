@@ -1,29 +1,29 @@
 import { useState } from 'react';
 import CustomerLayout from '@/Layouts/CustomerLayout';
-import { Head, Link } from '@inertiajs/react'; // <-- PERBAIKAN: Import dari Inertia
+import { Head, Link } from '@inertiajs/react'; // Benar: Import dari Inertia
 import { Search, MapPin, Star, Heart } from 'lucide-react';
-import { Button } from '@/Components/ui/button'; // <-- AKAN ERROR JIKA BELUM DIMIGRASI
-import { Input } from '@/Components/ui/input';   // <-- AKAN ERROR JIKA BELUM DIMIGRASI
-import { Card, CardContent } from '@/Components/ui/card'; // <-- AKAN ERROR JIKA BELUM DIMIGRASI
 
-// 'auth' dan 'vendors' adalah PROPS dari HomeController
-export default function Dashboard({ auth, vendors }) {
+// --- PERBAIKAN 2: Path impor diubah ke 'components' (lowercase 'c') ---
+// Ini agar konsisten dengan file shadcn/ui Anda yang lain (misal: badge.jsx)
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+// -----------------------------------------------------------------
+
+// --- PERBAIKAN 1: Menambahkan default value '[]' untuk 'vendors' ---
+// Ini akan memperbaiki error "Cannot read properties of undefined (reading 'length')"
+export default function Dashboard({ auth, vendors = [] }) {
   
   // Kita simpan state untuk search bar
   const [searchQuery, setSearchQuery] = useState('');
   const [searchType, setSearchType] = useState('location');
 
-  // Hapus: useFavorites (perlu ditulis ulang untuk Laravel)
-  // Hapus: Navbar (sudah ada di layout)
-  // Hapus: featuredVendors (kita pakai 'vendors' dari props)
-
   const handleSearch = () => {
     console.log('Searching for:', searchQuery, 'type:', searchType)
-    // TODO: Implement search functionality (nanti kita buat rutenya)
+    // TODO: Implement search functionality
   }
 
   return (
-    // Halaman ini sekarang dibungkus dengan Layout (yang sudah punya Navbar & Footer)
     <CustomerLayout auth={auth}>
       <Head title="Temukan Vendor Pernikahan Impian Anda" />
       
@@ -103,7 +103,7 @@ export default function Dashboard({ auth, vendors }) {
             <div className="w-24 h-1 bg-gradient-to-r from-yellow-400 to-yellow-600 mx-auto rounded-full"></div>
           </div>
           
-          {/* PERBAIKAN: Gunakan 'vendors' dari props, bukan 'featuredVendors' */}
+          {/* Karena 'vendors' sekarang default-nya '[]', .length tidak akan crash */}
           {vendors.length === 0 ? (
             <p className="text-center text-gray-500">
                 Tidak ada vendor yang disetujui saat ini.
@@ -111,8 +111,8 @@ export default function Dashboard({ auth, vendors }) {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {vendors.map((vendor) => (
-                // PERBAIKAN: Gunakan <Link> dari Inertia, bukan 'next/link'
-                <Link key={vendor.id} href={'#'} /* Ganti '#' dengan route('vendor.show', vendor.id) nanti */>
+                // --- PERBAIKAN 3: Menggunakan path URL yang dinamis ---
+                <Link key={vendor.id} href={`/vendors/${vendor.id}`}>
                   <Card className="group cursor-pointer border border-gray-200 hover:border-yellow-400 transition-all duration-300 hover:shadow-xl bg-white/80 backdrop-blur-sm hover:bg-white">
                     <CardContent className="p-6">
                       <div className="flex flex-col items-center text-center">
@@ -120,7 +120,6 @@ export default function Dashboard({ auth, vendors }) {
                         <div className="w-20 h-20 mb-4 rounded-full overflow-hidden bg-gradient-to-br from-yellow-100 to-yellow-200 p-1">
                           <div className="w-full h-full rounded-full overflow-hidden bg-white">
                             <img
-                              // PERBAIKAN: Gunakan 'coverPhoto' atau placeholder
                               src={vendor.coverPhoto || `https://placehold.co/100x100/FFF0C9/C7991F?text=${vendor.name[0]}`}
                               alt={vendor.name}
                               className="w-full h-full object-cover"
@@ -138,7 +137,7 @@ export default function Dashboard({ auth, vendors }) {
                           {vendor.city}
                         </div>
                         
-                        {/* DIHILANGKAN SEMENTARA: Rating & Review Count (karena data belum ada dari Controller) */}
+                        {/* Rating & Review Count (Dikom-comment karena 'vendors' mungkin belum punya data ini) */}
                         {/* <div className="flex items-center gap-1 mb-3">
                           <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                           <span className="text-sm font-medium text-black">{vendor.rating}</span>
@@ -151,7 +150,7 @@ export default function Dashboard({ auth, vendors }) {
                           {vendor.description}
                         </p>
                         
-                        {/* DIHILANGKAN SEMENTARA: Tombol Favorite (karena hook useFavorites belum dimigrasi) */}
+                        {/* Tombol Favorite (Dikom-comment karena 'useFavorites' belum dimigrasi) */}
                         {/* <Button
                           variant="ghost"
                           size="sm"
@@ -180,8 +179,7 @@ export default function Dashboard({ auth, vendors }) {
           </div>
         </div>
       </section>
-
-      {/* Footer Dihapus dari sini (sudah ada di CustomerLayout.jsx) */}
+      
     </CustomerLayout>
   )
-}
+} 

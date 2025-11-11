@@ -7,8 +7,8 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-// --- Impor semua Controller Anda ---
-use App\Http\Controllers\HomeController; // <-- DI SINI PERBAIKANNYA (1)
+// --- Impor semua Controller Anda (Duplikat Dihapus) ---
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\VendorController;
 use App\Http\Controllers\Admin\ReviewController;
@@ -19,13 +19,17 @@ use App\Http\Controllers\Admin\ReviewController;
 |--------------------------------------------------------------------------
 */
 
-// --- Rute Publik (Homepage/Dashboard Customer) ---
-// DI SINI PERBAIKANNYA (2): Mengganti fungsi default dengan HomeController
+// --- Rute Publik ---
 Route::get('/', [HomeController::class, 'index'])->name('home');
+
+// --- RUTE BARU DITAMBAHKAN DI SINI ---
+// Rute ini akan menangani klik kartu vendor dan menampilkan halaman detail
+// Ini akan memanggil method 'show' di HomeController Anda
+Route::get('/vendors/{vendor}', [HomeController::class, 'show'])->name('vendor.show');
+// ------------------------------------
 
 
 // --- Rute User Terautentikasi (Bawaan Breeze) ---
-// CATATAN: Ini adalah /dashboard untuk USER biasa
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
@@ -41,26 +45,17 @@ Route::middleware('auth')->group(function () {
 // ==========================================================
 // --- RUTE ADMIN BARU ANDA (Sudah Lengkap) ---
 // ==========================================================
-// Dilindungi oleh middleware 'auth', 'verified', dan 'admin'
-// ==========================================================
 Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     
     // Rute untuk Admin Dashboard
-    // GET /admin/dashboard -> admin.dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Rute untuk Vendor Management
-    // PATCH /admin/vendors/{vendor}/approve -> admin.vendors.approve
     Route::patch('/vendors/{vendor}/approve', [VendorController::class, 'approve'])->name('vendors.approve');
-    
-    // PATCH /admin/vendors/{vendor}/reject -> admin.vendors.reject
     Route::patch('/vendors/{vendor}/reject', [VendorController::class, 'reject'])->name('vendors.reject');
 
     // Rute untuk Review Management
-    // PATCH /admin/reviews/{review}/approve -> admin.reviews.approve
     Route::patch('/reviews/{review}/approve', [ReviewController::class, 'approve'])->name('reviews.approve');
-
-    // PATCH /admin/reviews/{review}/reject -> admin.reviews.reject
     Route::patch('/reviews/{review}/reject', [ReviewController::class, 'reject'])->name('reviews.reject');
 });
 

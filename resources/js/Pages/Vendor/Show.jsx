@@ -23,7 +23,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import Navbar from '@/components/Navbar'
-import Link from 'next/link'
+
+// --- PERBAIKAN ---
+// Mengganti 'next/link' dengan '@inertiajs/react'
+import { Link } from '@inertiajs/react'
+// -----------------
 
 // Mock data untuk vendor detail
 const vendorData = {
@@ -108,7 +112,7 @@ const vendorData = {
       id: '5',
       title: 'Traditional Chinese - Meilin & Wei',
       description: 'Pernikahan adat Tionghoa lengkap dengan semua tradisi',
-      imageUrl: '/api/placeholder/400/300',
+      imageUrl: '/api/placeholder/4G0/300',
       videoUrl: null
     },
     {
@@ -145,10 +149,10 @@ const vendorData = {
 }
 
 export default function VendorDetail() {
-  const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [selectedImage, setSelectedImage] = useState(null)
   const [isFavorite, setIsFavorite] = useState(false)
 
-  const formatPrice = (price: number) => {
+  const formatPrice = (price) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
       currency: 'IDR',
@@ -430,7 +434,7 @@ export default function VendorDetail() {
                     <Globe className="w-5 h-5 text-yellow-500" />
                     <div>
                       <div className="font-medium">Website</div>
-                      <a href={`https://${vendorData.website}`} className="text-blue-600 hover:underline">
+                      <a href={`https://www.${vendorData.website}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                         {vendorData.website}
                       </a>
                     </div>
@@ -440,7 +444,7 @@ export default function VendorDetail() {
                     <Instagram className="w-5 h-5 text-yellow-500" />
                     <div>
                       <div className="font-medium">Instagram</div>
-                      <a href={`https://instagram.com/${vendorData.instagram.replace('@', '')}`} className="text-blue-600 hover:underline">
+                      <a href={`https://instagram.com/${vendorData.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                         {vendorData.instagram}
                       </a>
                     </div>
