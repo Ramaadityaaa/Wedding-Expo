@@ -839,7 +839,7 @@ const App = () => {
                         className="flex items-center w-full p-3 rounded-xl text-left transition-colors duration-200 bg-red-50 text-red-700 hover:bg-red-600 hover:text-white font-semibold shadow-md hover:shadow-lg"
                     >
                         <LogOut size={20} className="mr-3" />
-                        <span className="font-medium">Keluar (Simulasi)</span>
+                        <span className="font-medium">Keluar</span>
                     </button>
                 </div>
             </nav>
