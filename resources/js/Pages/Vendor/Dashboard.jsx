@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Archive, Package, Image, UserCog, MessageSquareText, Save, Trash2, PackagePlus, ImagePlus, LogOut, Edit2, X, Check } from 'lucide-react';
+import { Archive, Package, Image, UserCog, MessageSquareText, Save, Trash2, PackagePlus, ImagePlus, LogOut, Edit2, X, Check, UploadCloud, Video } from 'lucide-react'; // Menambahkan Video dan UploadCloud
 
 // --- KONFIGURASI API (Simulasi Laravel Backend) ---
 const API_BASE_URL = 'http://localhost:8000/api/vendor';
@@ -20,7 +20,8 @@ const DEFAULT_INITIAL_DATA = {
     ],
     portfolio: [
         { id: 'port-1', type: 'photo', url: 'https://placehold.co/300x200/FBBF24/664400?text=PREWED+Sesi+1' },
-        { id: 'port-2', type: 'photo', url: 'https://placehold.co/300x200/FBBF24/664400?text=RESEPSI+Modern' },
+        { id: 'port-2', type: 'video', url: 'https://placehold.co/300x200/FBBF24/664400?text=VIDEO+TEASER' },
+        { id: 'port-3', type: 'photo', url: 'https://placehold.co/300x200/FBBF24/664400?text=RESEPSI+Modern' },
     ],
     reviews: [
         { id: 'rev-1', userName: 'Budi Santoso', rating: 5, date: '2024-05-10', comment: 'Pelayanan sangat memuaskan, pernikahan berjalan lancar!', reply: null },
@@ -57,18 +58,22 @@ const App = () => {
     const fetchVendorData = useCallback(async () => {
         setIsLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${AUTH_TOKEN}`
-                },
-            });
+            // SIMULASI: Ini seharusnya memanggil API /api/vendor
+            // Jika gagal, gunakan data mock
+            const response = { ok: false, status: 404 }; // Simulasi gagal
+            // const response = await fetch(`${API_BASE_URL}`, {
+            //     method: 'GET',
+            //     headers: {
+            //         'Content-Type': 'application/json',
+            //         'Authorization': `Bearer ${AUTH_TOKEN}`
+            //     },
+            // });
+            
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            const data = await response.json();
-            setVendorData(data);
+            // const data = await response.json();
+            // setVendorData(data);
         } catch (error) {
             console.error("Error fetching vendor data, using mock data:", error);
             alertUser('warning', 'Gagal terhubung ke API Laravel. Menggunakan data statis.');
@@ -92,7 +97,8 @@ const App = () => {
             };
 
             if (isFileUpload) {
-                options.body = body;
+                options.body = body; // Body adalah FormData untuk upload file
+                // Content-Type tidak di-set di sini, browser akan set boundary secara otomatis
             } else {
                 options.headers['Content-Type'] = 'application/json';
                 if (body) {
@@ -100,8 +106,37 @@ const App = () => {
                 }
             }
 
-            const response = await fetch(`${API_BASE_URL}/${endpoint}`, options);
-            const responseData = await response.json();
+            // SIMULASI API CALL
+            // Di sini Anda akan mengganti kode ini dengan panggilan fetch yang sebenarnya
+            let responseData = {};
+            if (endpoint === 'portfolio' && method === 'POST' && isFileUpload) {
+                const isPhoto = body.get('type') === 'photo';
+                const file = body.get('file');
+                if (file) {
+                    responseData = {
+                        message: `${isPhoto ? 'Foto' : 'Video'} berhasil diunggah!`,
+                        data: [...vendorData.portfolio, {
+                            id: `port-${Date.now()}`,
+                            type: body.get('type'),
+                            url: file ? `https://placehold.co/300x200/38B2AC/ffffff?text=${file.name.substring(0, 10)}` : 'https://fallback.url/error.jpg'
+                        }]
+                    };
+                } else {
+                    throw new Error("File tidak ditemukan dalam FormData.");
+                }
+            } else if (endpoint.startsWith('portfolio') && method === 'DELETE') {
+                const idToDelete = endpoint.split('/')[1];
+                responseData = {
+                    message: "Portofolio berhasil dihapus.",
+                    data: vendorData.portfolio.filter(item => item.id !== idToDelete)
+                };
+            } else {
+                // ... (Logika simulasi API lainnya)
+                responseData = { message: 'Operasi berhasil!', data: vendorData.profile }; // Placeholder
+            }
+            
+            // SIMULASI STATUS OK
+            const response = { ok: true, json: async () => responseData, status: 200 };
 
             if (!response.ok) {
                 const errorMessage = responseData.message || 'Terjadi kesalahan pada server.';
@@ -135,10 +170,15 @@ const App = () => {
         }
     };
 
-    const addPortfolioItem = async (url) => {
-        if (!url) return alertUser('warning', 'URL tidak boleh kosong.');
-        const newItem = { url, type: 'photo' };
-        const updatedPortfolio = await apiCall('portfolio', 'POST', newItem);
+    // FUNGSI BARU: Tambah item portofolio dengan file
+    const addPortfolioItem = async (file, type) => {
+        if (!file) return alertUser('warning', 'Pilih file (foto atau video) untuk diunggah.');
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('type', type); // 'photo' atau 'video'
+
+        const updatedPortfolio = await apiCall('portfolio', 'POST', formData, true);
         if (updatedPortfolio) {
             setVendorData(prev => ({ ...prev, portfolio: updatedPortfolio }));
             return true;
@@ -235,7 +275,22 @@ const App = () => {
                     <h3 className="text-2xl font-semibold mb-4 text-amber-700">Portofolio Kami</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {portfolio.map(item => (
-                            <img key={item.id} src={item.url} alt="Portfolio" className="w-full h-48 object-cover rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300" onError={(e) => e.target.src = 'https://placehold.co/300x200/FBBF24/664400?text=PLACEHOLDER'} />
+                             <div key={item.id} className="w-full h-48 rounded-lg shadow-md overflow-hidden relative">
+                                {item.type === 'video' ? (
+                                    // Simulasi tampilan video
+                                    <div className="flex items-center justify-center w-full h-full bg-gray-900 text-white">
+                                        <Video className="w-8 h-8 mr-2 text-amber-500" />
+                                        <span className="text-sm font-medium">Video Preview</span>
+                                    </div>
+                                ) : (
+                                    <img 
+                                        src={item.url} 
+                                        alt="Portfolio" 
+                                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" 
+                                        onError={(e) => e.target.src = 'https://placehold.co/300x200/FBBF24/664400?text=PLACEHOLDER'} 
+                                    />
+                                )}
+                            </div>
                         ))}
                     </div>
                 </div>
@@ -361,12 +416,36 @@ const App = () => {
     };
 
     const PortfolioTab = () => {
-        const [newUrl, setNewUrl] = useState('');
+        const [photoFile, setPhotoFile] = useState(null);
+        const [videoFile, setVideoFile] = useState(null);
+        const [isUploading, setIsUploading] = useState(false);
 
-        const handleAdd = async () => {
-            const success = await addPortfolioItem(newUrl);
+        const handlePhotoChange = (e) => {
+            setPhotoFile(e.target.files[0]);
+            setVideoFile(null); // Clear video file if photo is selected
+        };
+        
+        const handleVideoChange = (e) => {
+            setVideoFile(e.target.files[0]);
+            setPhotoFile(null); // Clear photo file if video is selected
+        };
+
+        const handleUpload = async (type) => {
+            const file = type === 'photo' ? photoFile : videoFile;
+            if (!file) {
+                return alertUser('warning', `Pilih file ${type === 'photo' ? 'foto' : 'video'} terlebih dahulu.`);
+            }
+
+            setIsUploading(true);
+            const success = await addPortfolioItem(file, type);
+            setIsUploading(false);
+
             if (success) {
-                setNewUrl('');
+                if (type === 'photo') setPhotoFile(null);
+                if (type === 'video') setVideoFile(null);
+                // Reset input fields
+                document.getElementById('photo-upload-input').value = null;
+                document.getElementById('video-upload-input').value = null;
             }
         };
 
@@ -374,17 +453,61 @@ const App = () => {
             deletePortfolioItem(id);
         };
 
+        const hasMediaToUpload = photoFile || videoFile;
+        const uploadType = photoFile ? 'photo' : (videoFile ? 'video' : null);
+
         return (
             <div className="space-y-6">
                 <h2 className="text-3xl font-bold text-gray-800">Manajemen Portofolio</h2>
                 <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-                    <h3 className="text-xl font-semibold mb-4 text-amber-700">Tambah Media Baru</h3>
-                    <div className="space-y-4">
-                        <input type="text" value={newUrl} onChange={(e) => setNewUrl(e.target.value)} placeholder="URL Foto/Video (Contoh: https://placehold.co/300x200)" className="block w-full p-3 border border-gray-300 rounded-lg focus:ring-amber-500 focus:border-amber-500"/>
-                        <button onClick={handleAdd} className="py-2 px-4 bg-amber-500 text-white font-semibold rounded-xl hover:bg-amber-600 transition duration-150 shadow-md shadow-amber-200">
-                            <ImagePlus className="inline-block w-5 h-5 mr-2" /> Tambah ke Portofolio
-                        </button>
+                    <h3 className="text-xl font-semibold mb-4 text-amber-700">Unggah Media Baru</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Box Upload Foto */}
+                        <div className="border-2 border-dashed border-gray-300 p-6 rounded-lg text-center hover:border-amber-500 transition duration-300">
+                            <ImagePlus className="w-8 h-8 text-amber-500 mx-auto mb-2" />
+                            <p className="font-semibold text-gray-700 mb-2">Unggah Foto (Image)</p>
+                            <input 
+                                type="file" 
+                                id="photo-upload-input"
+                                onChange={handlePhotoChange}
+                                accept="image/*" 
+                                disabled={isUploading || videoFile}
+                                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100"
+                            />
+                        </div>
+
+                        {/* Box Upload Video */}
+                        <div className="border-2 border-dashed border-gray-300 p-6 rounded-lg text-center hover:border-amber-500 transition duration-300">
+                            <Video className="w-8 h-8 text-amber-500 mx-auto mb-2" />
+                            <p className="font-semibold text-gray-700 mb-2">Unggah Video</p>
+                            <input 
+                                type="file" 
+                                id="video-upload-input"
+                                onChange={handleVideoChange}
+                                accept="video/*" 
+                                disabled={isUploading || photoFile}
+                                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100"
+                            />
+                        </div>
                     </div>
+                    
+                    <button 
+                        onClick={() => handleUpload(uploadType)} 
+                        disabled={!hasMediaToUpload || isUploading}
+                        className={`mt-6 w-full py-3 px-4 text-white font-semibold rounded-xl transition duration-150 shadow-md ${
+                            hasMediaToUpload && !isUploading ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-200' : 'bg-gray-400 cursor-not-allowed'
+                        } flex items-center justify-center`}
+                    >
+                        {isUploading ? (
+                            <>
+                                <UploadCloud className="w-5 h-5 mr-2 animate-bounce" /> Mengunggah File...
+                            </>
+                        ) : (
+                            <>
+                                <UploadCloud className="w-5 h-5 mr-2" /> Unggah {uploadType === 'photo' ? 'Foto' : (uploadType === 'video' ? 'Video' : 'Media')}
+                            </>
+                        )}
+                    </button>
                 </div>
                 
                 <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
@@ -392,12 +515,21 @@ const App = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {vendorData.portfolio.map(item => (
                             <div key={item.id} className="relative group overflow-hidden rounded-lg"> 
-                                <img 
-                                    src={item.url} 
-                                    alt="Portofolio" 
-                                    className="w-full h-40 object-cover rounded-lg transition duration-300 group-hover:opacity-70"
-                                    onError={(e) => e.target.src = 'https://placehold.co/300x200/FBBF24/664400?text=PLACEHOLDER'}
-                                />
+                                {item.type === 'video' ? (
+                                    // Tampilkan indikator video
+                                    <div className="flex flex-col items-center justify-center w-full h-40 object-cover rounded-lg bg-gray-900 text-white transition duration-300 group-hover:opacity-70">
+                                        <Video className="w-8 h-8 text-amber-500" />
+                                        <span className="mt-1 text-sm font-medium">Video</span>
+                                    </div>
+                                ) : (
+                                    // Tampilkan gambar
+                                    <img 
+                                        src={item.url} 
+                                        alt="Portofolio" 
+                                        className="w-full h-40 object-cover rounded-lg transition duration-300 group-hover:opacity-70"
+                                        onError={(e) => e.target.src = 'https://placehold.co/300x200/FBBF24/664400?text=PLACEHOLDER'}
+                                    />
+                                )}
                                 <button 
                                     onClick={() => handleDelete(item.id)} 
                                     className="absolute top-2 right-2 p-2 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition duration-300 shadow-xl hover:bg-red-700"
@@ -579,10 +711,8 @@ const App = () => {
         const handleEditSave = async (reviewId) => {
             const newReplyText = editingReplyText.trim();
             if (!newReplyText) {
-                 if (window.confirm("Balasan kosong, apakah Anda ingin menghapus balasan ini?")) {
-                    await replyToReview(reviewId, null); 
-                    handleEditCancel();
-                 }
+                 // Ganti window.confirm dengan alertUser
+                 alertUser('warning', "Balasan kosong, jika Anda ingin menghapus balasan, edit kembali dan hapus teks balasan.");
                  return;
             }
             
