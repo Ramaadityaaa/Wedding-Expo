@@ -6,16 +6,15 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class SubscriptionController extends Controller
+// Ganti nama class menjadi PaymentController
+class PaymentController extends Controller
 {
     /**
      * Menampilkan halaman formulir pembayaran.
-     * Asumsi: 'plan' dan 'price' bisa didapat dari request,
-     * tapi untuk contoh ini kita hardcode.
      */
     public function create(Request $request): Response
     {
-        // Anda bisa mengganti ini untuk mengambil data paket secara dinamis
+        // Logika ini tetap sama
         $plan = [
             'name' => 'Paket Premium (Tahunan)',
             'price' => 1200000,
@@ -27,7 +26,8 @@ class SubscriptionController extends Controller
             ]
         ];
 
-        return Inertia::render('Subscribe', [
+        // Ganti nama halaman Inertia yang di-render
+        return Inertia::render('PaymentPage', [
             'plan' => $plan,
             'tax' => $plan['price'] * 0.11, // Contoh PPN 11%
             'total' => $plan['price'] + ($plan['price'] * 0.11)
@@ -36,7 +36,6 @@ class SubscriptionController extends Controller
 
     /**
      * (Contoh) Proses pembayaran di sini.
-     * Nanti Anda akan integrasikan dengan payment gateway (Stripe, Midtrans, dll)
      */
     public function store(Request $request)
     {
@@ -46,14 +45,7 @@ class SubscriptionController extends Controller
             // ... validasi lainnya
         ]);
 
-        // --- Logika Payment Gateway (misal: Midtrans/Stripe) ---
-        // 1. Buat transaksi di payment gateway
-        // 2. Redirect user ke halaman pembayaran gateway ATAU proses token kartu
-        // 3. Setelah sukses, update status langganan vendor
-        // ---
-
-        // Untuk sekarang, kita redirect kembali ke dashboard vendor
-        // dengan pesan sukses.
+        // Logika ini tetap sama
         return redirect()->route('vendor.dashboard')
             ->with('success', 'Pembayaran berhasil! Akun Anda telah di-upgrade.');
     }
