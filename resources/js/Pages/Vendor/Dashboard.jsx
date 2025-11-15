@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Archive, Package, Image, UserCog, MessageSquareText, Save, Trash2, PackagePlus, ImagePlus, LogOut, Edit2, X, Check, UploadCloud, Video } from 'lucide-react'; // Menambahkan Video dan UploadCloud
+import { Archive, Package, Image, UserCog, MessageSquareText, Save, Trash2, PackagePlus, ImagePlus, LogOut, Edit2, X, Check, UploadCloud, Video, Crown } from 'lucide-react'; // Menambahkan Video dan UploadCloud
 
 // --- KONFIGURASI API (Simulasi Laravel Backend) ---
 const API_BASE_URL = 'http://localhost:8000/api/vendor';
@@ -839,7 +839,8 @@ const App = () => {
                         { tab: 'packages', icon: Package, label: 'Paket Harga' },
                         { tab: 'reviews', icon: MessageSquareText, label: 'Tinjau Ulasan' },
                         // TAMBAHAN: Navigasi baru untuk pratinjau publik
-                        { tab: 'public-preview', icon: Archive, label: 'Pratinjau Publik' },
+                        { tab: 'public-preview', icon: Archive, label: 'Pratinjau Publik' },,
+                        { tab: 'membership', icon: Crown, label: 'Membership', link: '/Vendor/MembershipPage' }
                     ].map(({ tab, icon: Icon, label }) => (
                         <button key={tab} onClick={() => setCurrentTab(tab)} className={`sidebar-item flex items-center p-3 rounded-xl transition duration-150 w-full text-left ${currentTab === tab ? 'bg-amber-100 text-amber-800 font-semibold' : 'hover:bg-gray-100 text-gray-600'}`}>
                             <Icon className="w-5 h-5 mr-3" /> {label}
