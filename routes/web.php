@@ -12,9 +12,10 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Admin\DashboardController; // Ini untuk Admin
 use App\Http\Controllers\Admin\VendorController;
 use App\Http\Controllers\Admin\ReviewController;
-
-// --- PERBAIKAN 1: Beri NAMA ALIAS untuk atasi error ---
 use App\Http\Controllers\Vendor\DashboardController as VendorDashboard; // Ini untuk Vendor
+
+// --- TAMBAHAN SAYA: Impor PaymentController Anda ---
+use App\Http\Controllers\PaymentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -66,20 +67,29 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
 
 
 // ==========================================================
-// --- PERBAIKAN 2: RUTE VENDOR YANG HILANG ---
+// --- RUTE VENDOR (SAYA PERBAIKI DAN LENGKAPI) ---
 // ==========================================================
-Route::prefix('vendor') // Membutuhkan middleware IsVendor
-    ->prefix('vendor')
+// PERBAIKAN: Menghapus ->prefix('vendor') yang duplikat
+// PERBAIKAN: Menambahkan middleware (dengan asumsi Anda punya middleware 'isVendor')
+Route::middleware(['auth', 'verified', 'isVendor']) // <-- SAYA TAMBAHKAN INI
+    ->prefix('vendor') // <-- HANYA SATU
     ->name('vendor.')
     ->group(function () {
     
     // Menggunakan 'VendorDashboard' yang sudah kita beri alias
     Route::get('/dashboard', [VendorDashboard::class, 'index'])->name('dashboard');
 
-    // ⭐ RUTE MEMBERSHIP
+    // ⭐ RUTE MEMBERSHIP (Sudah ada)
     Route::get('/membership', function () {
         return Inertia::render('Vendor/MembershipPage');
     })->name('membership');
+
+    // --- TAMBAHAN SAYA: Rute untuk PaymentPage ---
+    // Rute untuk menampilkan halaman pembayaran (dari PaymentController)
+    Route::get('/payment', [PaymentController::class, 'create'])->name('payment.create');
+    // Rute untuk memproses formulir pembayaran
+    Route::post('/payment', [PaymentController::class, 'store'])->name('payment.store');
+    // --- AKHIR TAMBAHAN ---
 });
 
 
