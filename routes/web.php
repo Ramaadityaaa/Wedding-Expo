@@ -9,12 +9,12 @@ use Inertia\Inertia;
 
 // --- Impor semua Controller Anda ---
 use App\Http\Controllers\HomeController;
-use App\Http\Controllers\Admin\DashboardController; // Ini untuk Admin
+use App\Http\Controllers\Admin\DashboardController; // Admin Dashboard
 use App\Http\Controllers\Admin\VendorController;
 use App\Http\Controllers\Admin\ReviewController;
-use App\Http\Controllers\Vendor\DashboardController as VendorDashboard; // Ini untuk Vendor
+use App\Http\Controllers\Vendor\DashboardController as VendorDashboard; // Vendor Dashboard
 
-// --- TAMBAHAN SAYA: Impor PaymentController Anda ---
+// Impor PaymentController
 use App\Http\Controllers\PaymentController;
 
 /*
@@ -37,61 +37,57 @@ Route::get('/panduan', [HomeController::class, 'panduan'])->name('panduan');
 Route::get('/register/vendor', [HomeController::class, 'vendorRegister'])->name('vendor.register');
 
 
-// --- Rute User Terautentikasi (Bawaan Breeze) ---
+// ==========================================================
+// --- RUTE DASHBOARD BAWAAN (TIDAK ADA LOGIN) ---
+// ==========================================================
 Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard'); // Dashboard bawaan Breeze
-})->middleware(['auth', 'verified'])->name('dashboard');
-
-// Rute Profil Bawaan Breeze
-Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-});
+    return Inertia::render('Dashboard');
+})->name('dashboard');
 
 
 // ==========================================================
-// --- RUTE ADMIN ---
+// --- RUTE ADMIN (TANPA LOGIN) ---
 // ==========================================================
-Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.')->group(function () {
-    
-    // Menggunakan Admin\DashboardController
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard'); 
-    
+Route::prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
     Route::get('/vendors', [VendorController::class, 'index'])->name('vendors.index');
     Route::patch('/vendors/{vendor}/approve', [VendorController::class, 'approve'])->name('vendors.approve');
     Route::patch('/vendors/{vendor}/reject', [VendorController::class, 'reject'])->name('vendors.reject');
+
     Route::patch('/reviews/{review}/approve', [ReviewController::class, 'approve'])->name('reviews.approve');
     Route::patch('/reviews/{review}/reject', [ReviewController::class, 'reject'])->name('reviews.reject');
 });
 
 
 // ==========================================================
-// --- RUTE VENDOR (SAYA PERBAIKI DAN LENGKAPI) ---
+// --- RUTE VENDOR (TANPA LOGIN) ---
 // ==========================================================
-// PERBAIKAN: Menghapus ->prefix('vendor') yang duplikat
-// PERBAIKAN: Menambahkan middleware (dengan asumsi Anda punya middleware 'isVendor')
-Route::middleware(['auth', 'verified', 'isVendor']) // <-- SAYA TAMBAHKAN INI
-    ->prefix('vendor') // <-- HANYA SATU
+Route::prefix('vendor')
     ->name('vendor.')
     ->group(function () {
-    
-    // Menggunakan 'VendorDashboard' yang sudah kita beri alias
+
+    // Dashboard vendor tanpa login
     Route::get('/dashboard', [VendorDashboard::class, 'index'])->name('dashboard');
 
-    // ⭐ RUTE MEMBERSHIP (Sudah ada)
+    // Membership Page
     Route::get('/membership', function () {
         return Inertia::render('Vendor/MembershipPage');
     })->name('membership');
 
-    // --- TAMBAHAN SAYA: Rute untuk PaymentPage ---
-    // Rute untuk menampilkan halaman pembayaran (dari PaymentController)
+    // Payment Page
     Route::get('/payment', [PaymentController::class, 'create'])->name('payment.create');
-    // Rute untuk memproses formulir pembayaran
     Route::post('/payment', [PaymentController::class, 'store'])->name('payment.store');
-    // --- AKHIR TAMBAHAN ---
 });
 
 
-// --- File Rute Auth Bawaan Breeze (HARUS DI PALING BAWAH) ---
+// ==========================================================
+// --- RUTE AUTH BAWAAN BREEZE (TIDAK DIPAKAI LOGIN) ---
+// ==========================================================
 require __DIR__.'/auth.php';
+
+
+
