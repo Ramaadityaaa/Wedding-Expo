@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 // routes/web.php
 
@@ -75,6 +75,11 @@ Route::prefix('vendor') // Membutuhkan middleware IsVendor
     
     // Menggunakan 'VendorDashboard' yang sudah kita beri alias
     Route::get('/dashboard', [VendorDashboard::class, 'index'])->name('dashboard');
+
+    // ⭐ RUTE MEMBERSHIP
+    Route::get('/membership', function () {
+        return Inertia::render('Vendor/MembershipPage');
+    })->name('membership');
 });
 
 

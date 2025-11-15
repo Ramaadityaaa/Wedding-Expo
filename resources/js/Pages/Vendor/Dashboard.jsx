@@ -832,21 +832,36 @@ const App = () => {
                     <p id="vendor-name-display" className="text-xs text-gray-500 mt-2 truncate">{vendorData?.profile?.vendorName || 'Vendor Dashboard'}</p>
                     <p className="text-xs text-gray-400">ID: <span className="text-xs text-gray-500">{userId ? `${userId.substring(0, 8)}...` : 'Memuat...'}</span></p>
                 </div>
-                <nav className="flex-grow p-4 space-y-2 overflow-y-auto">
-                    {[
-                        { tab: 'profile', icon: UserCog, label: 'Edit Profil' },
-                        { tab: 'portfolio', icon: Image, label: 'Portofolio' },
-                        { tab: 'packages', icon: Package, label: 'Paket Harga' },
-                        { tab: 'reviews', icon: MessageSquareText, label: 'Tinjau Ulasan' },
-                        // TAMBAHAN: Navigasi baru untuk pratinjau publik
-                        { tab: 'public-preview', icon: Archive, label: 'Pratinjau Publik' },,
-                        { tab: 'membership', icon: Crown, label: 'Membership', link: '/Vendor/MembershipPage' }
-                    ].map(({ tab, icon: Icon, label }) => (
-                        <button key={tab} onClick={() => setCurrentTab(tab)} className={`sidebar-item flex items-center p-3 rounded-xl transition duration-150 w-full text-left ${currentTab === tab ? 'bg-amber-100 text-amber-800 font-semibold' : 'hover:bg-gray-100 text-gray-600'}`}>
-                            <Icon className="w-5 h-5 mr-3" /> {label}
-                        </button>
-                    ))}
-                </nav>
+               <nav className="flex-grow p-4 space-y-2 overflow-y-auto">
+    {[
+        { tab: 'profile', icon: UserCog, label: 'Edit Profil' },
+        { tab: 'portfolio', icon: Image, label: 'Portofolio' },
+        { tab: 'packages', icon: Package, label: 'Paket Harga' },
+        { tab: 'reviews', icon: MessageSquareText, label: 'Tinjau Ulasan' },
+        { tab: 'public-preview', icon: Archive, label: 'Pratinjau Publik' },
+    ].map(({ tab, icon: Icon, label }) => (
+        <button 
+            key={tab} 
+            onClick={() => setCurrentTab(tab)} 
+            className={`sidebar-item flex items-center p-3 rounded-xl transition duration-150 w-full text-left ${
+                currentTab === tab 
+                ? 'bg-amber-100 text-amber-800 font-semibold' 
+                : 'hover:bg-gray-100 text-gray-600'
+            }`}
+        >
+            <Icon className="w-5 h-5 mr-3" /> {label}
+        </button>
+    ))}
+
+    {/* --- TOMBOL MEMBERSHIP (FULL REDIRECT) --- */}
+    <button 
+        onClick={() => window.location.href = '/vendor/membership'} 
+        className="sidebar-item flex items-center p-3 rounded-xl transition duration-150 w-full text-left hover:bg-gray-100 text-gray-600"
+    >
+        <Crown className="w-5 h-5 mr-3 text-yellow-500" />
+        Membership
+    </button>
+</nav>
                 <div className="p-4 border-t border-gray-200">
                     <button onClick={() => alertUser('warning', 'Simulasi Logout. Hapus token di proyek nyata.')} className="flex items-center w-full p-3 text-red-500 rounded-xl hover:bg-red-50 transition duration-150">
                         <LogOut className="w-5 h-5 mr-3" /> Keluar
