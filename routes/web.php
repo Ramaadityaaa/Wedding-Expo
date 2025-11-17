@@ -83,6 +83,49 @@ Route::prefix('vendor')
     Route::post('/payment', [PaymentController::class, 'store'])->name('payment.store');
 });
 
+// ==========================================================
+// --- RUTE VENDOR PAYMENT FLOW ---
+// ==========================================================
+Route::prefix('vendor')
+    ->name('vendor.')
+    ->group(function () {
+
+    // Dashboard existing
+    Route::get('/dashboard', [\App\Http\Controllers\Vendor\DashboardController::class, 'index'])
+        ->name('dashboard');
+
+    // Membership Page existing
+    Route::get('/membership', function () {
+        return Inertia::render('Vendor/MembershipPage');
+    })->name('membership');
+
+    // ---- PAYMENT FLOW ----
+
+    // 1. Invoice Page
+    Route::get('/invoice', function () {
+        return Inertia::render('Vendor/Payment/InvoicePage');
+    })->name('invoice');
+
+    // 2. Payment Page
+    Route::get('/payment', function () {
+        return Inertia::render('Vendor/Payment/PaymentPage');
+    })->name('payment');
+
+    // 3. Upload Payment Proof Page
+    Route::get('/payment/upload', function () {
+        return Inertia::render('Vendor/Payment/UploadPaymentProofPage');
+    })->name('payment.upload');
+
+    // 4. Loading Page
+    Route::get('/payment/loading', function () {
+        return Inertia::render('Vendor/Payment/LoadingPage');
+    })->name('payment.loading');
+
+    // 5. Payment Proof Result Page
+    Route::get('/payment/proof', function () {
+        return Inertia::render('Vendor/Payment/PaymentProofPage');
+    })->name('payment.proof');
+});
 
 // ==========================================================
 // --- RUTE AUTH BAWAAN BREEZE (TIDAK DIPAKAI LOGIN) ---

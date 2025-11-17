@@ -24,7 +24,6 @@ const mockInvoiceData = {
   ],
 };
 
-// Formatter uang
 const formatRupiah = (amount) => {
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
@@ -33,7 +32,6 @@ const formatRupiah = (amount) => {
   }).format(amount);
 };
 
-// Formatter tanggal panjang
 const formatDateLong = (dateString) => {
   const date = new Date(dateString);
   return new Intl.DateTimeFormat('id-ID', {
@@ -43,7 +41,6 @@ const formatDateLong = (dateString) => {
   }).format(date);
 };
 
-// Hitung total
 const calculateTotals = (items) => {
   const subtotal = items.reduce((s, i) => s + (i.quantity * i.unitPrice), 0);
   const tax = subtotal * 0.11;
@@ -67,76 +64,75 @@ export default function InvoicePage({ id }) {
     }, 1000);
   }, []);
 
-  // === FIX: Tombol Bayar Sekarang ===
   const goToPaymentPage = () => {
     router.get(route('vendor.payment.create'));
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader className="animate-spin w-8 h-8 text-amber-600" />
-        <span className="ml-3">Memuat invoice...</span>
+      <div className="flex items-center justify-center min-h-screen text-xl">
+        <Loader className="animate-spin w-10 h-10 text-amber-600" />
+        <span className="ml-4 text-lg">Memuat invoice...</span>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-4xl bg-white shadow-2xl p-8 mx-auto rounded-xl border-t-8 border-amber-500">
+    <div className="min-h-screen bg-gray-50 p-12">
+      <div className="max-w-5xl bg-white shadow-2xl p-12 mx-auto rounded-2xl border-t-8 border-amber-500">
 
         {/* Header */}
-        <header className="pb-6 border-b">
-          <h1 className="text-4xl font-extrabold text-amber-700">INVOICE</h1>
-          <p className="text-gray-600 mt-1">#{invoice.invoiceId}</p>
+        <header className="pb-8 border-b">
+          <h1 className="text-5xl font-extrabold text-amber-700">INVOICE</h1>
+          <p className="text-gray-600 mt-2 text-lg">#{invoice.invoiceId}</p>
 
           {invoice.status === 'PENDING' && (
-            <p className="mt-3 px-3 py-1 text-red-800 font-semibold bg-red-100 border border-red-300 rounded-full w-max">
+            <p className="mt-4 px-4 py-2 text-red-800 text-lg font-semibold bg-red-100 border border-red-300 rounded-full w-max">
               BELUM DIBAYAR
             </p>
           )}
         </header>
 
         {/* Info */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mt-10 text-lg">
           <div>
-            <p className="font-semibold text-amber-600">Ditagihkan Kepada</p>
-            <p className="font-medium">{invoice.customer.name}</p>
-            <p className="text-sm">{invoice.customer.address}</p>
-            <p className="text-sm">{invoice.customer.email}</p>
+            <p className="font-semibold text-amber-600 text-xl mb-1">Ditagihkan Kepada</p>
+            <p className="font-bold">{invoice.customer.name}</p>
+            <p>{invoice.customer.address}</p>
+            <p>{invoice.customer.email}</p>
           </div>
 
           <div>
-            <p className="font-semibold text-amber-600">Tanggal Invoice</p>
-            <p className="text-sm">{formatDateLong(invoice.dateIssued)}</p>
+            <p className="font-semibold text-amber-600 text-xl mb-1">Tanggal Invoice</p>
+            <p>{formatDateLong(invoice.dateIssued)}</p>
           </div>
 
           <div>
-            <p className="font-semibold text-amber-600">Jatuh Tempo</p>
-            <p className="text-sm font-medium text-red-500">
+            <p className="font-semibold text-amber-600 text-xl mb-1">Jatuh Tempo</p>
+            <p className="font-bold text-red-500">
               {formatDateLong(invoice.dueDate)}
             </p>
           </div>
         </div>
 
         {/* Tabel */}
-        <div className="mt-6 overflow-hidden shadow rounded-lg">
-          <table className="w-full text-sm">
-            <thead className="bg-amber-600 text-white">
+        <div className="mt-10 overflow-hidden shadow-md rounded-xl">
+          <table className="w-full text-lg">
+            <thead className="bg-amber-600 text-white text-lg">
               <tr>
-                <th className="px-4 py-2 text-left">Deskripsi</th>
-                <th className="px-4 py-2 text-right">Qty</th>
-                <th className="px-4 py-2 text-right">Harga</th>
-                <th className="px-4 py-2 text-right">Total</th>
+                <th className="px-6 py-4 text-left">Deskripsi</th>
+                <th className="px-6 py-4 text-right">Qty</th>
+                <th className="px-6 py-4 text-right">Harga</th>
+                <th className="px-6 py-4 text-right">Total</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="text-lg">
               {invoice.items.map((item, i) => (
                 <tr key={i} className="odd:bg-yellow-50">
-                  <td className="px-4 py-2">{item.description}</td>
-                  <td className="px-4 py-2 text-right">{item.quantity}</td>
-                  <td className="px-4 py-2 text-right">{formatRupiah(item.unitPrice)}</td>
-                  <td className="px-4 py-2 text-right">{formatRupiah(item.quantity * item.unitPrice)}</td>
+                  <td className="px-6 py-4">{item.description}</td>
+                  <td className="px-6 py-4 text-right">{item.quantity}</td>
+                  <td className="px-6 py-4 text-right">{formatRupiah(item.unitPrice)}</td>
+                  <td className="px-6 py-4 text-right">{formatRupiah(item.quantity * item.unitPrice)}</td>
                 </tr>
               ))}
             </tbody>
@@ -144,29 +140,29 @@ export default function InvoicePage({ id }) {
         </div>
 
         {/* Total */}
-        <div className="flex justify-end mt-6">
-          <div className="w-64">
-            <div className="flex justify-between py-1">
+        <div className="flex justify-end mt-10 text-xl">
+          <div className="w-72">
+            <div className="flex justify-between py-2">
               <span>Subtotal</span>
               <span>{formatRupiah(subtotal)}</span>
             </div>
-            <div className="flex justify-between py-1">
+            <div className="flex justify-between py-2">
               <span>PPN (11%)</span>
               <span>{formatRupiah(tax)}</span>
             </div>
-            <div className="flex justify-between py-3 mt-2 text-lg font-bold bg-orange-100 px-4 rounded-lg">
+            <div className="flex justify-between py-4 mt-4 text-2xl font-bold bg-orange-100 px-6 rounded-xl">
               <span>Total</span>
               <span>{formatRupiah(total)}</span>
             </div>
           </div>
         </div>
 
-        {/* Tombol BAYAR SEKARANG */}
+        {/* Tombol Bayar */}
         {invoice.status === 'PENDING' && (
-          <div className="flex justify-center mt-10">
+          <div className="flex justify-center mt-14">
             <button
               onClick={goToPaymentPage}
-              className="bg-amber-600 text-white px-10 py-4 rounded-xl text-xl font-bold shadow-xl hover:bg-amber-700"
+              className="bg-amber-600 text-white px-16 py-5 rounded-2xl text-2xl font-bold shadow-xl hover:bg-amber-700"
             >
               BAYAR SEKARANG
             </button>
