@@ -26,9 +26,8 @@ class PaymentController extends Controller
             ]
         ];
 
-        // === PERBAIKAN DI SINI ===
-        // Ganti nama halaman Inertia dari 'PaymentPage'
-        // menjadi 'Vendor/Payment/PaymentPage'
+        // Path ini sudah benar, merujuk ke:
+        // resources/js/Pages/Vendor/Payment/PaymentPage.jsx
         return Inertia::render('Vendor/Payment/PaymentPage', [
             'plan' => $plan,
             'tax' => $plan['price'] * 0.11, // Contoh PPN 11%
@@ -51,4 +50,32 @@ class PaymentController extends Controller
         return redirect()->route('vendor.dashboard')
             ->with('success', 'Pembayaran berhasil! Akun Anda telah di-upgrade.');
     }
+
+    // ================== AWAL PERBAIKAN ==================
+    /**
+     * (FUNGSI BARU YANG HILANG)
+     * Menyimpan bukti pembayaran dari UploadPaymentProofPage.jsx
+     * Ini dipanggil oleh rute: POST /vendor/payment/upload
+     */
+    public function uploadProof(Request $request)
+    {
+        $request->validate([
+            'payment_proof' => 'required|image|mimes:jpg,jpeg,png|max:10240', // 10MB max
+            'account_name' => 'required|string',
+            'amount' => 'required|numeric',
+        ]);
+
+        // 1. Simpan file
+        // 'public' disk akan menyimpan di 'storage/app/public/proofs'
+        // Pastikan Anda sudah menjalankan 'php artisan storage:link'
+        $path = $request->file('payment_proof')->store('proofs', 'public');
+
+        // 2. (OPSIONAL) Simpan info ke database
+        // PaymentProof::create([ ... ]);
+
+        // 3. Redirect ke halaman hasil
+        // (Pastikan Anda sudah membuat Vendor/Payment/PaymentProofPage.jsx)
+        return redirect()->route('vendor.payment.proof')->with('status', 'success');
+    }
+    // ================== AKHIR PERBAIKAN ==================
 }

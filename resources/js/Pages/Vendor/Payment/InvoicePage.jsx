@@ -143,7 +143,6 @@ export default function InvoicePage({ id }) {
                 <tr key={i} className="odd:bg-yellow-50">
                   <td className="px-6 py-4">{item.description}</td>
                   <td className="px-6 py-4 text-right">{item.quantity}</td>
-Read `table.md-README.md` and `table.md-README.md-1.md` and generate the content for `table.md-README.md-2.md`.
                   <td className="px-6 py-4 text-right">{formatRupiah(item.unitPrice)}</td>
                   <td className="px-6 py-4 text-right">{formatRupiah(item.quantity * item.unitPrice)}</td>
                 </tr>
@@ -164,7 +163,7 @@ Read `table.md-README.md` and `table.md-README.md-1.md` and generate the content
               <span>{formatRupiah(tax)}</span>
             </div>
             <div className="flex justify-between py-4 mt-4 text-2xl font-bold bg-orange-100 px-6 rounded-xl">
-JSON         <span>Total</span>
+        <span>Total</span>
               <span>{formatRupiah(total)}</span>
             </div>
           </div>

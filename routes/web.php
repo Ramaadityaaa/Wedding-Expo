@@ -94,7 +94,7 @@ Route::prefix('vendor')
     Route::get('/payment/create', [PaymentController::class, 'create'])
         ->name('payment.create');
 
-    // 3. Proses Pembayaran (dari PaymentPage)
+    // 3. Proses Pembayaran (dari PaymentPage - jika ada logic)
     // URL: POST /vendor/payment
     Route::post('/payment', [PaymentController::class, 'store'])
         ->name('payment.store');
@@ -102,17 +102,28 @@ Route::prefix('vendor')
         
     // --- RUTE TAMBAHAN DARI BLOK ANDA YANG DUPLIKAT ---
     
-    // 4. Upload Payment Proof Page
+    // 4. (DIPERBAIKI) Upload Payment Proof Page
+    // Rute ini dipanggil oleh PaymentPage.jsx
     Route::get('/payment/upload', function () {
-        return Inertia::render('Vendor/Payment/UploadPaymentProofPage');
+        // Ambil data dari query string yang dikirim router.get()
+        return Inertia::render('Vendor/Payment/UploadPaymentProofPage', [
+            'amount' => request('amount'),
+            'account_name' => request('account_name'),
+        ]);
     })->name('payment.upload');
+
+    // 4b. (BARU) RUTE POST UNTUK MENANGANI UPLOAD
+    // Rute ini dipanggil oleh UploadPaymentProofPage.jsx
+    Route::post('/payment/upload', [PaymentController::class, 'uploadProof'])
+        ->name('payment.upload.store');
+
 
     // 5. Loading Page
     Route::get('/payment/loading', function () {
         return Inertia::render('Vendor/Payment/LoadingPage');
     })->name('payment.loading');
 
-    // 6. Payment Proof Result Page (Typo 'Route.' diperbaiki)
+    // 6. Payment Proof Result Page
     Route::get('/payment/proof', function () {
         return Inertia::render('Vendor/Payment/PaymentProofPage');
     })->name('payment.proof');
@@ -122,5 +133,5 @@ Route::prefix('vendor')
 
 // ==========================================================
 // --- RUTE AUTH BAWAAN BREEZE (TIDAK DIPAKAI LOGIN) ---
-// =G=========================================================
+// ==========================================================
 require __DIR__.'/auth.php';
