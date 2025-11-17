@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { LogOut, Users, MessageSquare, FileText, LayoutDashboard, CheckCircle, XCircle, Trash2, Edit, TrendingUp, Clock, FileBadge } from 'lucide-react';
+import { LogOut, Users, MessageSquare, FileText, LayoutDashboard, CheckCircle, XCircle, Trash2, Edit, TrendingUp, Clock, FileBadge, CreditCard, DollarSign } from 'lucide-react';
 
 // --- KONFIGURASI UMUM & MOCK API SIMULATION ---
 
@@ -17,12 +17,12 @@ const simulateApiCall = (data) => {
 
 // Data Mock awal (Menambahkan 'phone' ke Vendor dan User)
 const MOCK_VENDORS = [
-    { id: 'v1', name: 'WO Bunga Cinta', email: 'bunga@wo.com', phone: '081234567890', status: 'Pending' },
-    { id: 'v2', name: 'WO Emas Abadi', email: 'emas@wo.com', phone: '082198765432', status: 'Approved' },
-    { id: 'v3', name: 'WO Pelangi', email: 'pelangi@wo.com', phone: '085711223344', status: 'Pending' },
-    { id: 'v4', name: 'WO Silver Moon', email: 'silver@wo.com', phone: '089955667788', status: 'Rejected' },
-    { id: 'v5', name: 'WO Ceria Pesta', email: 'ceria@wo.com', phone: '081512345678', status: 'Approved' },
-    { id: 'v6', name: 'WO Mega Indah', email: 'mega@wo.com', phone: '087812341234', status: 'Pending' },
+    { id: 'v1', name: 'WO Bunga Cinta', email: 'bunga@wo.com', phone: '081234567890', status: 'Pending', role: 'Vendor' },
+    { id: 'v2', name: 'WO Emas Abadi', email: 'emas@wo.com', phone: '082198765432', status: 'Approved', role: 'Vendor' },
+    { id: 'v3', name: 'WO Pelangi', email: 'pelangi@wo.com', phone: '085711223344', status: 'Pending', role: 'Vendor' },
+    { id: 'v4', name: 'WO Silver Moon', email: 'silver@wo.com', phone: '089955667788', status: 'Rejected', role: 'Vendor' },
+    { id: 'v5', name: 'WO Ceria Pesta', email: 'ceria@wo.com', phone: '081512345678', status: 'Approved', role: 'Membership' },
+    { id: 'v6', name: 'WO Mega Indah', email: 'mega@wo.com', phone: '087812341234', status: 'Pending', role: 'Vendor' },
 ];
 
 const MOCK_REVIEWS = [
@@ -54,6 +54,7 @@ const fetchStaticContent = () => simulateApiCall(INITIAL_STATIC_CONTENT);
 
 const updateVendorStatus = (id, status) => simulateApiCall({ success: true, id, status });
 const deleteVendor = (id) => simulateApiCall({ success: true, id });
+const updateVendorRole = (id, role) => simulateApiCall({ success: true, id, role });
 
 const updateReviewStatus = (id, status) => simulateApiCall({ success: true, id, status });
 const deleteReview = (id) => simulateApiCall({ success: true, id });
@@ -181,6 +182,14 @@ const App = () => {
     const [editingContent, setEditingContent] = useState(null);
     const [editorValue, setEditorValue] = useState('');
 
+    // --- Payment & Role Editor State ---
+    const [paymentSettings, setPaymentSettings] = useState({ bankAccount: '1234567890 - Bank Contoh', qrisImage: null });
+    const [roleEdits, setRoleEdits] = useState({}); // { vendorId: 'Vendor'|'Membership' }
+
+    // modal state for payment edit
+    const [isPaymentEditOpen, setIsPaymentEditOpen] = useState(false);
+    const [paymentForm, setPaymentForm] = useState({ bankAccount: '', qrisImage: null });
+
     // --- DATA FETCHING DENGAN MOCK API (Mengganti Firebase) ---
     useEffect(() => {
         const loadAllData = async () => {
@@ -296,6 +305,79 @@ const App = () => {
             console.error('Gagal menyimpan konten statis:', e);
             setError(`Gagal menyimpan. Error: ${e.message}`);
         }
+    };
+
+    // Handler Simpan Role (baru)
+    const handleSaveRoles = async () => {
+        const entries = Object.entries(roleEdits);
+        if (entries.length === 0) {
+            alert('Tidak ada perubahan role yang disimpan.');
+            return;
+        }
+        const isConfirmed = window.confirm('Simpan perubahan role untuk vendor yang dipilih?');
+        if (!isConfirmed) return;
+        try {
+            // Simulasi update per vendor
+            for (const [id, role] of entries) {
+                await updateVendorRole(id, role);
+                setVendors(prev => prev.map(v => v.id === id ? { ...v, role } : v));
+            }
+            setRoleEdits({});
+            alert('Perubahan role berhasil disimpan.');
+        } catch (e) {
+            console.error('Gagal menyimpan role:', e);
+            setError('Gagal menyimpan role.');
+        }
+    };
+
+    // Handler Simpan Payment Settings (baru)
+    const handleSavePayment = async () => {
+        const isConfirmed = window.confirm('Simpan perubahan pembayaran (rekening / QRIS)?');
+        if (!isConfirmed) return;
+        try {
+            await simulateApiCall(paymentSettings);
+            alert('Pengaturan pembayaran disimpan.');
+        } catch (e) {
+            console.error('Gagal menyimpan payment settings:', e);
+            setError('Gagal menyimpan payment settings.');
+        }
+    };
+
+    // Handler untuk upload QRIS (simpan base64 sebagai preview)
+    const handleQrisUpload = (file, setter = setPaymentSettings) => {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            setter(prev => ({ ...prev, qrisImage: e.target.result }));
+        };
+        reader.readAsDataURL(file);
+    };
+
+    // handler for modal upload (separate)
+    const handlePaymentFormQrisUpload = (file) => {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            setPaymentForm(prev => ({ ...prev, qrisImage: e.target.result }));
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const openPaymentEdit = () => {
+        // Parse existing bankAccount (format: "12345 - Bank Name") into two fields for the modal
+        const parts = (paymentSettings.bankAccount || '').split(' - ');
+        const bankNumber = parts[0] || '';
+        const bankName = parts.slice(1).join(' - ') || '';
+        setPaymentForm({ bankAccount: paymentSettings.bankAccount, qrisImage: paymentSettings.qrisImage, bankNumber, bankName });
+        setIsPaymentEditOpen(true);
+    };
+
+    const savePaymentForm = () => {
+        // Combine the bank number + bank name into a single display string if present
+        const combined = (paymentForm.bankNumber && paymentForm.bankName) ? `${paymentForm.bankNumber} - ${paymentForm.bankName}` : (paymentForm.bankAccount || '');
+        setPaymentSettings({ bankAccount: combined, qrisImage: paymentForm.qrisImage });
+        setIsPaymentEditOpen(false);
+        alert('Perubahan payment berhasil disimpan (preview).');
     };
 
     // --- DATA TURUNAN UNTUK DASHBOARD ---
@@ -735,6 +817,250 @@ const App = () => {
         </div>
     );
 
+    
+    // 6. ROLE EDITOR (UPDATED: only show Approved vendors, modern gold/orange/yellow styling)
+    const RoleEditor = () => {
+        const vendorsForTable = vendors.filter(v => v.status === 'Approved');
+
+        return (
+            <div className="p-6">
+                <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Edit Role Vendor / Membership</h1>
+                <p className="text-gray-500 mb-6">Menampilkan vendor yang sudah <strong>Approved</strong>. Pilih role untuk masing-masing vendor — hasil akan tercetak pada invoice dan profil.</p>
+
+                <div className="overflow-x-auto bg-white rounded-2xl shadow-2xl border border-amber-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gradient-to-r from-yellow-300 via-amber-400 to-orange-400">
+                            <tr>
+                                <th className="px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Nama</th>
+                                <th className="px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Email</th>
+                                <th className="px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">No. Telepon</th>
+                                <th className="px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Status</th>
+                                <th className="px-6 py-3 text-center text-xs font-semibold text-white uppercase tracking-wider">Pilih Role</th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-100">
+                            {vendorsForTable.map((v) => (
+                                <tr key={v.id} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{v.name}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{v.email}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{v.phone}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{v.status}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                                        <div className="inline-flex items-center space-x-2 bg-amber-50 p-1 rounded-full">
+                                            <button
+                                                onClick={() => setRoleEdits(prev => ({ ...prev, [v.id]: 'Vendor' }))}
+                                                className={`px-4 py-1 rounded-full text-sm font-semibold transition-all duration-200 ${
+                                                    (roleEdits[v.id] || v.role) === 'Vendor'
+                                                    ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-white shadow-lg transform scale-100'
+                                                    : 'bg-white text-amber-600 border border-amber-100 hover:scale-[1.02]'
+                                                }`}
+                                            >
+                                                Vendor
+                                            </button>
+                                            <button
+                                                onClick={() => setRoleEdits(prev => ({ ...prev, [v.id]: 'Membership' }))}
+                                                className={`px-4 py-1 rounded-full text-sm font-semibold transition-all duration-200 ${
+                                                    (roleEdits[v.id] || v.role) === 'Membership'
+                                                    ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-white shadow-lg transform scale-100'
+                                                    : 'bg-white text-amber-600 border border-amber-100 hover:scale-[1.02]'
+                                                }`}
+                                            >
+                                                Membership
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                            {vendorsForTable.length === 0 && (
+                                <tr>
+                                    <td colSpan="5" className="text-center py-8 text-gray-500 italic">Belum ada vendor yang disetujui.</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div className="flex justify-between items-center mt-4">
+                    <div className="text-sm text-gray-500">Perubahan akan diterapkan ke vendor yang dipilih setelah klik Simpan.</div>
+                    <div className="flex space-x-3">
+                        <button
+                            onClick={() => setRoleEdits({})}
+                            className="py-2 px-4 rounded-full border border-amber-200 text-amber-700 bg-white hover:bg-amber-50 transition"
+                        >
+                            Reset
+                        </button>
+                        <button
+                            onClick={handleSaveRoles}
+                            className="py-2 px-4 rounded-full font-bold text-white bg-gradient-to-r from-amber-500 via-orange-400 to-yellow-400 shadow-lg hover:opacity-95 transition"
+                        >
+                            Simpan Role
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+
+    
+    // 7. PAYMENT SETTINGS (UPDATED: modal edit for bank account, removed 'Gunakan & Preview' button)
+    const PaymentSettings = () => {
+        // For this version we keep a single default entry but visually separate bank and qris
+        return (
+            <div className="p-6">
+                <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Payment / Invoice Settings</h1>
+                <p className="text-gray-500 mb-6">Atur nomor rekening dan QRIS yang akan muncul di invoice. Setiap bagian dapat diubah terpisah.</p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Bank Account Card */}
+                    <div className="bg-white rounded-2xl shadow-2xl border border-amber-200 p-6">
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <h3 className="text-lg font-bold text-amber-700">Nomor Rekening</h3>
+                                <p className="text-sm text-gray-500 mt-1">Nomor rekening yang akan tercetak di invoice.</p>
+                            </div>
+                            <div className="text-sm text-gray-400">Default</div>
+                        </div>
+
+                        <div className="mt-4">
+                            <div className="text-sm text-gray-600 mb-2">Rekening Saat Ini</div>
+                            <div className="flex items-center justify-between">
+                                <div className="text-sm text-gray-800 font-medium">{paymentSettings.bankAccount || <span className="text-gray-400 italic">Belum diisi</span>}</div>
+                                <div className="flex space-x-2">
+                                    <button
+                                        onClick={openPaymentEdit}
+                                        className="py-2 px-3 rounded-full bg-gradient-to-r from-amber-500 via-orange-400 to-yellow-400 text-white font-semibold shadow"
+                                    >
+                                        Edit
+                                    </button>
+                                    <button
+                                        onClick={() => setPaymentSettings(prev => ({ ...prev, bankAccount: '' }))}
+                                        className="py-2 px-3 rounded-full border border-amber-100 text-amber-700 bg-white hover:bg-amber-50"
+                                    >
+                                        Hapus
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* QRIS Card */}
+                    <div className="bg-white rounded-2xl shadow-2xl border border-amber-200 p-6">
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <h3 className="text-lg font-bold text-amber-700">QRIS</h3>
+                                <p className="text-sm text-gray-500 mt-1">Gambar QRIS yang akan tampil di invoice (upload terpisah dari rekening).</p>
+                            </div>
+                            <div className="text-sm text-gray-400">Default</div>
+                        </div>
+
+                        <div className="mt-4">
+                            <div className="flex items-center space-x-4">
+                                {paymentSettings.qrisImage ? (
+                                    <div className="w-28 h-28 rounded-lg overflow-hidden border">
+                                        <img src={paymentSettings.qrisImage} alt="QRIS" className="object-contain w-full h-full" />
+                                    </div>
+                                ) : (
+                                    <div className="w-28 h-28 rounded-lg border flex items-center justify-center text-gray-400 italic text-sm">Belum ada QRIS</div>
+                                )}
+
+                                <div className="flex-1">
+                                    <div className="text-sm text-gray-600 mb-2">Upload QRIS Baru</div>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => handleQrisUpload(e.target.files[0])}
+                                        className="block text-sm text-gray-600"
+                                    />
+                                    <div className="mt-3 flex space-x-2">
+                                        <button
+                                            onClick={() => {
+                                                // clear
+                                                setPaymentSettings(prev => ({ ...prev, qrisImage: null }));
+                                            }}
+                                            className="py-2 px-3 rounded-full border border-amber-100 text-amber-700 bg-white hover:bg-amber-50"
+                                        >
+                                            Hapus
+                                        </button>
+                                        {/* 'Gunakan & Preview' button intentionally removed as requested */}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex justify-end mt-6">
+                    <button onClick={handleSavePayment} className="py-2 px-4 rounded-full font-bold text-white bg-gradient-to-r from-amber-500 via-orange-400 to-yellow-400 shadow-lg">
+                        Simpan Pengaturan
+                    </button>
+                </div>
+
+                {/* Modal: Edit Bank Account (bank number + bank name) */}
+                {isPaymentEditOpen && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg border-t-4 border-amber-500">
+                            <h3 className="text-xl font-bold text-gray-800 mb-4">Edit Nomor Rekening</h3>
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="block text-sm text-gray-600 mb-1">Nomor Rekening</label>
+                                    <input
+                                        type="text"
+                                        value={paymentForm.bankNumber || ''}
+                                        onChange={(e) => setPaymentForm(prev => ({ ...prev, bankNumber: e.target.value }))}
+                                        className="w-full p-3 border rounded-lg focus:outline-none focus:border-amber-400"
+                                        placeholder="Contoh: 1234567890"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-gray-600 mb-1">Nama Bank</label>
+                                    <input
+                                        type="text"
+                                        value={paymentForm.bankName || ''}
+                                        onChange={(e) => setPaymentForm(prev => ({ ...prev, bankName: e.target.value }))}
+                                        className="w-full p-3 border rounded-lg focus:outline-none focus:border-amber-400"
+                                        placeholder="Contoh: Bank Contoh"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-gray-600 mb-1">Preview QRIS (opsional)</label>
+                                    {paymentForm.qrisImage ? (
+                                        <div className="w-32 h-32 rounded-lg overflow-hidden border mb-2">
+                                            <img src={paymentForm.qrisImage} alt="QRIS preview" className="object-contain w-full h-full" />
+                                        </div>
+                                    ) : (
+                                        <div className="text-sm text-gray-500 italic mb-2">Belum ada QRIS yang diupload untuk preview.</div>
+                                    )}
+                                    <input type="file" accept="image/*" onChange={(e) => handlePaymentFormQrisUpload(e.target.files[0])} className="block text-sm text-gray-600" />
+                                </div>
+                            </div>
+
+                            <div className="mt-6 flex justify-end space-x-3">
+                                <button
+                                    onClick={() => setIsPaymentEditOpen(false)}
+                                    className="py-2 px-4 rounded-full border border-gray-200 text-gray-700 hover:bg-gray-50"
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        // ensure bankAccount saved in combined format
+                                        setPaymentForm(prev => ({ ...prev, bankAccount: `${prev.bankNumber || ''}${prev.bankName ? ' - ' + prev.bankName : ''}` }));
+                                        savePaymentForm();
+                                    }}
+                                    className="py-2 px-4 rounded-full bg-gradient-to-r from-amber-500 via-orange-400 to-yellow-400 text-white font-semibold"
+                                >
+                                    Simpan
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+
     // Fungsi untuk memilih konten berdasarkan tab aktif
     const renderContent = () => {
         switch (activeTab) {
@@ -748,6 +1074,10 @@ const App = () => {
                 return <ReviewModeration />;
             case 'StaticContent':
                 return <StaticContentManagement />;
+            case 'EditRole':
+                return <RoleEditor />;
+            case 'Payment':
+                return <PaymentSettings />;
             default:
                 return <DashboardContent />;
         }
@@ -775,13 +1105,15 @@ const App = () => {
         );
     }
     
-    // Navigasi Sidebar (Label Vendor Diperbarui)
+    // Navigasi Sidebar (Label Vendor Diperbarui) - menambahkan Edit Role dan Payment
     const navItems = [
         { name: 'Dashboard', icon: LayoutDashboard },
         { name: 'Vendor', icon: Users, count: pendingVendors, label: 'Vendor' }, 
         { name: 'Users', icon: Users, label: 'Pengguna' },
         { name: 'Reviews', icon: MessageSquare, count: pendingReviews, label: 'Ulasan' },
         { name: 'StaticContent', icon: FileText, label: 'Konten Statis' },
+        { name: 'EditRole', icon: FileBadge, label: 'Edit Role' },
+        { name: 'Payment', icon: CreditCard, label: 'Payment' },
     ];
 
     return (
