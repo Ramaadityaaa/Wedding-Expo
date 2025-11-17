@@ -1,68 +1,13 @@
-import React, { useState, useCallback, useMemo } from 'react';
+// Salin semua kode ini untuk file:
+// resources/js/Pages/Vendor/Payment/UploadPaymentProofPage.jsx
 
-// --- Konfigurasi Tema dan Data Mock ---
-// Warna konsisten dari halaman sebelumnya
-const primaryColor = '#A3844C'; // Emas Tua
-const secondaryColor = '#FFBB00'; // Kuning Emas Cerah
-const borderColor = '#D4B98E'; // Perpaduan warna emas/cokelat muda
+import React, { useState, useCallback, useMemo, useRef } from 'react'; // Tambahkan useRef
+import { router, useForm, Head } from '@inertiajs/react'; // 1. Import Inertia asli
 
-// Data dummy (Anggap ini data yang diambil dari Invoice ID)
-const dummyInvoice = {
-    id: 'INV-120923001',
-    transferTarget: 'Mandiri (PT. Vendor Cemerlang)',
-    amount: 277500,
-    dueDate: '2025-10-31',
-};
-
-// Mock fungsi formatCurrency
-const formatCurrency = (number) => {
-    return new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        minimumFractionDigits: 0,
-    }).format(number);
-};
-
-// Mock hook useForm untuk mensimulasikan Inertia.js/Laravel data submission
-const useForm = (initialData) => {
-    const [data, setData] = useState(initialData);
-    const [processing, setProcessing] = useState(false);
-    const [errors, setErrors] = useState({});
-
-    const post = (route, formData) => {
-        setProcessing(true);
-        setErrors({});
-
-        // Simulasi validasi file
-        if (!formData.proof_file) {
-            setErrors({ proof_file: 'Bukti pembayaran wajib diunggah.' });
-            setProcessing(false);
-            return;
-        }
-
-        // Simulasi API call dengan delay
-        setTimeout(() => {
-            console.log(`Simulasi POST ke: ${route}`);
-            console.log('Data yang disubmit:', {
-                invoice_id: formData.invoice_id,
-                file_name: formData.proof_file.name,
-                file_size: (formData.proof_file.size / 1024).toFixed(2) + ' KB'
-            });
-
-            // Simulasi sukses
-            // Mengganti alert() dengan tampilan log atau modal sederhana
-            console.log(`Unggahan sukses! Bukti pembayaran untuk ${formData.invoice_id} sedang diverifikasi.`);
-            setProcessing(false);
-            
-            // Di aplikasi nyata: arahkan ke halaman status
-            // window.location.href = '/payment-status/verifying'; 
-        }, 1500);
-    };
-
-    return { data, setData, post, processing, errors, setErrors };
-};
-
-// --- IKON SVG (Menggantikan Lucide/FontAwesome) ---
+// --- IKON SVG ---
+const primaryColor = '#A3844C';
+const secondaryColor = '#FFBB00';
+const borderColor = '#D4B98E';
 
 const UploadCloudIcon = ({ className = 'w-10 h-10', color = primaryColor }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -89,10 +34,19 @@ const LargeCheckIcon = ({ color = 'white' }) => (
     </svg>
 );
 
+// Helper formatCurrency
+const formatCurrency = (number) => {
+    return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0,
+    }).format(number);
+};
+
 // Komponen Card Header Pembayaran
 const PaymentHeaderCard = ({ title, primaryColor, secondaryColor }) => (
     <div 
-        className="p-8 md:p-10 rounded-t-xl text-white shadow-lg flex items-center justify-between" // Padding ditingkatkan
+        className="p-8 md:p-10 rounded-t-xl text-white shadow-lg flex items-center justify-between"
         style={{
             backgroundImage: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})`,
         }}
@@ -104,41 +58,52 @@ const PaymentHeaderCard = ({ title, primaryColor, secondaryColor }) => (
     </div>
 );
 
-// Komponen Utama
-export default function App({ invoice = dummyInvoice }) {
-    
-    // Anggap route Laravel untuk submission
-    const route = (name) => `/api/${name}`; 
+// Komponen Pembantu Detail Item
+const DetailItem = ({ label, value, highlight = false, valueStyle = {} }) => (
+    <div className="flex justify-between border-b border-gray-100 py-3">
+        <span className="text-gray-600 font-medium">{label}</span>
+        <span className={`text-right ${highlight ? 'font-mono text-gray-900 font-extrabold' : 'text-gray-800'}`} style={valueStyle}>
+            {value}
+        </span>
+    </div>
+);
 
-    const { data, setData, post, processing, errors, setErrors } = useForm({
-        invoice_id: invoice.id,
-        proof_file: null,
+
+// Komponen Utama
+// Ambil props 'amount' dan 'account_name' dari controller
+export default function UploadPaymentProofPage({ auth, amount, account_name }) {
+    
+    // 2. Gunakan useForm ASLI dari Inertia
+    const { data, setData, post, processing, errors, setError, clearErrors } = useForm({
+        amount: amount || 0,
+        account_name: account_name || 'Tidak Diketahui',
+        payment_proof: null, // Ini untuk file
     });
 
     const [selectedFile, setSelectedFile] = useState(null);
-    const fileInputRef = React.useRef(null);
+    const fileInputRef = useRef(null); // Ganti React.useRef
 
     const handleFileChange = useCallback((file) => {
         if (file) {
-            // Validasi sederhana
-            if (file.size > 2 * 1024 * 1024) { // Max 2MB
-                setErrors({ proof_file: 'Ukuran file maksimal 2MB.' });
+            // Validasi (pindahkan dari mock)
+            if (file.size > 10 * 1024 * 1024) { // Max 10MB (sesuai controller)
+                setError('payment_proof', 'Ukuran file maksimal 10MB.');
                 setSelectedFile(null);
-                setData(prev => ({ ...prev, proof_file: null }));
+                setData('payment_proof', null);
                 return;
             }
             if (!['image/jpeg', 'image/png', 'application/pdf'].includes(file.type)) {
-                setErrors({ proof_file: 'Hanya format JPG, PNG, atau PDF yang diizinkan.' });
+                setError('payment_proof', 'Hanya format JPG, PNG, atau PDF yang diizinkan.');
                 setSelectedFile(null);
-                setData(prev => ({ ...prev, proof_file: null }));
+                setData('payment_proof', null);
                 return;
             }
 
-            setErrors({});
+            clearErrors('payment_proof');
             setSelectedFile(file);
-            setData(prev => ({ ...prev, proof_file: file }));
+            setData('payment_proof', file); // Set file ke form data
         }
-    }, [setData, setErrors]);
+    }, [setData, setError, clearErrors]);
 
     const handleDrop = useCallback((e) => {
         e.preventDefault();
@@ -149,19 +114,38 @@ export default function App({ invoice = dummyInvoice }) {
         }
     }, [handleFileChange]);
 
+    // 3. Perbaiki fungsi submit
     const submit = (e) => {
         e.preventDefault();
         
-        // Di dunia nyata, kita akan membuat FormData untuk mengirim file
-        post(route('payment.upload'), data);
+        if (!data.payment_proof) {
+            setError('payment_proof', 'Bukti pembayaran wajib diunggah.');
+            return;
+        }
+
+        // Panggil rute POST 'vendor.payment.upload.store'
+        // Rute ini ada di web.php
+        post(route('vendor.payment.upload.store'), {
+            forceFormData: true, // Wajib untuk file upload
+            
+            // Ini adalah bagian yang Anda inginkan:
+            onSuccess: () => {
+                // Setelah upload sukses, paksa pindah ke halaman loading
+                router.get(route('vendor.payment.loading'));
+            },
+            onError: (errors) => {
+                // Menampilkan error validasi dari server
+                console.error(errors);
+            }
+        });
     };
 
     const isFileSelected = useMemo(() => !!selectedFile, [selectedFile]);
 
     return (
         <div className="font-sans min-h-screen bg-white flex justify-center items-start pt-16 pb-20" style={{backgroundColor: '#FFFBF7'}}>
+            <Head title="Upload Bukti Pembayaran" />
             
-            {/* Lebar Kontainer Ditingkatkan dari max-w-4xl menjadi max-w-5xl */}
             <div className="max-w-5xl w-full mx-4 sm:mx-8 lg:mx-12">
                 <div className="bg-white overflow-hidden shadow-2xl rounded-2xl border-b-8 mb-16" style={{borderColor: secondaryColor}}>
                     
@@ -173,19 +157,16 @@ export default function App({ invoice = dummyInvoice }) {
                     />
 
                     <form onSubmit={submit}>
-                        {/* Padding Konten Ditingkatkan dari p-6/p-10 menjadi p-8/p-12 */}
                         <div className="p-8 md:p-12 text-gray-800 grid grid-cols-1 md:grid-cols-3 gap-10">
 
                             {/* Kolom Kiri: Detail Invoice (1/3) */}
-                            <div className="space-y-8 md:col-span-1"> {/* Spacing ditingkatkan */}
+                            <div className="space-y-8 md:col-span-1">
                                 <h3 className="text-2xl font-serif font-semibold border-b pb-3 mb-4" style={{color: primaryColor, borderColor: primaryColor + '50'}}>
                                     Detail Tagihan Pembayaran
                                 </h3>
-                                <div className="space-y-4 text-base"> {/* Ukuran teks dan spacing ditingkatkan */}
-                                    <DetailItem label="ID Invoice" value={invoice.id} highlight={true} />
-                                    <DetailItem label="Tujuan Transfer" value={invoice.transferTarget} />
-                                    <DetailItem label="Total Harus Dibayar" value={formatCurrency(invoice.amount)} valueStyle={{color: primaryColor, fontWeight: 'bold', fontSize: '1.25rem'}}/>
-                                    <DetailItem label="Batas Waktu Pembayaran" value={invoice.dueDate} />
+                                <div className="space-y-4 text-base">
+                                    <DetailItem label="Nama Rekening" value={data.account_name} highlight={true} />
+                                    <DetailItem label="Total Harus Dibayar" value={formatCurrency(data.amount)} valueStyle={{color: primaryColor, fontWeight: 'bold', fontSize: '1.25rem'}}/>
                                 </div>
 
                                 <div className="p-5 rounded-xl text-base shadow-md" style={{backgroundColor: '#FFF7E6', border: `1px solid ${borderColor}`}}>
@@ -195,33 +176,33 @@ export default function App({ invoice = dummyInvoice }) {
                             </div>
 
                             {/* Kolom Kanan: Area Upload (2/3) */}
-                            <div className="space-y-8 md:col-span-2"> {/* Spacing ditingkatkan */}
+                            <div className="space-y-8 md:col-span-2">
                                 <h3 className="text-2xl font-serif font-semibold border-b pb-3 mb-4" style={{color: primaryColor, borderColor: primaryColor + '50'}}>
                                     Formulir Unggah Bukti Transfer
                                 </h3>
 
-                                {/* Drag and Drop Area - Tinggi ditingkatkan */}
+                                {/* Drag and Drop Area */}
                                 <div
                                     onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                     onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                     onDrop={handleDrop}
                                     className={`relative p-12 h-64 rounded-2xl border-4 border-dashed transition-all cursor-pointer hover:bg-gray-50 flex items-center justify-center
-                                        ${errors.proof_file ? 'border-red-500 bg-red-50' : isFileSelected ? 'border-green-500 bg-green-50' : 'border-gray-300'}
+                                        ${errors.payment_proof ? 'border-red-500 bg-red-50' : isFileSelected ? 'border-green-500 bg-green-50' : 'border-gray-300'}
                                     `}
                                     onClick={() => fileInputRef.current.click()}
                                     style={{
-                                        borderColor: errors.proof_file ? '#EF4444' : isFileSelected ? '#10B981' : borderColor,
-                                        backgroundColor: errors.proof_file ? '#FEF2F2' : isFileSelected ? '#F0FFF4' : 'white',
+                                        borderColor: errors.payment_proof ? '#EF4444' : isFileSelected ? '#10B981' : borderColor,
+                                        backgroundColor: errors.payment_proof ? '#FEF2F2' : isFileSelected ? '#F0FFF4' : 'white',
                                     }}
                                 >
                                     <input
                                         type="file"
                                         id="file_upload"
-                                        name="proof_file"
+                                        name="payment_proof"
                                         accept=".jpg,.jpeg,.png,.pdf"
                                         onChange={(e) => handleFileChange(e.target.files[0])}
                                         className="absolute inset-0 opacity-0 cursor-pointer"
-                                        ref={fileInputRef} // Menggunakan ref untuk klik
+                                        ref={fileInputRef}
                                     />
                                     
                                     <div className="text-center space-y-3">
@@ -233,13 +214,13 @@ export default function App({ invoice = dummyInvoice }) {
                                             atau <span className="font-semibold" style={{color: secondaryColor}}>klik di mana saja</span> untuk menelusuri file
                                         </p>
                                         <p className="text-sm text-gray-400">
-                                            Format yang diterima: JPG, PNG, atau PDF. Ukuran file maksimal: 2 MB.
+                                            Format yang diterima: JPG, PNG, atau PDF. Ukuran file maksimal: 10 MB.
                                         </p>
                                     </div>
                                 </div>
                                 
                                 {/* Status File */}
-                                {isFileSelected && (
+                                {isFileSelected && !errors.payment_proof && (
                                     <div className="flex items-center p-4 rounded-xl border bg-white shadow-lg" style={{borderColor: '#10B981'}}>
                                         <FileTextIcon color="#10B981" className="w-6 h-6 flex-shrink-0" />
                                         <span className="ml-4 text-base font-semibold text-gray-700 truncate">
@@ -252,10 +233,10 @@ export default function App({ invoice = dummyInvoice }) {
                                 )}
 
                                 {/* Pesan Error */}
-                                {errors.proof_file && (
+                                {errors.payment_proof && (
                                     <div className="text-base text-red-700 p-4 rounded-xl bg-red-100 border border-red-400 font-medium">
                                         <p className="font-bold">Gagal Mengunggah:</p>
-                                        <p>{errors.proof_file}</p>
+                                        <p>{errors.payment_proof}</p>
                                     </div>
                                 )}
 
@@ -295,13 +276,3 @@ export default function App({ invoice = dummyInvoice }) {
         </div>
     );
 }
-
-// Komponen Pembantu Detail Item
-const DetailItem = ({ label, value, highlight = false, valueStyle = {} }) => (
-    <div className="flex justify-between border-b border-gray-100 py-3"> {/* Padding vertikal ditingkatkan */}
-        <span className="text-gray-600 font-medium">{label}</span>
-        <span className={`text-right ${highlight ? 'font-mono text-gray-900 font-extrabold' : 'text-gray-800'}`} style={valueStyle}>
-            {value}
-        </span>
-    </div>
-);
