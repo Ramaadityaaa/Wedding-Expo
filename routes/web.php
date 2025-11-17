@@ -64,13 +64,13 @@ Route::prefix('admin')
 
 
 // ==========================================================
-// --- RUTE VENDOR (TANPA LOGIN) ---
+// --- RUTE VENDOR (SEMUA RUTE VENDOR DIGABUNG DI SINI) ---
 // ==========================================================
 Route::prefix('vendor')
     ->name('vendor.')
     ->group(function () {
 
-    // Dashboard vendor tanpa login
+    // Dashboard vendor
     Route::get('/dashboard', [VendorDashboard::class, 'index'])->name('dashboard');
 
     // Membership Page
@@ -78,57 +78,49 @@ Route::prefix('vendor')
         return Inertia::render('Vendor/MembershipPage');
     })->name('membership');
 
-    // Payment Page
-    Route::get('/payment', [PaymentController::class, 'create'])->name('payment.create');
-    Route::post('/payment', [PaymentController::class, 'store'])->name('payment.store');
-});
 
-// ==========================================================
-// --- RUTE VENDOR PAYMENT FLOW ---
-// ==========================================================
-Route::prefix('vendor')
-    ->name('vendor.')
-    ->group(function () {
+    // --- PAYMENT FLOW (SESUAI DENGAN KODE REACT) ---
 
-    // Dashboard existing
-    Route::get('/dashboard', [\App\Http\Controllers\Vendor\DashboardController::class, 'index'])
-        ->name('dashboard');
+    // 1. Halaman Invoice (dari MembershipPage)
+    // URL: /vendor/payment/invoice/{id}
+    Route::get('/payment/invoice/{id}', function ($id) {
+        return Inertia::render('Vendor/Payment/InvoicePage', [
+            'id' => $id,
+        ]);
+    })->name('payment.invoice');
 
-    // Membership Page existing
-    Route::get('/membership', function () {
-        return Inertia::render('Vendor/MembershipPage');
-    })->name('membership');
+    // 2. Halaman Pembayaran (dari InvoicePage)
+    // URL: /vendor/payment/create
+    Route::get('/payment/create', [PaymentController::class, 'create'])
+        ->name('payment.create');
 
-    // ---- PAYMENT FLOW ----
-
-    // 1. Invoice Page
-    Route::get('/invoice', function () {
-        return Inertia::render('Vendor/Payment/InvoicePage');
-    })->name('invoice');
-
-    // 2. Payment Page
-    Route::get('/payment', function () {
-        return Inertia::render('Vendor/Payment/PaymentPage');
-    })->name('payment');
-
-    // 3. Upload Payment Proof Page
+    // 3. Proses Pembayaran (dari PaymentPage)
+    // URL: POST /vendor/payment
+    Route::post('/payment', [PaymentController::class, 'store'])
+        ->name('payment.store');
+        
+        
+    // --- RUTE TAMBAHAN DARI BLOK ANDA YANG DUPLIKAT ---
+    
+    // 4. Upload Payment Proof Page
     Route::get('/payment/upload', function () {
         return Inertia::render('Vendor/Payment/UploadPaymentProofPage');
     })->name('payment.upload');
 
-    // 4. Loading Page
+    // 5. Loading Page
     Route::get('/payment/loading', function () {
         return Inertia::render('Vendor/Payment/LoadingPage');
     })->name('payment.loading');
 
-    // 5. Payment Proof Result Page
+    // 6. Payment Proof Result Page (Typo 'Route.' diperbaiki)
     Route::get('/payment/proof', function () {
         return Inertia::render('Vendor/Payment/PaymentProofPage');
     })->name('payment.proof');
 });
+// --- AKHIR DARI BLOK VENDOR ---
+
 
 // ==========================================================
 // --- RUTE AUTH BAWAAN BREEZE (TIDAK DIPAKAI LOGIN) ---
-// ==========================================================
+// =G=========================================================
 require __DIR__.'/auth.php';
-

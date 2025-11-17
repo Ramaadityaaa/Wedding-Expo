@@ -26,8 +26,10 @@ class PaymentController extends Controller
             ]
         ];
 
-        // Ganti nama halaman Inertia yang di-render
-        return Inertia::render('PaymentPage', [
+        // === PERBAIKAN DI SINI ===
+        // Ganti nama halaman Inertia dari 'PaymentPage'
+        // menjadi 'Vendor/Payment/PaymentPage'
+        return Inertia::render('Vendor/Payment/PaymentPage', [
             'plan' => $plan,
             'tax' => $plan['price'] * 0.11, // Contoh PPN 11%
             'total' => $plan['price'] + ($plan['price'] * 0.11)

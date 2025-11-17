@@ -145,6 +145,16 @@ const SubscriptionPage = () => {
 
     // Helper: bangun path invoice (gunakan route() Ziggy bila tersedia, fallback ke template path)
     const buildInvoicePath = (invoiceId) => {
+        
+        // ================== AWAL PERBAIKAN ==================
+        // Fungsi route('vendor.payment.invoice') dari Ziggy Anda tampaknya
+        // menghasilkan URL yang salah (tanpa prefix /vendor).
+        // Ini adalah masalah konfigurasi di file routes/web.php atau vendor.php di backend.
+        //
+        // Untuk sementara, kita paksa (hardcode) menggunakan path manual
+        // yang sudah benar, sambil menunggu backend diperbaiki.
+
+        /*
         try {
             if (typeof route === 'function') {
                 // Ziggy present
@@ -153,7 +163,11 @@ const SubscriptionPage = () => {
         } catch (e) {
             // ignore
         }
+        */
+       
+        // Langsung gunakan path manual:
         return `/vendor/payment/invoice/${invoiceId}`;
+        // ================== AKHIR PERBAIKAN ==================
     };
 
     // onSubscribe: akan POST ke API untuk membuat invoice, lalu redirect ke halaman invoice
@@ -187,9 +201,11 @@ const SubscriptionPage = () => {
             const invoiceId = `INV-${Date.now()}`; // simulated invoice id
 
             setMessage('Invoice dibuat. Mengalihkan ke halaman invoice...');
+            
             // redirect ke halaman invoice (Inertia)
             const path = buildInvoicePath(invoiceId);
             router.get(path); // Inertia navigation
+
         } catch (err) {
             console.error('Subscribe error', err);
             setError(err.message || 'Gagal memulai langganan.');
