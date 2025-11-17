@@ -64,9 +64,9 @@ export default function InvoicePage({ id }) {
     }, 1000);
   }, []);
 
-  const goToPaymentPage = () => {
-    router.get(route('vendor.payment.create'));
-  };
+ const goToPaymentPage = () => {
+    router.visit(route('vendor.payment'));
+};
 
   if (loading) {
     return (
