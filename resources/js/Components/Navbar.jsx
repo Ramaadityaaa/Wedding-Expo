@@ -1,30 +1,19 @@
-// 'use client' // <-- DIHAPUS: Ini adalah arahan khusus Next.js, tidak berlaku di Inertia
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Menu, X } from 'lucide-react'
-
-// --- PERBAIKAN 1 ---
-// Mengganti 'next/link' dengan '@inertiajs/react'
 import { Link } from '@inertiajs/react'
 
-// --- PERBAIKAN 2 (Sementara) ---
-// Hook 'useFavorites' kemungkinan besar adalah bagian dari template Next.js
-// dan akan menyebabkan error jika Context-nya tidak di-setup.
-// Kita nonaktifkan sementara agar halaman bisa tampil.
-// import { useFavorites } from '@/hooks/useFavorites' 
-
 export default function Navbar() {
-  // const { favorites } = useFavorites() // <-- Di-nonaktifkan sementara
-  const favorites = [] // <-- Pengganti sementara agar kode tidak error
+  const favorites = [] 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const handleNavClick = () => setIsMobileMenuOpen(false);
 
   return (
     <nav className="bg-gradient-to-r from-yellow-50 via-white to-yellow-50 border-b border-yellow-200 sticky top-0 z-50 shadow-sm">
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
-          {/* Left Section: Logo */}
+          {/* Left: Logo */}
           <div className="flex items-center">
-            {/* Mobile Menu Button - Only visible on mobile */}
             <div className="md:hidden mr-2">
               <Button
                 variant="ghost"
@@ -36,7 +25,6 @@ export default function Navbar() {
               </Button>
             </div>
 
-            {/* Logo - Always visible */}
             <Link href="/" className="flex items-center">
               <div className="px-4 py-2 bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-white font-bold shadow-md rounded-lg transition-all duration-300 cursor-pointer">
                 <div className="text-xl md:text-2xl font-serif tracking-wide leading-tight">
@@ -46,125 +34,78 @@ export default function Navbar() {
             </Link>
           </div>
           
-          {/* Desktop Menu Items - Center */}
+          {/* Center: Desktop Menu */}
           <div className="hidden md:flex items-center space-x-8">
-            <Link 
-              href="/" 
-              className="text-black hover:text-yellow-700 font-medium transition-colors"
-            >
+            <Link href="/" className="text-black hover:text-yellow-700 font-medium transition-colors">
               Beranda
             </Link>
-            <Link 
-              href="/vendors" 
-              className="text-black hover:text-yellow-700 font-medium transition-colors"
-            >
+            
+            {/* Link Scroll ke Vendor */}
+            <Link href="/#vendors" className="text-black hover:text-yellow-700 font-medium transition-colors">
               Vendor
             </Link>
-            <Link 
-              href="/favorites" 
-              className="flex items-center text-black hover:text-yellow-700 font-medium transition-colors"
-            >
+
+            <Link href="/favorites" className="flex items-center text-black hover:text-yellow-700 font-medium transition-colors">
               Favorit
-              {/* Bagian ini menggunakan 'favorites' yang dinonaktifkan di atas */}
               {favorites.length > 0 && (
                 <span className="ml-1 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black text-xs px-2 py-0.5 rounded-full shadow-sm">
                   {favorites.length}
                 </span>
               )}
             </Link>
-            <Link 
-              href="/inspiration" 
-              className="text-black hover:text-yellow-700 font-medium transition-colors"
-            >
+
+            {/* Saya ubah Inspirasi ke hash link juga untuk keamanan, nanti Anda bisa buat sectionnya */}
+            <Link href="/#inspiration" className="text-black hover:text-yellow-700 font-medium transition-colors">
               Inspirasi
             </Link>
-            <Link 
-              href="/about" 
-              className="text-black hover:text-yellow-700 font-medium transition-colors"
-            >
+
+            {/* --- PERBAIKAN: Link ke section Tentang di halaman yang sama --- */}
+            <Link href="/#about" className="text-black hover:text-yellow-700 font-medium transition-colors">
               Tentang
             </Link>
+            {/* ------------------------------------------------------------ */}
           </div>
           
-          {/* Right Section: CTA Buttons */}
+          {/* Right: CTA */}
           <div className="flex items-center space-x-2">
-            {/* Desktop CTA Buttons */}
             <div className="hidden md:flex items-center space-x-4">
-              <Button 
-                variant="ghost" 
-                className="text-black hover:text-yellow-700 hover:bg-yellow-50"
-              >
-                Masuk
+              <Button variant="ghost" className="text-black hover:text-yellow-700 hover:bg-yellow-50">
+                Login
               </Button>
-              <Button 
-                className="bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-black font-semibold shadow-md"
-              >
-                Daftar Vendor
+              <Button size="sm" className="bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-black font-semibold shadow-md px-2">
+                Register
               </Button>
             </div>
-
-            {/* Mobile CTA Buttons */}
             <div className="md:hidden flex items-center space-x-2">
-              <Button 
-                variant="ghost" 
-                size="sm"
-                className="text-black hover:text-yellow-700 hover:bg-yellow-50 px-2"
-              >
-                Masuk
+              <Button variant="ghost" size="sm" className="text-black hover:text-yellow-700 hover:bg-yellow-50 px-2">
+                Login
               </Button>
-              <Button 
-                size="sm"
-                className="bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-black font-semibold shadow-md px-2"
-              >
-                Daftar
+              <Button size="sm" className="bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-black font-semibold shadow-md px-2">
+                Register
               </Button>
             </div>
           </div>
         </div>
 
-        {/* Mobile Menu Dropdown */}
+        {/* Mobile Menu */}
         {isMobileMenuOpen && (
           <div className="md:hidden bg-white border-t border-yellow-200 shadow-lg">
             <div className="px-4 py-3 space-y-3">
-              <Link 
-                href="/" 
-                className="block text-black hover:text-yellow-700 font-medium transition-colors py-2"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
+              <Link href="/" onClick={handleNavClick} className="block text-black hover:text-yellow-700 font-medium py-2">
                 Beranda
               </Link>
-              <Link 
-                href="/vendors" 
-                className="block text-black hover:text-yellow-700 font-medium transition-colors py-2"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
+              <Link href="/#vendors" onClick={handleNavClick} className="block text-black hover:text-yellow-700 font-medium py-2">
                 Vendor
               </Link>
-              <Link 
-                href="/favorites" 
-                className="flex items-center text-black hover:text-yellow-700 font-medium transition-colors py-2"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
+              <Link href="/favorites" onClick={handleNavClick} className="flex items-center text-black hover:text-yellow-700 font-medium py-2">
                 Favorit
-                {/* Bagian ini menggunakan 'favorites' yang dinonaktifkan di atas */}
-                {favorites.length > 0 && (
-                  <span className="ml-2 bg-gradient-to-r from-yellow-400 to-yellow-600 text-black text-xs px-2 py-0.5 rounded-full shadow-sm">
-                    {favorites.length}
-                  </span>
-                )}
               </Link>
-              <Link 
-                href="/inspiration" 
-                className="block text-black hover:text-yellow-700 font-medium transition-colors py-2"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
+              <Link href="/#inspiration" onClick={handleNavClick} className="block text-black hover:text-yellow-700 font-medium py-2">
                 Inspirasi
               </Link>
-              <Link 
-                href="/about" 
-                className="block text-black hover:text-yellow-700 font-medium transition-colors py-2"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
+              
+              {/* Update Mobile Link juga */}
+              <Link href="/#about" onClick={handleNavClick} className="block text-black hover:text-yellow-700 font-medium py-2">
                 Tentang
               </Link>
             </div>
