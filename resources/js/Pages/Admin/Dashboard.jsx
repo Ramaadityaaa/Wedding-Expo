@@ -1,4 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
+
+// === Custom Popup Modal ===
+function showPopup(message) {
+    const modal = document.createElement('div');
+    modal.style = "position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:99999;";
+    modal.innerHTML = `<div style='background:white;padding:20px;border-radius:12px;max-width:300px;text-align:center;font-family:sans-serif;'>
+        <p>${message}</p>
+        <button id='popupCloseBtn' style='margin-top:12px;padding:6px 16px;border-radius:8px;background:#ffb200;color:white;'>OK</button>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('#popupCloseBtn').onclick = ()=> modal.remove();
+}
 import { LogOut, Users, MessageSquare, FileText, LayoutDashboard, CheckCircle, XCircle, Trash2, Edit, TrendingUp, Clock, FileBadge, CreditCard, DollarSign } from 'lucide-react';
 
 // --- KONFIGURASI UMUM & MOCK API SIMULATION ---
@@ -39,6 +51,44 @@ const MOCK_USERS = [
     { id: 'u3', name: 'Fotografer C', email: 'foto@mail.com', phone: '085555566666', status: 'Active' },
     { id: 'u4', name: 'Event Planner X', email: 'epx@mail.com', phone: '087712349876', status: 'Active' },
 ];
+
+
+// --- MOCK PAYMENT CONFIRMATION DATA (DARI VENDOR MEMBERSHIP FORM) ---
+const MOCK_PAYMENT_REQUESTS = [
+    {
+        id: 'p1',
+        vendorId: 'v5',
+        vendorName: 'WO Ceria Pesta',
+        amount: 500000,
+        currency: 'IDR',
+        bankName: 'Bank Contoh',
+        accountNumber: '1234567890',
+        accountHolder: 'WO Ceria Pesta',
+        proofImage: null, // base64 atau URL gambar bukti pembayaran
+        note: 'Pembayaran membership paket Gold - satu tahun',
+        submittedAt: '2025-11-17T08:30:00+07:00',
+        status: 'Pending' // Pending | Confirmed | Rejected
+    },
+    {
+        id: 'p2',
+        vendorId: 'v1',
+        vendorName: 'WO Bunga Cinta',
+        amount: 250000,
+        currency: 'IDR',
+        bankName: 'Bank Contoh',
+        accountNumber: '0987654321',
+        accountHolder: 'Bunga Cinta',
+        proofImage: null,
+        note: 'Top-up membership - paket Silver',
+        submittedAt: '2025-11-16T14:20:00+07:00',
+        status: 'Pending'
+    }
+];
+
+const fetchPaymentRequests = () => simulateApiCall(MOCK_PAYMENT_REQUESTS);
+const updatePaymentRequestStatus = (id, status) => simulateApiCall({ success: true, id, status });
+const deletePaymentRequest = (id) => simulateApiCall({ success: true, id });
+
 
 const INITIAL_STATIC_CONTENT = {
     'Tentang Kami': 'Ini adalah platform direktori vendor terlengkap di Indonesia. Kami menghubungkan calon pengantin dengan vendor terbaik.',
@@ -163,6 +213,128 @@ const ReviewCard = ({ review, onAction }) => {
 
 // --- KOMPONEN UTAMA (App) ---
 
+
+// --- PAYMENT CONFIRMATION TAB COMPONENT ---
+const PaymentConfirmation = ({ paymentRequests, onAction }) => {
+    const [selected, setSelected] = useState(null);
+    const [filter, setFilter] = useState('Pending'); // Pending | Confirmed | Rejected | All
+
+    const filtered = paymentRequests ? paymentRequests.filter(p => filter === 'All' ? true : p.status === filter) : [];
+
+    return (
+        <div className="p-6">
+            <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Konfirmasi Pembayaran</h1>
+            <p className="text-gray-500 mb-6">Terima dan verifikasi bukti pembayaran yang dikirim oleh vendor member.</p>
+
+            <div className="flex items-center justify-between mb-4">
+                <div className="flex space-x-2">
+                    {['Pending','Confirmed','Rejected','All'].map(f => (
+                        <button
+                            key={f}
+                            onClick={() => setFilter(f)}
+                            className={`px-4 py-2 rounded-full text-sm font-medium transition ${filter===f ? 'bg-amber-500 text-white' : 'bg-white border border-gray-200 text-gray-600'}`}
+                        >
+                            {f === 'All' ? 'Semua' : f}
+                        </button>
+                    ))}
+                </div>
+                <div className="text-sm text-gray-500">Total: {paymentRequests ? paymentRequests.length : 0}</div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-lg border overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-amber-100">
+                        <tr>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Vendor</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Nominal</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Bank / Rek.</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Tanggal Kirim</th>
+                            <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase">Status</th>
+                            <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-100">
+                        {filtered && filtered.map((p) => (
+                            <tr key={p.id} className="hover:bg-gray-50">
+                                <td className="px-4 py-3 text-sm font-medium text-gray-900">{p.vendorName}</td>
+                                <td className="px-4 py-3 text-sm text-gray-700">{p.currency} {p.amount.toLocaleString('id-ID')}</td>
+                                <td className="px-4 py-3 text-sm text-gray-600">{p.bankName} / {p.accountNumber}</td>
+                                <td className="px-4 py-3 text-sm text-gray-500">{new Date(p.submittedAt).toLocaleString()}</td>
+                                <td className="px-4 py-3 text-center text-sm">
+                                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                        p.status === 'Pending' ? 'bg-amber-100 text-amber-800' :
+                                        p.status === 'Confirmed' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                    }`}>{p.status}</span>
+                                </td>
+                                <td className="px-4 py-3 text-center text-sm">
+                                    <div className="flex items-center justify-center space-x-2">
+                                        <button onClick={() => setSelected(p)} className="px-3 py-1 rounded-full border border-gray-200 text-sm">Lihat</button>
+                                        {p.status === 'Pending' && (
+                                            <>
+                                                <button onClick={() => onAction(p.id, 'Confirmed')} className="px-3 py-1 rounded-full bg-green-500 text-white text-sm">Konfirmasi</button>
+                                                <button onClick={() => onAction(p.id, 'Rejected')} className="px-3 py-1 rounded-full bg-red-500 text-white text-sm">Tolak</button>
+                                            </>
+                                        )}
+                                        <button onClick={() => onAction(p.id, 'delete')} className="px-3 py-1 rounded-full border border-gray-200 text-sm text-red-600">Hapus</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                        {filtered && filtered.length === 0 && (
+                            <tr>
+                                <td colSpan="6" className="py-8 text-center text-gray-500 italic">Tidak ada permintaan konfirmasi pembayaran untuk filter ini.</td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* Modal Lihat Bukti Pembayaran */}
+            {selected && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <h3 className="text-xl font-bold">{selected.vendorName}</h3>
+                                <p className="text-sm text-gray-500">{selected.note}</p>
+                            </div>
+                            <div>
+                                <button onClick={() => setSelected(null)} className="text-gray-500 hover:text-gray-800">Tutup</button>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="border rounded-lg p-4 flex flex-col items-center justify-center">
+                                {selected.proofImage ? (
+                                    <img src={selected.proofImage} alt="Bukti Pembayaran" className="max-h-80 object-contain" />
+                                ) : (
+                                    <div className="text-sm text-gray-400 italic">Belum ada bukti gambar (simulasi)</div>
+                                )}
+                            </div>
+                            <div>
+                                <div className="text-sm text-gray-600 mb-2"><strong>Nominal:</strong> {selected.currency} {selected.amount.toLocaleString('id-ID')}</div>
+                                <div className="text-sm text-gray-600 mb-2"><strong>Bank:</strong> {selected.bankName}</div>
+                                <div className="text-sm text-gray-600 mb-2"><strong>Nomor Rekening:</strong> {selected.accountNumber}</div>
+                                <div className="text-sm text-gray-600 mb-2"><strong>Atas Nama:</strong> {selected.accountHolder}</div>
+                                <div className="mt-4 flex space-x-2">
+                                    {selected.status === 'Pending' && (
+                                        <>
+                                            <button onClick={() => { onAction(selected.id, 'Confirmed'); setSelected(null); }} className="py-2 px-4 rounded-full bg-green-500 text-white font-semibold">Konfirmasi</button>
+                                            <button onClick={() => { onAction(selected.id, 'Rejected'); setSelected(null); }} className="py-2 px-4 rounded-full bg-red-500 text-white font-semibold">Tolak</button>
+                                        </>
+                                    )}
+                                    <button onClick={() => { onAction(selected.id, 'delete'); setSelected(null); }} className="py-2 px-4 rounded-full border border-gray-200 text-red-600">Hapus</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+
 const App = () => {
     // State Data Aplikasi
     const [activeTab, setActiveTab] = useState('Dashboard');
@@ -177,6 +349,8 @@ const App = () => {
     const [reviews, setReviews] = useState([]);
     const [users, setUsers] = useState([]);
     const [staticContent, setStaticContent] = useState(INITIAL_STATIC_CONTENT);
+    const [paymentRequests, setPaymentRequests] = useState([]); // data untuk konfirmasi pembayaran
+
 
     // State untuk Static Content Editor
     const [editingContent, setEditingContent] = useState(null);
@@ -208,6 +382,10 @@ const App = () => {
                 setReviews(reviewData);
                 setUsers(userData);
                 setStaticContent(contentData);
+
+                // Load payment requests (simulasi)
+                const paymentData = await fetchPaymentRequests();
+                setPaymentRequests(paymentData);
 
             } catch (e) {
                 console.error('Gagal memuat data dari API:', e);
@@ -267,6 +445,28 @@ const App = () => {
         }
     };
 
+
+    // Handler Konfirmasi Pembayaran
+    const handlePaymentAction = async (paymentId, action) => {
+        const actionName = action === 'delete' ? 'menghapus' : action === 'Confirmed' ? 'mengonfirmasi' : 'menolak';
+        const isConfirmed = window.confirm(`Apakah Anda yakin ingin ${actionName} permintaan pembayaran ID: ${paymentId}?`);
+        if (!isConfirmed) return;
+        try {
+            if (action === 'delete') {
+                await deletePaymentRequest(paymentId);
+                setPaymentRequests(prev => prev.filter(p => p.id !== paymentId));
+                showPopup('Permintaan pembayaran dihapus.');
+            } else {
+                await updatePaymentRequestStatus(paymentId, action);
+                setPaymentRequests(prev => prev.map(p => p.id === paymentId ? { ...p, status: action } : p));
+                showPopup('Status permintaan pembayaran diperbarui.');
+            }
+        } catch (e) {
+            console.error('Gagal melakukan aksi pada permintaan pembayaran:', e);
+            setError('Aksi pembayaran gagal.');
+        }
+    };
+
     // Handler Aksi Pengguna (Dipotong untuk brevity)
     const handleUserAction = async (id, action) => {
         const actionName = action === 'delete' ? 'menghapus' : action === 'Suspended' ? 'menangguhkan' : 'mengaktifkan';
@@ -311,7 +511,7 @@ const App = () => {
     const handleSaveRoles = async () => {
         const entries = Object.entries(roleEdits);
         if (entries.length === 0) {
-            alert('Tidak ada perubahan role yang disimpan.');
+            showPopup('Tidak ada perubahan role yang disimpan.');
             return;
         }
         const isConfirmed = window.confirm('Simpan perubahan role untuk vendor yang dipilih?');
@@ -323,7 +523,7 @@ const App = () => {
                 setVendors(prev => prev.map(v => v.id === id ? { ...v, role } : v));
             }
             setRoleEdits({});
-            alert('Perubahan role berhasil disimpan.');
+            showPopup('Perubahan role berhasil disimpan.');
         } catch (e) {
             console.error('Gagal menyimpan role:', e);
             setError('Gagal menyimpan role.');
@@ -336,7 +536,7 @@ const App = () => {
         if (!isConfirmed) return;
         try {
             await simulateApiCall(paymentSettings);
-            alert('Pengaturan pembayaran disimpan.');
+            showPopup('Pengaturan pembayaran disimpan.');
         } catch (e) {
             console.error('Gagal menyimpan payment settings:', e);
             setError('Gagal menyimpan payment settings.');
@@ -377,7 +577,7 @@ const App = () => {
         const combined = (paymentForm.bankNumber && paymentForm.bankName) ? `${paymentForm.bankNumber} - ${paymentForm.bankName}` : (paymentForm.bankAccount || '');
         setPaymentSettings({ bankAccount: combined, qrisImage: paymentForm.qrisImage });
         setIsPaymentEditOpen(false);
-        alert('Perubahan payment berhasil disimpan (preview).');
+        showPopup('Perubahan payment berhasil disimpan (preview).');
     };
 
     // --- DATA TURUNAN UNTUK DASHBOARD ---
@@ -385,6 +585,7 @@ const App = () => {
     const approvedVendors = useMemo(() => vendors.filter(v => v.status === 'Approved').length, [vendors]);
     const pendingReviews = useMemo(() => reviews.filter(r => r.status === 'Pending').length, [reviews]);
     const activeUsers = useMemo(() => users.filter(u => u.status === 'Active').length, [users]);
+    const pendingPayments = useMemo(() => (paymentRequests ? paymentRequests.filter(p => p.status === 'Pending').length : 0), [paymentRequests]);
 
     // --- RENDER TAB CONTENTS ---
 
@@ -1078,6 +1279,8 @@ const App = () => {
                 return <RoleEditor />;
             case 'Payment':
                 return <PaymentSettings />;
+            case 'KonfirmasiPembayaran':
+                return <PaymentConfirmation paymentRequests={paymentRequests} onAction={handlePaymentAction} />;
             default:
                 return <DashboardContent />;
         }
@@ -1108,6 +1311,7 @@ const App = () => {
     // Navigasi Sidebar (Label Vendor Diperbarui) - menambahkan Edit Role dan Payment
     const navItems = [
         { name: 'Dashboard', icon: LayoutDashboard },
+        { name: 'KonfirmasiPembayaran', icon: DollarSign, count: pendingPayments, label: 'Konfirmasi Bayar' },
         { name: 'Vendor', icon: Users, count: pendingVendors, label: 'Vendor' }, 
         { name: 'Users', icon: Users, label: 'Pengguna' },
         { name: 'Reviews', icon: MessageSquare, count: pendingReviews, label: 'Ulasan' },
