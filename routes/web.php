@@ -9,12 +9,10 @@ use Inertia\Inertia;
 
 // --- Impor semua Controller Anda ---
 use App\Http\Controllers\HomeController;
-use App\Http\Controllers\Admin\DashboardController; // Admin Dashboard
+use App\Http\Controllers\Admin\DashboardController; 
 use App\Http\Controllers\Admin\VendorController;
 use App\Http\Controllers\Admin\ReviewController;
-use App\Http\Controllers\Vendor\DashboardController as VendorDashboard; // Vendor Dashboard
-
-// Impor PaymentController
+use App\Http\Controllers\Vendor\DashboardController as VendorDashboard; 
 use App\Http\Controllers\PaymentController;
 
 /*
@@ -27,14 +25,14 @@ use App\Http\Controllers\PaymentController;
 // --- RUTE PUBLIK / CUSTOMER ---
 // ==========================================================
 Route::get('/', [HomeController::class, 'index'])->name('home');
-Route::get('/vendors/{vendor}', [HomeController::class, 'show'])->name('vendor.show');
-Route::get('/vendors', [HomeController::class, 'allVendors'])->name('vendors.all');
-Route::get('/favorit', [HomeController::class, 'favorites'])->name('favorites');
-Route::get('/tentang', [HomeController::class, 'about'])->name('about');
-Route::get('/inspiration', [HomeController::class, 'inspiration'])->name('inspiration');
-Route::get('/tips', [HomeController::class, 'tips'])->name('tips');
-Route::get('/panduan', [HomeController::class, 'panduan'])->name('panduan');
+
+// --- RUTE REGISTRASI VENDOR (PERBAIKAN TYPO) ---
+// Menghapus 'Route_::get' menjadi 'Route::get'
 Route::get('/register/vendor', [HomeController::class, 'vendorRegister'])->name('vendor.register');
+Route::post('/register/vendor', [HomeController::class, 'vendorStore'])->name('vendor.store');
+
+// Rute lain seperti /vendors, /about, dll. dihapus 
+// karena controllernya (HomeController) sudah tidak memiliki fungsi itu.
 
 
 // ==========================================================
@@ -51,13 +49,11 @@ Route::get('/dashboard', function () {
 Route::prefix('admin')
     ->name('admin.')
     ->group(function () {
-
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-
+    // --- PERBAIKAN TYPO 'RouteStorage' ---
     Route::get('/vendors', [VendorController::class, 'index'])->name('vendors.index');
     Route::patch('/vendors/{vendor}/approve', [VendorController::class, 'approve'])->name('vendors.approve');
     Route::patch('/vendors/{vendor}/reject', [VendorController::class, 'reject'])->name('vendors.reject');
-
     Route::patch('/reviews/{review}/approve', [ReviewController::class, 'approve'])->name('reviews.approve');
     Route::patch('/reviews/{review}/reject', [ReviewController::class, 'reject'])->name('reviews.reject');
 });
@@ -70,60 +66,27 @@ Route::prefix('vendor')
     ->name('vendor.')
     ->group(function () {
 
-    // Dashboard vendor
     Route::get('/dashboard', [VendorDashboard::class, 'index'])->name('dashboard');
-
-    // Membership Page
     Route::get('/membership', function () {
         return Inertia::render('Vendor/MembershipPage');
     })->name('membership');
 
-
-    // --- PAYMENT FLOW (SESUAI DENGAN KODE REACT) ---
-
-    // 1. Halaman Invoice (dari MembershipPage)
-    // URL: /vendor/payment/invoice/{id}
+    // --- PAYMENT FLOW (PERBAIKAN TYPO 'RouteRoute') ---
     Route::get('/payment/invoice/{id}', function ($id) {
-        return Inertia::render('Vendor/Payment/InvoicePage', [
-            'id' => $id,
-        ]);
+        return Inertia::render('Vendor/Payment/InvoicePage', [ 'id' => $id, ]);
     })->name('payment.invoice');
-
-    // 2. Halaman Pembayaran (dari InvoicePage)
-    // URL: /vendor/payment/create
-    Route::get('/payment/create', [PaymentController::class, 'create'])
-        ->name('payment.create');
-
-    // 3. Proses Pembayaran (dari PaymentPage - jika ada logic)
-    // URL: POST /vendor/payment
-    Route::post('/payment', [PaymentController::class, 'store'])
-        ->name('payment.store');
-        
-        
-    // --- RUTE TAMBAHAN DARI BLOK ANDA YANG DUPLIKAT ---
-    
-    // 4. (DIPERBAIKI) Upload Payment Proof Page
-    // Rute ini dipanggil oleh PaymentPage.jsx
+    Route::get('/payment/create', [PaymentController::class, 'create'])->name('payment.create');
+    Route::post('/payment', [PaymentController::class, 'store'])->name('payment.store');
     Route::get('/payment/upload', function () {
-        // Ambil data dari query string yang dikirim router.get()
         return Inertia::render('Vendor/Payment/UploadPaymentProofPage', [
             'amount' => request('amount'),
             'account_name' => request('account_name'),
         ]);
     })->name('payment.upload');
-
-    // 4b. (BARU) RUTE POST UNTUK MENANGANI UPLOAD
-    // Rute ini dipanggil oleh UploadPaymentProofPage.jsx
-    Route::post('/payment/upload', [PaymentController::class, 'uploadProof'])
-        ->name('payment.upload.store');
-
-
-    // 5. Loading Page
+    Route::post('/payment/upload', [PaymentController::class, 'uploadProof'])->name('payment.upload.store');
     Route::get('/payment/loading', function () {
         return Inertia::render('Vendor/Payment/LoadingPage');
     })->name('payment.loading');
-
-    // 6. Payment Proof Result Page
     Route::get('/payment/proof', function () {
         return Inertia::render('Vendor/Payment/PaymentProofPage');
     })->name('payment.proof');
