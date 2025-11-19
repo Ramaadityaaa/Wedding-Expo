@@ -11,7 +11,7 @@ export default function Navbar() {
   return (
     <nav
       className="
-        z-50 
+        fixed top-0 left-0 right-0 w-full z-50
         backdrop-blur-2xl 
         bg-white/35 
         shadow-[0_4px_25px_rgba(255,200,80,0.35)]
