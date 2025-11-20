@@ -1,10 +1,8 @@
-// Salin semua kode ini untuk file:
 // resources/js/Pages/Vendor/Payment/UploadPaymentProofPage.jsx
 
-import React, { useState, useCallback, useMemo, useRef } from 'react'; // Tambahkan useRef
-import { router, useForm, Head } from '@inertiajs/react'; // 1. Import Inertia asli
+import React, { useState, useCallback, useMemo, useRef } from 'react';
+import { router, useForm, Head } from '@inertiajs/react';
 
-// --- IKON SVG ---
 const primaryColor = '#A3844C';
 const secondaryColor = '#FFBB00';
 const borderColor = '#D4B98E';
@@ -28,13 +26,12 @@ const FileTextIcon = ({ className = 'w-5 h-5', color = primaryColor }) => (
 );
 
 const LargeCheckIcon = ({ color = 'white' }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M22 11.08V12a10 10 0 1 1-5.93-8.98" />
         <path d="M22 4L12 14.01l-3-3" />
     </svg>
 );
 
-// Helper formatCurrency
 const formatCurrency = (number) => {
     return new Intl.NumberFormat('id-ID', {
         style: 'currency',
@@ -43,7 +40,6 @@ const formatCurrency = (number) => {
     }).format(number);
 };
 
-// Komponen Card Header Pembayaran
 const PaymentHeaderCard = ({ title, primaryColor, secondaryColor }) => (
     <div 
         className="p-8 md:p-10 rounded-t-xl text-white shadow-lg flex items-center justify-between"
@@ -58,7 +54,6 @@ const PaymentHeaderCard = ({ title, primaryColor, secondaryColor }) => (
     </div>
 );
 
-// Komponen Pembantu Detail Item
 const DetailItem = ({ label, value, highlight = false, valueStyle = {} }) => (
     <div className="flex justify-between border-b border-gray-100 py-3">
         <span className="text-gray-600 font-medium">{label}</span>
@@ -68,25 +63,20 @@ const DetailItem = ({ label, value, highlight = false, valueStyle = {} }) => (
     </div>
 );
 
-
-// Komponen Utama
-// Ambil props 'amount' dan 'account_name' dari controller
 export default function UploadPaymentProofPage({ auth, amount, account_name }) {
-    
-    // 2. Gunakan useForm ASLI dari Inertia
+
     const { data, setData, post, processing, errors, setError, clearErrors } = useForm({
         amount: amount || 0,
         account_name: account_name || 'Tidak Diketahui',
-        payment_proof: null, // Ini untuk file
+        payment_proof: null,
     });
 
     const [selectedFile, setSelectedFile] = useState(null);
-    const fileInputRef = useRef(null); // Ganti React.useRef
+    const fileInputRef = useRef(null);
 
     const handleFileChange = useCallback((file) => {
         if (file) {
-            // Validasi (pindahkan dari mock)
-            if (file.size > 10 * 1024 * 1024) { // Max 10MB (sesuai controller)
+            if (file.size > 10 * 1024 * 1024) {
                 setError('payment_proof', 'Ukuran file maksimal 10MB.');
                 setSelectedFile(null);
                 setData('payment_proof', null);
@@ -101,7 +91,7 @@ export default function UploadPaymentProofPage({ auth, amount, account_name }) {
 
             clearErrors('payment_proof');
             setSelectedFile(file);
-            setData('payment_proof', file); // Set file ke form data
+            setData('payment_proof', file);
         }
     }, [setData, setError, clearErrors]);
 
@@ -114,27 +104,20 @@ export default function UploadPaymentProofPage({ auth, amount, account_name }) {
         }
     }, [handleFileChange]);
 
-    // 3. Perbaiki fungsi submit
     const submit = (e) => {
         e.preventDefault();
-        
+
         if (!data.payment_proof) {
             setError('payment_proof', 'Bukti pembayaran wajib diunggah.');
             return;
         }
 
-        // Panggil rute POST 'vendor.payment.upload.store'
-        // Rute ini ada di web.php
         post(route('vendor.payment.upload.store'), {
-            forceFormData: true, // Wajib untuk file upload
-            
-            // Ini adalah bagian yang Anda inginkan:
+            forceFormData: true,
             onSuccess: () => {
-                // Setelah upload sukses, paksa pindah ke halaman loading
                 router.get(route('vendor.payment.loading'));
             },
             onError: (errors) => {
-                // Menampilkan error validasi dari server
                 console.error(errors);
             }
         });
@@ -145,11 +128,10 @@ export default function UploadPaymentProofPage({ auth, amount, account_name }) {
     return (
         <div className="font-sans min-h-screen bg-white flex justify-center items-start pt-16 pb-20" style={{backgroundColor: '#FFFBF7'}}>
             <Head title="Upload Bukti Pembayaran" />
-            
+
             <div className="max-w-5xl w-full mx-4 sm:mx-8 lg:mx-12">
                 <div className="bg-white overflow-hidden shadow-2xl rounded-2xl border-b-8 mb-16" style={{borderColor: secondaryColor}}>
-                    
-                    {/* CARD HEADER */}
+
                     <PaymentHeaderCard 
                         title="UNGGAH BUKTI PEMBAYARAN" 
                         primaryColor={primaryColor} 
@@ -159,7 +141,6 @@ export default function UploadPaymentProofPage({ auth, amount, account_name }) {
                     <form onSubmit={submit}>
                         <div className="p-8 md:p-12 text-gray-800 grid grid-cols-1 md:grid-cols-3 gap-10">
 
-                            {/* Kolom Kiri: Detail Invoice (1/3) */}
                             <div className="space-y-8 md:col-span-1">
                                 <h3 className="text-2xl font-serif font-semibold border-b pb-3 mb-4" style={{color: primaryColor, borderColor: primaryColor + '50'}}>
                                     Detail Tagihan Pembayaran
@@ -171,17 +152,15 @@ export default function UploadPaymentProofPage({ auth, amount, account_name }) {
 
                                 <div className="p-5 rounded-xl text-base shadow-md" style={{backgroundColor: '#FFF7E6', border: `1px solid ${borderColor}`}}>
                                     <p className="font-extrabold" style={{color: primaryColor}}>PENTING:</p>
-                                    <p className="text-sm mt-2 text-gray-700">Bukti transfer (Struk/Screenshot) harus mencantumkan tanggal, jumlah transfer, dan tujuan rekening yang sesuai untuk mempercepat proses verifikasi.</p>
+                                    <p className="text-sm mt-2 text-gray-700">Bukti transfer harus mencantumkan tanggal, jumlah, dan tujuan rekening yang sesuai.</p>
                                 </div>
                             </div>
 
-                            {/* Kolom Kanan: Area Upload (2/3) */}
                             <div className="space-y-8 md:col-span-2">
                                 <h3 className="text-2xl font-serif font-semibold border-b pb-3 mb-4" style={{color: primaryColor, borderColor: primaryColor + '50'}}>
                                     Formulir Unggah Bukti Transfer
                                 </h3>
 
-                                {/* Drag and Drop Area */}
                                 <div
                                     onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                     onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); }}
@@ -204,22 +183,21 @@ export default function UploadPaymentProofPage({ auth, amount, account_name }) {
                                         className="absolute inset-0 opacity-0 cursor-pointer"
                                         ref={fileInputRef}
                                     />
-                                    
+
                                     <div className="text-center space-y-3">
                                         <UploadCloudIcon className="w-20 h-20 mx-auto" color={isFileSelected ? '#10B981' : primaryColor} />
                                         <p className="font-extrabold text-xl text-gray-700">
                                             Seret File Bukti Pembayaran ke Sini
                                         </p>
                                         <p className="text-base text-gray-500">
-                                            atau <span className="font-semibold" style={{color: secondaryColor}}>klik di mana saja</span> untuk menelusuri file
+                                            atau <span className="font-semibold" style={{color: secondaryColor}}>klik di mana saja</span> untuk memilih file
                                         </p>
                                         <p className="text-sm text-gray-400">
-                                            Format yang diterima: JPG, PNG, atau PDF. Ukuran file maksimal: 10 MB.
+                                            Format: JPG, PNG, atau PDF. Maks 10 MB.
                                         </p>
                                     </div>
                                 </div>
-                                
-                                {/* Status File */}
+
                                 {isFileSelected && !errors.payment_proof && (
                                     <div className="flex items-center p-4 rounded-xl border bg-white shadow-lg" style={{borderColor: '#10B981'}}>
                                         <FileTextIcon color="#10B981" className="w-6 h-6 flex-shrink-0" />
@@ -232,7 +210,6 @@ export default function UploadPaymentProofPage({ auth, amount, account_name }) {
                                     </div>
                                 )}
 
-                                {/* Pesan Error */}
                                 {errors.payment_proof && (
                                     <div className="text-base text-red-700 p-4 rounded-xl bg-red-100 border border-red-400 font-medium">
                                         <p className="font-bold">Gagal Mengunggah:</p>
@@ -240,7 +217,6 @@ export default function UploadPaymentProofPage({ auth, amount, account_name }) {
                                     </div>
                                 )}
 
-                                {/* Tombol Submit */}
                                 <button
                                     type="submit"
                                     disabled={processing || !isFileSelected}
@@ -264,9 +240,9 @@ export default function UploadPaymentProofPage({ auth, amount, account_name }) {
                                         </span>
                                     ) : 'Kirim Bukti Pembayaran'}
                                 </button>
-                                
+
                                 <p className="text-sm text-gray-500 pt-4 text-center">
-                                    Setelah dikirim, verifikasi pembayaran biasanya memakan waktu 1-2 jam kerja.
+                                    Setelah dikirim, verifikasi memakan waktu 1–2 jam kerja.
                                 </p>
                             </div>
                         </div>
