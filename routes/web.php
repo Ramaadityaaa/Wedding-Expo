@@ -1,50 +1,64 @@
-<?php  
+<?php 
 
-// routes/web.php
-
-use App\Http\Controllers\ProfileController;
-use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-// --- Impor semua Controller Anda ---
+// Controllers
 use App\Http\Controllers\HomeController;
-use App\Http\Controllers\Admin\DashboardController; 
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\VendorController;
 use App\Http\Controllers\Admin\ReviewController;
-use App\Http\Controllers\Vendor\DashboardController as VendorDashboard; 
+use App\Http\Controllers\Vendor\DashboardController as VendorDashboard;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PaymentProofController;
 
 /*
 |--------------------------------------------------------------------------
-| Web Routes
+| PUBLIC CUSTOMER ROUTES
 |--------------------------------------------------------------------------
 */
 
-// ==========================================================
-// --- RUTE PUBLIK / CUSTOMER ---
-// ==========================================================
+// HOMEPAGE = Dashboard.jsx
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
-// --- REGISTRASI VENDOR ---
+// REGISTER VENDOR (no login)
 Route::get('/register/vendor', [HomeController::class, 'vendorRegister'])->name('vendor.register');
 Route::post('/register/vendor', [HomeController::class, 'vendorStore'])->name('vendor.store');
 
 
-// ==========================================================
-// --- RUTE DASHBOARD DEFAULT ---
-// ==========================================================
+/*
+|--------------------------------------------------------------------------
+| DASHBOARD DEFAULT (AFTER LOGIN)
+|--------------------------------------------------------------------------
+*/
 Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->name('dashboard');
+    $user = auth()->user();
+
+    if ($user->role === 'admin') {
+        return redirect()->route('admin.dashboard');
+    }
+
+    if ($user->role === 'vendor') {
+        return redirect()->route('vendor.dashboard');
+    }
+
+    // CUSTOMER redirect ke Dashboard.jsx juga (bukan Customer/DashboardPage)
+    return Inertia::render('Dashboard', [
+        'user' => $user,
+        'isLoggedIn' => true,
+    ]);
+
+})->middleware(['auth', 'verified'])->name('dashboard');
 
 
-// ==========================================================
-// --- RUTE ADMIN (TANPA LOGIN) ---
-// ==========================================================
+/*
+|--------------------------------------------------------------------------
+| ADMIN ROUTES
+|--------------------------------------------------------------------------
+*/
 Route::prefix('admin')
     ->name('admin.')
+    ->middleware(['auth'])
     ->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -55,67 +69,49 @@ Route::prefix('admin')
 
     Route::patch('/reviews/{review}/approve', [ReviewController::class, 'approve'])->name('reviews.approve');
     Route::patch('/reviews/{review}/reject', [ReviewController::class, 'reject'])->name('reviews.reject');
+
+    Route::get('/payment-proofs', [PaymentProofController::class, 'index'])->name('paymentproof.index');
+    Route::post('/payment-proof/{id}/status', [PaymentProofController::class, 'updateStatus'])->name('paymentproof.status');
 });
 
 
-// ==========================================================
-// --- RUTE VENDOR (SEMUA BERADA DI BLOK INI) ---
-// ==========================================================
+/*
+|--------------------------------------------------------------------------
+| VENDOR ROUTES
+|--------------------------------------------------------------------------
+*/
 Route::prefix('vendor')
     ->name('vendor.')
+    ->middleware(['auth'])
     ->group(function () {
 
     Route::get('/dashboard', [VendorDashboard::class, 'index'])->name('dashboard');
 
-    Route::get('/membership', function () {
-        return Inertia::render('Vendor/MembershipPage');
-    })->name('membership');
+    Route::get('/membership', fn() => Inertia::render('Vendor/MembershipPage'))->name('membership');
 
-    // --- PAYMENT FLOW ---
-    Route::get('/payment/invoice/{id}', function ($id) {
-        return Inertia::render('Vendor/Payment/InvoicePage', [ 'id' => $id ]);
-    })->name('payment.invoice');
-
+    Route::get('/payment/invoice/{id}', [PaymentController::class, 'invoice'])->name('payment.invoice');
     Route::get('/payment/create', [PaymentController::class, 'create'])->name('payment.create');
-    Route::post('/payment', [PaymentController::class, 'store'])->name('payment.store');
-
-    // Upload Bukti Pembayaran Vendor
-    Route::get('/payment/upload', function () {
-        return Inertia::render('Vendor/Payment/UploadPaymentProofPage', [
-            'amount' => request('amount'),
-            'account_name' => request('account_name'),
-        ]);
-    })->name('payment.upload');
-
+    Route::post('/payment', [PaymentController::class, 'store'])->name('payment.store'); 
+    Route::get('/payment/upload', [PaymentController::class, 'uploadPage'])->name('payment.upload');
     Route::post('/payment/upload', [PaymentController::class, 'uploadProof'])->name('payment.upload.store');
-
-    Route::get('/payment/loading', function () {
-        return Inertia::render('Vendor/Payment/LoadingPage');
-    })->name('payment.loading');
-
-    Route::get('/payment/proof', function () {
-        return Inertia::render('Vendor/Payment/PaymentProofPage');
-    })->name('payment.proof');
+    Route::get('/payment/loading', fn() => Inertia::render('Vendor/Payment/LoadingPage'))->name('payment.loading');
+    Route::get('/payment/proof', fn() => Inertia::render('Vendor/Payment/PaymentProofPage'))->name('payment.proof');
 });
 
-// ==========================================================
-// --- PAYMENT PROOF (UPLOAD VENDOR + REVIEW ADMIN) ---
-// ==========================================================
 
-// VENDOR Upload ke PaymentProofController (versi final)
+/*
+|--------------------------------------------------------------------------
+| PAYMENT PROOF
+|--------------------------------------------------------------------------
+*/
 Route::post('/payment-proof/store', [PaymentProofController::class, 'store'])
+    ->middleware(['auth'])
     ->name('paymentproof.store');
 
-// ADMIN lihat semua bukti pembayaran
-Route::get('/admin/payment-proofs', [PaymentProofController::class, 'index'])
-    ->name('paymentproof.index');
 
-// ADMIN ubah status (approve / reject)
-Route::post('/admin/payment-proof/{id}/status', [PaymentProofController::class, 'updateStatus'])
-    ->name('paymentproof.status');
-
-
-// ==========================================================
-// --- RUTE AUTH BAWAAN BREEZE (TIDAK DIPAKAI LOGIN) ---
-// ==========================================================
+/*
+|--------------------------------------------------------------------------
+| AUTH ROUTES (BREEZE)
+|--------------------------------------------------------------------------
+*/
 require __DIR__ . '/auth.php';

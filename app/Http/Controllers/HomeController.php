@@ -2,87 +2,106 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User; 
-use App\Models\WeddingOrganizer; 
+use App\Models\WeddingOrganizer;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash; 
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Str; 
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
-use Inertia\Response;
-use Illuminate\Http\RedirectResponse; // Pastikan ini ada
 
 class HomeController extends Controller
 {
     /**
-     * Menampilkan halaman utama (dashboard customer)
-     * Ini me-render: resources/js/Pages/Customer/Dashboard.jsx
+     * Halaman utama (Homepage)
      */
-    public function index(): Response
+    public function index()
     {
-        $vendors = WeddingOrganizer::where('isApproved', true)
-                                     ->latest()
-                                     ->take(12) 
-                                     ->get();
-
-        // Path ini sudah benar sesuai struktur folder Anda
-        return Inertia::render('Customer/Dashboard', [
-            'canLogin' => Route::has('login'),
-            'canRegister' => Route::has('register'),
-            'vendors' => $vendors
-        ]);
+        return Inertia::render('Dashboard'); 
     }
 
-    // ====================================================================
-    // --- FUNGSI REGISTRASI (PATH DIPERBAIKI) ---
-    // ====================================================================
-
     /**
-     * Menampilkan halaman registrasi vendor.
-     * Ini me-render: resources/js/Pages/Auth/Vendor/RegisterPage.jsx
+     * Halaman register vendor
      */
     public function vendorRegister()
     {
-        // --- PERBAIKAN: Path ini disesuaikan dengan screenshot folder Anda ---
         return Inertia::render('Auth/Vendor/RegisterPage');
     }
 
     /**
-     * Menyimpan data vendor baru dari form registrasi.
+     * Store data vendor
      */
     public function vendorStore(Request $request)
     {
-        // 1. Validasi data
-        $validatedData = $request->validate([
-            'companyName' => 'required|string|max:255',
-            'vendorType' => 'required|string',
-            'city' => 'required|string|max:255',
-            'permitNumber' => 'required|string|max:255|unique:wedding_organizers,permit_number', 
-            'fullName' => 'required|string|max:255',
-            'email' => 'required|email|max:255', // Hapus unique:users,email jika tidak ada tabel User
-            'phone' => 'required|string|max:20',
-            'terms' => 'accepted',
-            'permitImage' => 'required|file|mimes:jpg,png,pdf|max:5120', 
-        ]);
-        
-        // 3. Upload file
-        $path = $request->file('permitImage')->store('permit_images', 'public');
+        $rules = [
+            'name'             => 'required|string|max:255',
+            'vendor_type'      => 'required|string|max:100',
+            'city'             => 'required|string|max:255',
+            'province'         => 'required|string|max:255',
+            'address'          => 'required|string|max:1000',
+            'permit_number'    => 'required|string|max:255|unique:wedding_organizers,permit_number',
+            'permit_image'     => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'pic_name'         => 'required|string|max:255',
+            'email'            => 'required|email|max:255|unique:wedding_organizers,contact_email',
+            'whatsapp'         => 'required|string|max:25',
+            'terms_accepted'   => 'accepted',
+        ];
 
-        // 4. Buat vendor baru
-        $vendor = new WeddingOrganizer(); 
-        // $vendor->user_id = $user->id; // Aktifkan jika Anda membuat user baru
-        $vendor->name = $validatedData['companyName']; 
-        $vendor->type = $validatedData['vendorType']; 
-        $vendor->city = $validatedData['city'];
-        $vendor->permit_number = $validatedData['permitNumber'];
-        $vendor->contact_name = $validatedData['fullName'];
-        $vendor->contact_email = $validatedData['email'];
-        $vendor->contact_phone = $validatedData['phone'];
-        $vendor->permit_image_path = $path;
-        $vendor->isApproved = false; // Set status awal ke pending
-        $vendor->save();
+        $messages = [
+            'terms_accepted.accepted' => 'Harap setujui syarat dan ketentuan.',
+        ];
 
-        // 6. Kembalikan ke halaman sukses
-        return redirect()->back(); 
+        $validator = Validator::make($request->all(), $rules, $messages);
+
+        if ($validator->fails()) {
+            Log::info('VALIDATION FAILED', $validator->errors()->toArray());
+            return back()->withErrors($validator)->withInput();
+        }
+
+        $permitImagePath = null;
+
+        if ($request->hasFile('permit_image')) {
+            try {
+                $permitImagePath = $request->file('permit_image')->store('permit_images', 'public');
+            } catch (\Exception $e) {
+                Log::error('FILE UPLOAD FAILED: ' . $e->getMessage());
+                return back()->withErrors(['permit_image' => 'Gagal mengupload file.'])->withInput();
+            }
+        }
+
+        try {
+            $vendor = new WeddingOrganizer();
+            $vendor->name               = $request->name;
+            $vendor->type               = $request->vendor_type;
+            $vendor->city               = $request->city;
+            $vendor->province           = $request->province;
+            $vendor->address            = $request->address;
+            $vendor->permit_number      = $request->permit_number;
+            $vendor->permit_image_path  = $permitImagePath;
+            $vendor->contact_name       = $request->pic_name;
+            $vendor->contact_email      = $request->email;
+            $vendor->contact_phone      = $request->whatsapp;
+            $vendor->password           = Hash::make('12345678');
+            $vendor->user_id            = null;
+            $vendor->isApproved         = 0;
+
+            $vendor->save();
+
+            return redirect()
+                ->route('vendor.register')
+                ->with('success', 'Pendaftaran berhasil! Menunggu verifikasi admin.');
+
+        } catch (\Exception $e) {
+
+            Log::error('STORE FAILED: ' . $e->getMessage());
+
+            if ($permitImagePath) {
+                Storage::disk('public')->delete($permitImagePath);
+            }
+
+            return back()->withErrors([
+                'registration' => 'Terjadi kesalahan saat menyimpan data.'
+            ])->withInput();
+        }
     }
 }

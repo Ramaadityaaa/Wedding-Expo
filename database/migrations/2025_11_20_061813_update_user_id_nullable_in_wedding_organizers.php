@@ -6,35 +6,28 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::table('wedding_organizers', function (Blueprint $table) {
-            // Hapus foreign key lama
-            $table->dropForeign(['user_id']);
 
-            // Hapus unique constraint dari user_id
-            $table->dropUnique(['user_id']);
+            // Drop FK (jika ada)
+            if (Schema::hasColumn('wedding_organizers', 'user_id')) {
+                try { $table->dropForeign('wedding_organizers_user_id_foreign'); } catch (\Throwable $e) {}
+            }
 
-            // Ubah menjadi nullable
-            $table->foreignId('user_id')
-                  ->nullable()
-                  ->change();
+            // Drop Unique (jika ada)
+            try { $table->dropUnique('wedding_organizers_user_id_unique'); } catch (\Throwable $e) {}
+
+            // Ubah menjadi NULLABLE
+            $table->unsignedBigInteger('user_id')->nullable()->change();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
+        // ❗❗ JANGAN dipaksa NOT NULL karena pasti error ❗❗
         Schema::table('wedding_organizers', function (Blueprint $table) {
-            // Kembalikan ke NOT NULL
-            $table->foreignId('user_id')
-                  ->nullable(false)
-                  ->change();
+            // Tidak melakukan apa-apa pada DOWN
         });
     }
 };

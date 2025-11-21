@@ -1,447 +1,610 @@
-import React, { useState, useEffect } from 'react';
+// resources/js/Pages/RegisterPage.jsx
+import React, { useEffect, useMemo, useState } from "react";
+import { useForm } from "@inertiajs/react";
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 
-// Mocking useForm untuk memungkinkan kompilasi di lingkungan terbatas.
-const useForm = (initialData) => {
-  const [data, setDataState] = useState(initialData);
-  const [processing, setProcessing] = useState(false);
-  const [errors, setErrors] = useState({});
+export default function RegisterPage() {
+  // -------------------------
+  // State & Inertia useForm
+  // -------------------------
+  const { data, setData, post, processing, errors, reset } = useForm({
+    // fields sesuai controller Laravel yang kamu tampilkan sebelumnya
+    // "name" => nama bisnis / perusahaan
+    name: "",
+    vendor_type: "",
+    city: "",
+    province: "",
+    address: "",
+    permit_number: "",
+    permit_image: null, // file
+    // contact person / PIC
+    pic_name: "",
+    contact_name: "", // optional - kita isi sama pic_name
+    contact_email: "", // optional - isi sama email
+    contact_phone: "", // optional - isi sama whatsapp
+    email: "",
+    password: "",
+    password_confirmation: "",
+    whatsapp: "",
+    terms_accepted: false,
+  });
 
-  const setData = (keyOrObject, value) => {
-    if (typeof keyOrObject === 'object') {
-      setDataState(prev => ({ ...prev, ...keyOrObject }));
-    } else {
-      setDataState(prev => ({ ...prev, [keyOrObject]: value }));
+  // local UI state
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [previewType, setPreviewType] = useState(""); // 'image' | 'pdf' | ''
+  const [statusModalOpen, setStatusModalOpen] = useState(false);
+  const [clientErrors, setClientErrors] = useState({});
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
+  const [fileNameDisplay, setFileNameDisplay] = useState("");
+  const [infoMessage, setInfoMessage] = useState("");
+
+  // Useful computed values
+  const isFileTooLarge = useMemo(() => {
+    return data.permit_image && data.permit_image.size > MAX_FILE_SIZE_BYTES;
+  }, [data.permit_image]);
+
+  // -------------------------
+  // Effects
+  // -------------------------
+  // Clean up preview URL when component unmounts or file changed
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  // When user changes PIC fields, keep contact_* fields in sync (so controller expects them)
+  useEffect(() => {
+    // only auto-fill contact_* if they are empty to avoid overriding user edits
+    if (!data.contact_name) setData("contact_name", data.pic_name || "");
+    if (!data.contact_email) setData("contact_email", data.email || "");
+    if (!data.contact_phone) setData("contact_phone", data.whatsapp || "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.pic_name, data.email, data.whatsapp]);
+
+  // -------------------------
+  // Handlers
+  // -------------------------
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    if (type === "checkbox") {
+      setData(name, checked ? 1 : 0); // Laravel 'accepted' expects truthy value; use 1/0
+      return;
     }
+    setData(name, value);
+    // clear client errors for that field
+    setClientErrors((prev) => {
+      const copy = { ...prev };
+      delete copy[name];
+      return copy;
+    });
   };
 
-  const post = (url, options = {}) => {
-    setProcessing(true);
-    setErrors({});
-    
-    // --- LOKASI VALIDASI TAMBAHAN ---
-    // Tambahkan simulasi validasi konfirmasi kata sandi di sini
-    if (data.password !== data.password_confirmation) {
-      setErrors({ password_confirmation: 'Konfirmasi kata sandi tidak cocok.' });
-      setProcessing(false);
+  const handleFileChange = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) {
+      setData("permit_image", null);
+      setPreviewUrl("");
+      setPreviewType("");
+      setFileNameDisplay("");
       return;
     }
 
-    // Simulasi penundaan API dan logika dasar
-    setTimeout(() => {
-      if (data.company_name === 'error') {
-        setErrors({ company_name: 'Nama perusahaan ini sudah terdaftar. (Simulasi Error)' });
-        setProcessing(false);
-        if (options.onError) options.onError(errors);
-        return;
-      }
+    // basic client-side checks
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      setClientErrors((prev) => ({ ...prev, permit_image: "Ukuran file melebihi 5MB." }));
+      setData("permit_image", null);
+      setPreviewUrl("");
+      setPreviewType("");
+      setFileNameDisplay("");
+      return;
+    }
 
-      // Jika simulasi berhasil
-      setProcessing(false);
-      if (options.onSuccess) options.onSuccess();
-    }, 1000);
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
+    if (!allowedTypes.includes(file.type)) {
+      setClientErrors((prev) => ({ ...prev, permit_image: "Format file tidak didukung. Gunakan JPG/PNG atau PDF." }));
+      setData("permit_image", null);
+      setPreviewUrl("");
+      setPreviewType("");
+      setFileNameDisplay("");
+      return;
+    }
+
+    // set form data file
+    setData("permit_image", file);
+
+    // set preview
+    if (file.type.startsWith("image/")) {
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+      setPreviewType("image");
+      setFileNameDisplay(file.name);
+    } else if (file.type === "application/pdf") {
+      setPreviewUrl("");
+      setPreviewType("pdf");
+      setFileNameDisplay(file.name);
+    } else {
+      setPreviewUrl("");
+      setPreviewType("");
+      setFileNameDisplay(file.name);
+    }
+
+    // clear server-side error for permit_image if any
+    if (errors && errors.permit_image) {
+      // Note: errors comes from Inertia hook; we keep it to show below
+    }
   };
 
-  const reset = () => {
-    setDataState(initialData);
-    setErrors({});
+  const validateClientSide = () => {
+    const newErrors = {};
+    if (!data.name || !data.name.trim()) newErrors.name = "Nama perusahaan wajib diisi.";
+    if (!data.vendor_type) newErrors.vendor_type = "Jenis layanan wajib dipilih.";
+    if (!data.city || !data.province) {
+      // If user typed in a combined field earlier, now we require both separately.
+      if (!data.city) newErrors.city = "Kota wajib diisi.";
+      if (!data.province) newErrors.province = "Provinsi wajib diisi.";
+    }
+    if (!data.address || !data.address.trim()) newErrors.address = "Alamat lengkap wajib diisi.";
+    if (!data.permit_number || !data.permit_number.trim()) newErrors.permit_number = "Nomor izin usaha wajib diisi.";
+    if (!data.permit_image) newErrors.permit_image = "File izin usaha wajib diupload.";
+    if (!data.pic_name || !data.pic_name.trim()) newErrors.pic_name = "Nama kontak (PIC) wajib diisi.";
+    if (!data.email || !data.email.includes("@")) newErrors.email = "Email tidak valid.";
+    if (!data.whatsapp || !/^\d{6,15}$/.test(data.whatsapp.replace(/\D/g, ""))) newErrors.whatsapp = "Nomor WhatsApp tidak valid.";
+    if (!data.password || data.password.length < 8) newErrors.password = "Password minimal 8 karakter.";
+    if (data.password !== data.password_confirmation) newErrors.password_confirmation = "Konfirmasi password tidak cocok.";
+    if (!data.terms_accepted || data.terms_accepted == 0) newErrors.terms_accepted = "Harap setujui syarat dan ketentuan.";
+    setClientErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
-  return {
-    data,
-    setData,
-    post,
-    processing,
-    errors,
-    reset,
-  };
-};
+  const handleSubmit = (e) => {
+    e.preventDefault();
 
-// SVG Icon untuk Show/Hide Password
-const EyeIcon = ({ onClick, isVisible }) => (
-    <div 
-        className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer text-gray-400 hover:text-gray-600 transition"
-        onClick={onClick}
-    >
-        {/* Ikon Lucide/Phosphor: Eye atau EyeOff */}
-        {isVisible ? (
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-eye-off">
-                <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.09 13.09 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/>
-            </svg>
-        ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-eye">
-                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>
-            </svg>
+    // clear previous info
+    setInfoMessage("");
+    setStatusModalOpen(false);
+
+    // client-side validation
+    const ok = validateClientSide();
+    if (!ok) {
+      setInfoMessage("Perbaiki error pada form terlebih dahulu.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    // prepare and send with Inertia
+    // use 'forceFormData' to ensure file is sent as multipart/form-data
+    post(route("vendor.store"), {
+      forceFormData: true,
+      onStart: () => {
+        setInfoMessage("Mengirim data ke server...");
+      },
+      onSuccess: () => {
+        setInfoMessage("Pendaftaran berhasil - menunggu verifikasi admin.");
+        setStatusModalOpen(true);
+        // reset local preview/file inputs
+        if (previewUrl) {
+          try {
+            URL.revokeObjectURL(previewUrl);
+          } catch (e) {}
+          setPreviewUrl("");
+          setPreviewType("");
+        }
+        setFileNameDisplay("");
+        // reset form (Inertia reset) but keep some defaults if you want
+        reset("name", "vendor_type", "city", "province", "address", "permit_number", "permit_image", "pic_name", "email", "password", "password_confirmation", "whatsapp", "terms_accepted", "contact_name", "contact_email", "contact_phone");
+      },
+      onError: (serverErrors) => {
+        // serverErrors is same as 'errors' provided by useForm; they'll be auto-populated
+        setInfoMessage("Server mengembalikan error. Periksa pesan validasi.");
+        // scroll to top so user sees messages
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      },
+      onFinish: () => {
+        // nothing extra
+      },
+    });
+  };
+
+  // -------------------------
+  // Helper small components
+  // -------------------------
+  const FieldError = ({ field }) => {
+    // prefer server-side errors (errors), fallback to client-side (clientErrors)
+    if (errors && errors[field]) {
+      return <p className="mt-1 text-sm text-red-600">{errors[field]}</p>;
+    }
+    if (clientErrors && clientErrors[field]) {
+      return <p className="mt-1 text-sm text-red-600">{clientErrors[field]}</p>;
+    }
+    return null;
+  };
+
+  // small UI for password strength
+  const passwordStrength = useMemo(() => {
+    const p = data.password || "";
+    let score = 0;
+    if (p.length >= 8) score++;
+    if (/[A-Z]/.test(p)) score++;
+    if (/[0-9]/.test(p)) score++;
+    if (/[^A-Za-z0-9]/.test(p)) score++;
+    return score; // 0..4
+  }, [data.password]);
+
+  const StrengthBar = () => {
+    const score = passwordStrength;
+    const labels = ["Very weak", "Weak", "OK", "Good", "Strong"];
+    const colors = ["bg-red-500", "bg-orange-400", "bg-yellow-400", "bg-blue-500", "bg-green-500"];
+    return (
+      <div className="mt-1">
+        <div className="h-2 w-full bg-gray-200 rounded overflow-hidden">
+          <div
+            className={`h-2 ${colors[score]} rounded`}
+            style={{ width: `${(score / 4) * 100}%`, transition: "width 250ms ease" }}
+          />
+        </div>
+        <div className="text-xs text-gray-500 mt-1">Strength: {labels[score]}</div>
+      </div>
+    );
+  };
+
+  // -------------------------
+  // Markup (long & descriptive)
+  // -------------------------
+  return (
+    <div className="min-h-screen bg-gray-50 py-10 px-4">
+      <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-md overflow-hidden">
+        <div className="p-6 border-b">
+          <h1 className="text-2xl font-bold text-gray-800">Daftar Vendor Baru</h1>
+          <p className="mt-1 text-sm text-gray-600">
+            Isi data vendor dan lampirkan dokumen izin usaha. Pendaftaran akan diverifikasi oleh admin sebelum aktif.
+          </p>
+          {infoMessage && (
+            <div className="mt-3 p-3 bg-yellow-50 text-yellow-800 rounded text-sm">{infoMessage}</div>
+          )}
+        </div>
+
+        <form
+          onSubmit={handleSubmit}
+          encType="multipart/form-data"
+          className="p-6 space-y-6"
+          noValidate
+        >
+          {/* PRIMARY / BUSINESS SECTION */}
+          <section>
+            <h2 className="text-lg font-semibold text-gray-700">Informasi Vendor</h2>
+            <p className="text-sm text-gray-500 mt-1">Isi data usaha Anda.</p>
+
+            <div className="mt-4 grid gap-4 grid-cols-1 md:grid-cols-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Nama Bisnis / Perusahaan</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={data.name}
+                  onChange={handleInputChange}
+                  placeholder="Contoh: Bunga Mawar Wedding Organizer"
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                <FieldError field="name" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Jenis Layanan</label>
+                <select
+                  name="vendor_type"
+                  value={data.vendor_type}
+                  onChange={handleInputChange}
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                  <option value="">-- Pilih --</option>
+                  <option value="wo">Wedding Organizer (WO)</option>
+                  <option value="catering">Katering</option>
+                  <option value="decoration">Dekorasi</option>
+                  <option value="photography">Fotografi & Videografi</option>
+                  <option value="mua">MUA & Busana</option>
+                  <option value="other">Lainnya</option>
+                </select>
+                <FieldError field="vendor_type" />
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-4 grid-cols-1 md:grid-cols-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Kota</label>
+                <input
+                  type="text"
+                  name="city"
+                  value={data.city}
+                  onChange={handleInputChange}
+                  placeholder="Contoh: Jakarta"
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                <FieldError field="city" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Provinsi</label>
+                <input
+                  type="text"
+                  name="province"
+                  value={data.province}
+                  onChange={handleInputChange}
+                  placeholder="Contoh: DKI Jakarta"
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                <FieldError field="province" />
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700">Alamat Lengkap</label>
+              <textarea
+                name="address"
+                value={data.address}
+                onChange={handleInputChange}
+                placeholder="Alamat kantor / studio"
+                rows="3"
+                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+              />
+              <FieldError field="address" />
+            </div>
+          </section>
+
+          {/* LEGAL / PERMIT SECTION */}
+          <section>
+            <h2 className="text-lg font-semibold text-gray-700">Dokumen Legalitas</h2>
+            <p className="text-sm text-gray-500 mt-1">Nomor izin usaha & file lampiran (SIUP / NIB).</p>
+
+            <div className="mt-4 grid gap-4 grid-cols-1 md:grid-cols-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Nomor Izin Usaha (NIB / SIUP)</label>
+                <input
+                  type="text"
+                  name="permit_number"
+                  value={data.permit_number}
+                  onChange={handleInputChange}
+                  placeholder="Contoh: NIB 123456789"
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                <FieldError field="permit_number" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Upload Izin (JPG/PNG/PDF, max 5MB)</label>
+                <input
+                  type="file"
+                  name="permit_image"
+                  accept="image/jpeg,image/png,application/pdf"
+                  onChange={(e) => {
+                    // both custom handler and setData for Inertia
+                    handleFileChange(e);
+                  }}
+                  className="mt-1 block w-full text-sm text-gray-700"
+                />
+                <FieldError field="permit_image" />
+                {clientErrors.permit_image && (
+                  <p className="mt-1 text-sm text-red-600">{clientErrors.permit_image}</p>
+                )}
+
+                {/* preview area */}
+                {previewType === "image" && previewUrl && (
+                  <div className="mt-3">
+                    <div className="text-sm text-gray-600">Preview gambar:</div>
+                    <img src={previewUrl} alt="preview" className="mt-2 rounded-md border max-h-56 object-contain" />
+                    <div className="text-xs text-gray-500 mt-1">{fileNameDisplay}</div>
+                  </div>
+                )}
+                {previewType === "pdf" && fileNameDisplay && (
+                  <div className="mt-3">
+                    <div className="text-sm text-gray-600">File PDF dipilih:</div>
+                    <div className="mt-2 text-sm text-gray-700 font-medium">{fileNameDisplay}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+
+          {/* CONTACT / ACCOUNT */}
+          <section>
+            <h2 className="text-lg font-semibold text-gray-700">Informasi Kontak & Akun</h2>
+            <p className="text-sm text-gray-500 mt-1">Data PIC & akun untuk login.</p>
+
+            <div className="mt-4 grid gap-4 grid-cols-1 md:grid-cols-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Nama Kontak (PIC)</label>
+                <input
+                  type="text"
+                  name="pic_name"
+                  value={data.pic_name}
+                  onChange={handleInputChange}
+                  placeholder="Nama orang yang dapat dihubungi"
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                <FieldError field="pic_name" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Nama Email Kontak (jika berbeda)</label>
+                <input
+                  type="text"
+                  name="contact_name"
+                  value={data.contact_name}
+                  onChange={handleInputChange}
+                  placeholder="Opsional"
+                  className="mt-1 block w-full border-gray-200 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                <FieldError field="contact_name" />
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-4 grid-cols-1 md:grid-cols-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Email</label>
+                <input
+                  type="email"
+                  name="email"
+                  value={data.email}
+                  onChange={handleInputChange}
+                  placeholder="email@contoh.com"
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                <FieldError field="email" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Nomor WhatsApp</label>
+                <input
+                  type="tel"
+                  name="whatsapp"
+                  value={data.whatsapp}
+                  onChange={handleInputChange}
+                  placeholder="0812xxxxxxx"
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                />
+                <FieldError field="whatsapp" />
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-4 grid-cols-1 md:grid-cols-2 items-end">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Password</label>
+                <div className="relative mt-1">
+                  <input
+                    type={passwordVisible ? "text" : "password"}
+                    name="password"
+                    value={data.password}
+                    onChange={handleInputChange}
+                    placeholder="Minimal 8 karakter"
+                    className="block w-full border-gray-300 rounded-md shadow-sm pr-10 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setPasswordVisible((s) => !s)}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-sm text-gray-600"
+                  >
+                    {passwordVisible ? "Sembunyikan" : "Tampilkan"}
+                  </button>
+                </div>
+                <FieldError field="password" />
+                <StrengthBar />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Konfirmasi Password</label>
+                <div className="relative mt-1">
+                  <input
+                    type={confirmPasswordVisible ? "text" : "password"}
+                    name="password_confirmation"
+                    value={data.password_confirmation}
+                    onChange={handleInputChange}
+                    placeholder="Ulangi password"
+                    className="block w-full border-gray-300 rounded-md shadow-sm pr-10 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setConfirmPasswordVisible((s) => !s)}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-sm text-gray-600"
+                  >
+                    {confirmPasswordVisible ? "Sembunyikan" : "Tampilkan"}
+                  </button>
+                </div>
+                <FieldError field="password_confirmation" />
+              </div>
+            </div>
+          </section>
+
+          {/* TERMS */}
+          <section>
+            <div className="flex items-start">
+              <div className="flex items-center h-5">
+                <input
+                  id="terms"
+                  name="terms_accepted"
+                  type="checkbox"
+                  checked={!!data.terms_accepted}
+                  onChange={(e) => {
+                    // our handler expects 1/0 for Laravel 'accepted' check
+                    setData("terms_accepted", e.target.checked ? 1 : 0);
+                    setClientErrors((prev) => {
+                      const cp = { ...prev };
+                      delete cp.terms_accepted;
+                      return cp;
+                    });
+                  }}
+                  className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
+                />
+              </div>
+              <div className="ml-3 text-sm">
+                <label htmlFor="terms" className="font-medium text-gray-700">
+                  Saya setuju dengan <a href="/terms" target="_blank" rel="noreferrer" className="text-indigo-600 underline">Syarat dan Ketentuan</a>.
+                </label>
+                <FieldError field="terms_accepted" />
+              </div>
+            </div>
+          </section>
+
+          {/* SUBMIT */}
+          <div className="pt-4 border-t">
+            <div className="flex items-center justify-between gap-4">
+              <div className="text-sm text-gray-600">
+                <strong>Catatan:</strong> Setelah mendaftar, admin akan memverifikasi dokumen Anda.
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="submit"
+                  disabled={processing}
+                  className={`inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white ${
+                    processing ? "bg-gray-400 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700"
+                  }`}
+                >
+                  {processing ? "Mengirim..." : "Daftar Sekarang"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    // reset both Inertia form and local ui
+                    reset();
+                    setPreviewUrl("");
+                    setPreviewType("");
+                    setFileNameDisplay("");
+                    setClientErrors({});
+                    setInfoMessage("");
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md bg-white hover:bg-gray-50"
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+
+        {/* Success modal */}
+        {statusModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black opacity-30" onClick={() => setStatusModalOpen(false)} />
+            <div className="relative max-w-md w-full bg-white rounded-lg shadow-lg p-6 z-10">
+              <h3 className="text-xl font-semibold">Pendaftaran Berhasil</h3>
+              <p className="mt-2 text-sm text-gray-600">Terima kasih, data Anda sudah kami terima. Admin akan memverifikasi dokumen dan menginformasikan melalui email.</p>
+              <div className="mt-4 text-right">
+                <button
+                  onClick={() => setStatusModalOpen(false)}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
         )}
+      </div>
     </div>
-);
+  );
+}
 
-
-const customStyles = {
-  bodyBg: 'bg-white',
-};
-
-// Nama komponen tetap RegisterPage
-const RegisterPage = () => {
-  
-  // State untuk mengontrol visibilitas password
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  // PENTING: Menambahkan 'password_confirmation' ke useForm
-  const { data, setData, post, processing, errors, reset } = useForm({
-    // --- INFORMASI VENDOR ---
-    'company_name': '', 
-    'vendor_type': '', 
-    'city_province': '', 
-    'address': '', 
-    'nib': '', 
-    'siup_nib_file': null, 
-
-    // --- INFORMASI KONTAK & AKUN ---
-    'name': '', 
-    'email': '',
-    'whatsapp': '', 
-    'password': '', 
-    'password_confirmation': '', // <--- FIELD BARU: Konfirmasi Kata Sandi
-    
-    'terms': false,
-  });
-
-  const [previewUrl, setPreviewUrl] = useState('');
-  const [statusModalOpen, setStatusModalOpen] = useState(false);
-  
-  const colors = {
-    'primary-gold': '#A3844C',
-    'secondary-orange': '#FFBB00',
-    'dark-text': '#524330',
-  };
-
-  useEffect(() => {
-    return () => {
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
-    };
-  }, [previewUrl]);
-
-  // Handler change yang terhubung ke useForm
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setData(name, type === 'checkbox' ? checked : value);
-  };
-
-  // Handler file yang terhubung ke useForm
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    setData('siup_nib_file', file);
-    
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
-    if (file && file.type.startsWith('image/')) {
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
-    } else {
-      setPreviewUrl('');
-    }
-  };
-
-  // Handler submit yang terhubung ke Inertia
-  const handleRegistration = (e) => {
-    e.preventDefault();
-    post('vendor.store', { // Menggunakan string placeholder
-      onSuccess: () => {
-        setStatusModalOpen(true);
-        resetForm();
-      },
-      onError: (errors) => {
-        console.error("Registrasi gagal:", errors);
-      },
-    });
-  };
-
-  // Fungsi reset
-  const resetForm = () => {
-    reset(); // Reset dari useForm
-    setPreviewUrl('');
-    const fileInput = document.getElementById('siup_nib_file'); // ID disesuaikan
-    if (fileInput) fileInput.value = '';
-  };
-
-  const closeStatusMessage = () => {
-    setStatusModalOpen(false);
-  };
-
-  const isImage = data.siup_nib_file && data.siup_nib_file.type.startsWith('image/');
-  const isPdf = data.siup_nib_file && data.siup_nib_file.type === 'application/pdf';
-
-  return (
-    <div className={`font-sans min-h-screen flex items-center justify-center p-4 ${customStyles.bodyBg}`}>
-        
-
-        <div className="w-full max-w-2xl bg-white rounded-xl shadow-2xl p-8 md:p-12 border-t-8" style={{borderColor: colors['primary-gold']}}>
-          
-          <div className="text-center mb-8">
-            <span className="inline-block px-4 py-1 text-lg font-bold text-dark-text bg-opacity-10 rounded-full border" style={{backgroundColor: colors['secondary-orange'] + '1A', borderColor: colors['secondary-orange'], color: colors['dark-text']}}>
-              Wedding<span style={{color: colors['primary-gold']}}>Expo</span>
-            </span>
-            <h1 className="text-3xl md:text-4xl font-extrabold mt-3" style={{color: colors['primary-gold']}}>
-              Daftar Vendor Baru
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Bergabunglah dengan direktori Wedding Organizer terbaik.
-            </p>
-          </div>
-
-          <form onSubmit={handleRegistration} className="space-y-8">
-            
-            {/* Informasi Vendor */}
-            <div className="space-y-6">
-              <h2 className="text-xl font-semibold text-dark-text border-b pb-2" style={{borderColor: colors['primary-gold'] + '4D'}}>
-                Informasi Vendor
-              </h2>
-              <div>
-                <label htmlFor="company_name" className="block text-sm font-medium text-dark-text mb-1">Nama Perusahaan / Studio WO <span className="text-red-500">*</span></label>
-                <input 
-                  type="text" id="company_name" name="company_name" required
-                  placeholder="Contoh: Bunga Mawar Wedding Organizer"
-                  value={data.company_name}
-                  onChange={handleChange}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-secondary-orange focus:border-secondary-orange transition duration-150"
-                  style={{'--tw-ring-color': colors['secondary-orange'], '--tw-border-color': colors['secondary-orange']}}
-                />
-                {errors.company_name && <p className="text-red-500 text-xs mt-1">{errors.company_name}</p>}
-              </div>
-              <div>
-                <label htmlFor="vendor_type" className="block text-sm font-medium text-dark-text mb-1">Jenis Layanan Utama <span className="text-red-500">*</span></label>
-                <select 
-                  id="vendor_type" name="vendor_type" required
-                  value={data.vendor_type}
-                  onChange={handleChange}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-secondary-orange focus:border-secondary-orange transition duration-150 appearance-none bg-white"
-                  style={{'--tw-ring-color': colors['secondary-orange'], '--tw-border-color': colors['secondary-orange']}}
-                >
-                  <option value="" disabled>Pilih salah satu...</option>
-                  <option value="wo">Wedding Organizer (WO) & Planner</option>
-                  <option value="decoration">Dekorasi & Pelaminan</option>
-                  <option value="catering">Katering Pernikahan</option>
-                  <option value="photography">Fotografi & Videografi</option>
-                  <option value="mua">MUA & Busana Pengantin</option>
-                </select>
-                {errors.vendor_type && <p className="text-red-500 text-xs mt-1">{errors.vendor_type}</p>}
-              </div>
-              <div>
-                <label htmlFor="city_province" className="block text-sm font-medium text-dark-text mb-1">Kota/Provinsi Layanan <span className="text-red-500">*</span></label>
-                <input 
-                  type="text" id="city_province" name="city_province" required
-                  placeholder="Contoh: Jakarta, Bandung, Surabaya"
-                  value={data.city_province}
-                  onChange={handleChange}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-secondary-orange focus:border-secondary-orange transition duration-150"
-                  style={{'--tw-ring-color': colors['secondary-orange'], '--tw-border-color': colors['secondary-orange']}}
-                />
-                {errors.city_province && <p className="text-red-500 text-xs mt-1">{errors.city_province}</p>}
-              </div>
-              
-              {/* Field Alamat (address) */}
-              <div>
-                <label htmlFor="address" className="block text-sm font-medium text-dark-text mb-1">Alamat Lengkap <span className="text-red-500">*</span></label>
-                <textarea 
-                  id="address" name="address" required
-                  placeholder="Masukkan alamat lengkap kantor/studio Anda"
-                  value={data.address}
-                  onChange={handleChange}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-secondary-orange focus:border-secondary-orange transition duration-150"
-                  rows="3"
-                  style={{'--tw-ring-color': colors['secondary-orange'], '--tw-border-color': colors['secondary-orange']}}
-                />
-                {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
-              </div>
-            </div>
-
-            {/* Dokumen Legalitas */}
-            <div className="space-y-6">
-              <h2 className="text-xl font-semibold text-dark-text border-b pb-2" style={{borderColor: colors['primary-gold'] + '4D'}}>
-                Dokumen Legalitas
-              </h2>
-              <div>
-                <label htmlFor="nib" className="block text-sm font-medium text-dark-text mb-1">Nomor Izin Usaha (NIB/SIUP) <span className="text-red-500">*</span></label>
-                <input 
-                  type="text" id="nib" name="nib" required
-                  placeholder="Masukkan Nomor Izin Usaha Anda (cth: NIB 123456789)"
-                  value={data.nib}
-                  onChange={handleChange}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-secondary-orange focus:border-secondary-orange transition duration-150"
-                  style={{'--tw-ring-color': colors['secondary-orange'], '--tw-border-color': colors['secondary-orange']}}
-                />
-                {errors.nib && <p className="text-red-500 text-xs mt-1">{errors.nib}</p>}
-              </div>
-              <div>
-                <label htmlFor="siup_nib_file" className="block text-sm font-medium text-dark-text mb-1">Upload Foto Surat Izin Usaha (SIUP/NIB) <span className="text-red-500">*</span></label>
-                <input 
-                  type="file" id="siup_nib_file" name="siup_nib_file" accept="image/png, image/jpeg, application/pdf" required
-                  onChange={handleFileChange}
-                  className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:transition duration-150 pt-2"
-                  style={{
-                    '--tw-file-bg': colors['secondary-orange'] + '33',
-                    '--tw-file-text': colors['primary-gold'],
-                    '--tw-file-hover-bg': colors['secondary-orange'] + '4D',
-                    backgroundColor: 'transparent'
-                  }}
-                />
-                <p className="mt-1 text-xs text-gray-500">Maksimum ukuran file 5MB. Format: JPG, PNG, atau PDF.</p>
-                {errors.siup_nib_file && <p className="text-red-500 text-xs mt-1">{errors.siup_nib_file}</p>}
-                
-                {/* Pratinjau Dokumen */}
-                {data.siup_nib_file && (
-                  <div id="imagePreviewContainer" className="mt-4">
-                    <p className="text-sm font-medium text-dark-text mb-2">Pratinjau Dokumen:</p>
-                    {isImage && previewUrl && (
-                      <img 
-                        id="uploadedImagePreview" 
-                        src={previewUrl} 
-                        alt="Pratinjau Surat Izin Usaha" 
-                        className="max-w-xs h-auto max-h-64 rounded-lg shadow-md border border-gray-200 mx-auto block object-contain"
-                      />
-                    )}
-                    {isPdf && (
-                      <p id="uploadedPdfPreview" className="text-sm text-gray-600 mt-2 text-center">
-                        File PDF telah dipilih: <span id="pdfFileName" className="font-semibold">{data.siup_nib_file.name}</span>
-                      </p>
-                    )}
-                    {!isImage && !isPdf && data.siup_nib_file && (
-                         <p id="uploadedPdfPreview" className="text-sm text-gray-600 mt-2 text-center">
-                            File dipilih: <span id="pdfFileName" className="font-semibold">{data.siup_nib_file.name}</span>
-                        </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            {/* Informasi Kontak & Akun */}
-            <div className="space-y-6">
-              <h2 className="text-xl font-semibold text-dark-text border-b pb-2" style={{borderColor: colors['primary-gold'] + '4D'}}>
-                Informasi Kontak & Akun
-              </h2>
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-dark-text mb-1">Nama Kontak Person <span className="text-red-500">*</span></label>
-                <input 
-                  type="text" id="name" name="name" required
-                  placeholder="Nama lengkap PIC"
-                  value={data.name}
-                  onChange={handleChange}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-secondary-orange focus:border-secondary-orange transition duration-150"
-                  style={{'--tw-ring-color': colors['secondary-orange'], '--tw-border-color': colors['secondary-orange']}}
-                />
-                {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
-              </div>
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-dark-text mb-1">Email <span className="text-red-500">*</span></label>
-                <input 
-                  type="email" id="email" name="email" required
-                  placeholder="Email aktif untuk notifikasi"
-                  value={data.email}
-                  onChange={handleChange}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-secondary-orange focus:border-secondary-orange transition duration-150"
-                  style={{'--tw-ring-color': colors['secondary-orange'], '--tw-border-color': colors['secondary-orange']}}
-                />
-                {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
-              </div>
-
-              {/* Field Password */}
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-dark-text mb-1">Kata Sandi Akun <span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <input 
-                    type={showPassword ? 'text' : 'password'} 
-                    id="password" name="password" required
-                    placeholder="Minimal 8 karakter"
-                    value={data.password}
-                    onChange={handleChange}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-secondary-orange focus:border-secondary-orange transition duration-150 pr-10"
-                    style={{'--tw-ring-color': colors['secondary-orange'], '--tw-border-color': colors['secondary-orange']}}
-                  />
-                  <EyeIcon onClick={() => setShowPassword(!showPassword)} isVisible={!showPassword} />
-                </div>
-                {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
-              </div>
-
-              {/* FIELD BARU: Konfirmasi Password */}
-              <div>
-                <label htmlFor="password_confirmation" className="block text-sm font-medium text-dark-text mb-1">Konfirmasi Kata Sandi <span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <input 
-                    type={showConfirmPassword ? 'text' : 'password'} 
-                    id="password_confirmation" name="password_confirmation" required
-                    placeholder="Ulangi Kata Sandi"
-                    value={data.password_confirmation}
-                    onChange={handleChange}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-secondary-orange focus:border-secondary-orange transition duration-150 pr-10"
-                    style={{'--tw-ring-color': colors['secondary-orange'], '--tw-border-color': colors['secondary-orange']}}
-                  />
-                  <EyeIcon onClick={() => setShowConfirmPassword(!showConfirmPassword)} isVisible={!showConfirmPassword} />
-                </div>
-                {errors.password_confirmation && <p className="text-red-500 text-xs mt-1">{errors.password_confirmation}</p>}
-              </div>
-
-              <div>
-                <label htmlFor="whatsapp" className="block text-sm font-medium text-dark-text mb-1">Nomor WhatsApp <span className="text-red-500">*</span></label>
-                <input 
-                  type="tel" id="whatsapp" name="whatsapp" required
-                  placeholder="Contoh: 0812xxxxxx"
-                  value={data.whatsapp}
-                  onChange={handleChange}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-secondary-orange focus:border-secondary-orange transition duration-150"
-                  style={{'--tw-ring-color': colors['secondary-orange'], '--tw-border-color': colors['secondary-orange']}}
-                />
-                {errors.whatsapp && <p className="text-red-500 text-xs mt-1">{errors.whatsapp}</p>}
-              </div>
-            </div>
-            
-            {/* Submit */}
-            <div className="mt-8">
-              <div className="flex items-start">
-                <div className="flex items-center h-5">
-                  <input 
-                    id="terms" name="terms" type="checkbox" required
-                    checked={data.terms}
-                    onChange={handleChange}
-                    className="focus:ring-secondary-orange h-4 w-4 border-gray-300 rounded"
-                    style={{color: colors['primary-gold'], '--tw-ring-color': colors['secondary-orange']}}
-                  />
-                </div>
-                <div className="ml-3 text-sm">
-                  <label htmlFor="terms" className="font-medium text-gray-700">Saya setuju dengan <a href="#" className="hover:underline" style={{color: colors['primary-gold']}}>Syarat dan Ketentuan</a> vendor.</label>
-                </div>
-              </div>
-              {errors.terms && <p className="text-red-500 text-xs mt-1">{errors.terms}</p>}
-            </div>
-
-            {/* Tombol submit dengan status 'processing' */}
-            <button type="submit" 
-              className={`w-full mt-6 py-3 rounded-xl text-lg text-white font-semibold transition duration-300 ease-in-out 
-              ${processing ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-yellow-700 to-yellow-500 hover:from-yellow-500 hover:to-yellow-700 shadow-lg hover:shadow-xl'}`}
-              disabled={processing}
-            >
-              {processing ? 'Mendaftar...' : 'Daftar Sekarang'}
-            </button>
-            
-          </form>
-
-          {/* Modal Status */}
-          {statusModalOpen && (
-            <div id="statusMessage" className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center p-4 z-50">
-              <div className="bg-white p-8 rounded-lg shadow-xl max-w-sm w-full text-center">
-                <h3 id="messageTitle" className="text-2xl font-bold mb-4" style={{color: colors['primary-gold']}}>Pendaftaran Berhasil!</h3>
-                <p id="messageText" className="text-gray-600 mb-6">Terima kasih telah mendaftar. Kami akan segera memverifikasi data Anda dan mengirimkan email konfirmasi.</p>
-                <button onClick={closeStatusMessage} className={`w-full py-2 rounded-lg text-sm text-white bg-gradient-to-r from-yellow-700 to-yellow-500 hover:from-yellow-500 hover:to-yellow-700 shadow-lg`}>Tutup</button>
-              </div>
-            </div>
-          )}
-        </div>
-    </div>
-  );
-};
-
-export default RegisterPage;
+/* End of RegisterPage.jsx */
