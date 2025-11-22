@@ -606,5 +606,3 @@ export default function RegisterPage() {
     </div>
   );
 }
-
-/* End of RegisterPage.jsx */
