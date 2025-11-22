@@ -1,12 +1,23 @@
-import { useState } from 'react'  
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Menu, X } from 'lucide-react'
-import { Link } from '@inertiajs/react'
+import { Menu, X, User as UserIcon } from 'lucide-react'
+import { Link, usePage } from '@inertiajs/react'
 
 export default function Navbar() {
-  const favorites = []
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const handleNavClick = () => setIsMobileMenuOpen(false)
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
+
+  const { auth } = usePage().props || {}
+  const user = auth?.user || null
+  const role = user?.role || null
+  const isLoggedIn = !!user
+
+  const favorites = []
+
+  const handleNavClick = () => {
+    setIsMobileMenuOpen(false)
+    setIsProfileOpen(false)
+  }
 
   return (
     <nav
@@ -22,7 +33,7 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
 
-          {/* LOGO */}
+          {/* LOGO + HAMBURGER */}
           <div className="flex items-center space-x-2">
             <button
               className="md:hidden p-2 rounded-lg bg-white/70 shadow hover:bg-yellow-100 transition-all"
@@ -32,7 +43,6 @@ export default function Navbar() {
             </button>
 
             <Link href="/" className="flex items-center group">
-
               <div
                 className="
                   px-4 py-2 rounded-xl shadow-lg relative overflow-hidden
@@ -56,7 +66,7 @@ export default function Navbar() {
             </Link>
           </div>
 
-          {/* DESKTOP MENU */}
+          {/* MENU DESKTOP */}
           <div className="hidden md:flex items-center space-x-8">
             <Link className="navLink" href="/">Beranda</Link>
             <Link className="navLink" href="/#vendors">Vendor</Link>
@@ -74,33 +84,110 @@ export default function Navbar() {
             <Link className="navLink" href="/#about">Tentang</Link>
           </div>
 
-          {/* CTA BUTTONS */}
+          {/* AREA KANAN – DESKTOP */}
           <div className="hidden md:flex items-center space-x-4">
 
-            {/* LOGIN BUTTON GLOSSY GOLD */}
-            <Link href="/login">
-              <Button
-                className="
-                  btn-login
-                  rounded-xl px-5 py-2 text-white font-semibold
-                "
-              >
-                Login
-              </Button>
-            </Link>
+            {/* BELUM LOGIN → TAMPILKAN LOGIN + REGISTER CUSTOMER */}
+            {!isLoggedIn && (
+              <>
+                <Link href="/login">
+                  <Button className="btn-login rounded-xl px-5 py-2 text-white font-semibold">
+                    Login
+                  </Button>
+                </Link>
 
-            {/* REGISTER BUTTON — SAMA PERSIS DENGAN LOGIN */}
-            <Link href="/register/vendor">
-              <Button
-                className="
-                  btn-login
-                  rounded-xl px-5 py-2 text-white font-semibold
-                "
-              >
-                Register
-              </Button>
-            </Link>
+                <Link href="/register">
+                  <Button className="btn-login rounded-xl px-5 py-2 text-white font-semibold">
+                    Register
+                  </Button>
+                </Link>
+              </>
+            )}
 
+            {/* SUDAH LOGIN → HANYA ICON PROFIL (DROPDOWN berisi akun + dashboard + logout) */}
+            {isLoggedIn && (
+              <div className="relative">
+                {/* ICON PROFIL DI HEADER */}
+                <button
+                  type="button"
+                  onClick={() => setIsProfileOpen(!isProfileOpen)}
+                  className="
+                    w-9 h-9 rounded-full 
+                    bg-gradient-to-tr from-yellow-400 to-yellow-600
+                    flex items-center justify-center
+                    shadow-md border border-white/80
+                    hover:scale-105 transition-transform
+                  "
+                >
+                  <UserIcon className="w-5 h-5 text-white" />
+                </button>
+
+                {/* DROPDOWN INFO AKUN */}
+                {isProfileOpen && (
+                  <div className="absolute right-0 mt-2 w-64 bg-white/95 border border-yellow-100 rounded-xl shadow-xl p-3 text-sm z-50">
+                    <p className="font-semibold text-gray-900">
+                      {user.name || 'Pengguna'}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {user.email}
+                    </p>
+                    <p className="mt-2 inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-yellow-100 text-yellow-700">
+                      Role: {role || 'VISITOR'}
+                    </p>
+
+                    {/* Link ke dashboard sesuai role, kalau mau masuk ke halaman dashboard */}
+                    {role === 'ADMIN' && (
+                      <Link
+                        href="/admin/dashboard"
+                        className="mt-3 block text-xs font-semibold text-yellow-700 hover:text-yellow-800"
+                        onClick={() => setIsProfileOpen(false)}
+                      >
+                        Ke Dashboard Admin
+                      </Link>
+                    )}
+
+                    {role === 'VENDOR' && (
+                      <Link
+                        href="/vendor/dashboard"
+                        className="mt-3 block text-xs font-semibold text-yellow-700 hover:text-yellow-800"
+                        onClick={() => setIsProfileOpen(false)}
+                      >
+                        Ke Dashboard Vendor
+                      </Link>
+                    )}
+
+                    {(!role || role === 'VISITOR') && (
+                      <Link
+                        href="/dashboard"
+                        className="mt-3 block text-xs font-semibold text-yellow-700 hover:text-yellow-800"
+                        onClick={() => setIsProfileOpen(false)}
+                      >
+                        Ke Dashboard
+                      </Link>
+                    )}
+
+                    <Link
+                      href="/profile"
+                      className="mt-2 block text-xs font-semibold text-yellow-700 hover:text-yellow-800"
+                      onClick={() => setIsProfileOpen(false)}
+                    >
+                      Lihat & Ubah Profil
+                    </Link>
+
+                    {/* LOGOUT DALAM DROPDOWN */}
+                    <Link
+                      href="/logout"
+                      method="post"
+                      as="button"
+                      className="mt-3 w-full text-left text-xs font-semibold text-red-500 hover:text-red-600"
+                      onClick={() => setIsProfileOpen(false)}
+                    >
+                      Logout
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -108,44 +195,96 @@ export default function Navbar() {
         {isMobileMenuOpen && (
           <div className="md:hidden bg-white/90 backdrop-blur-xl border-t border-yellow-300 shadow-xl animate-fadeIn">
             <div className="px-4 py-4 space-y-3">
-
               <Link className="mobileLink" href="/" onClick={handleNavClick}>Beranda</Link>
               <Link className="mobileLink" href="/#vendors" onClick={handleNavClick}>Vendor</Link>
               <Link className="mobileLink" href="/favorites" onClick={handleNavClick}>Favorit</Link>
               <Link className="mobileLink" href="/#inspiration" onClick={handleNavClick}>Inspirasi</Link>
               <Link className="mobileLink" href="/#about" onClick={handleNavClick}>Tentang</Link>
 
-              {/* MOBILE REGISTER */}
-              <Link href="/register/vendor" onClick={handleNavClick}>
-                <Button className="btn-login w-full mt-2">
-                  Register
-                </Button>
-              </Link>
+              {/* MOBILE – BELUM LOGIN → LOGIN & REGISTER */}
+              {!isLoggedIn && (
+                <>
+                  <Link href="/register" onClick={handleNavClick}>
+                    <Button className="btn-login w-full mt-2">
+                      Register
+                    </Button>
+                  </Link>
 
-              {/* MOBILE LOGIN */}
-              <Link href="/login" onClick={handleNavClick}>
-                <Button className="btn-login w-full">
-                  Login
-                </Button>
-              </Link>
+                  <Link href="/login" onClick={handleNavClick}>
+                    <Button className="btn-login w-full">
+                      Login
+                    </Button>
+                  </Link>
+                </>
+              )}
 
+              {/* MOBILE – SUDAH LOGIN → DASHBOARD/PROFILE/LOGOUT */}
+              {isLoggedIn && (
+                <>
+                  <div className="pt-2 mt-2 border-t border-yellow-200">
+                    <p className="text-sm font-semibold text-gray-900">
+                      {user.name || 'Pengguna'}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                    <p className="mt-1 inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold bg-yellow-100 text-yellow-700">
+                      Role: {role || 'VISITOR'}
+                    </p>
+                  </div>
+
+                  {role === 'ADMIN' && (
+                    <Link href="/admin/dashboard" onClick={handleNavClick}>
+                      <Button className="btn-login w-full mt-2">
+                        Ke Dashboard Admin
+                      </Button>
+                    </Link>
+                  )}
+                  {role === 'VENDOR' && (
+                    <Link href="/vendor/dashboard" onClick={handleNavClick}>
+                      <Button className="btn-login w-full mt-2">
+                        Ke Dashboard Vendor
+                      </Button>
+                    </Link>
+                  )}
+                  {(!role || role === 'VISITOR') && (
+                    <Link href="/dashboard" onClick={handleNavClick}>
+                      <Button className="btn-login w-full mt-2">
+                        Ke Dashboard
+                      </Button>
+                    </Link>
+                  )}
+
+                  <Link
+                    href="/profile"
+                    onClick={handleNavClick}
+                    className="block text-xs font-semibold text-yellow-700 hover:text-yellow-800 mt-2"
+                  >
+                    Lihat & Ubah Profil
+                  </Link>
+
+                  <Link
+                    href="/logout"
+                    method="post"
+                    as="button"
+                    onClick={handleNavClick}
+                  >
+                    <Button className="btn-login w-full mt-2">
+                      Logout
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         )}
-
       </div>
 
-      {/* EXTRA CSS */}
+      {/* CSS animasi sama seperti sebelumnya */}
       <style>{`
-
-        /* GOLD PULSE BG */
         @keyframes goldPulse {
           0% { background-position: 0% 0%; }
           50% { background-position: 100% 100%; }
           100% { background-position: 0% 0%; }
         }
-
-        /* GOLD SHINE ANIMATION */
         .shineSweep {
           background: linear-gradient(
             120deg,
@@ -156,13 +295,10 @@ export default function Navbar() {
           transform: skewX(-20deg);
           animation: shineSweepMove 3s infinite linear;
         }
-
         @keyframes shineSweepMove {
           0% { transform: translateX(-150%) skewX(-20deg); }
           100% { transform: translateX(150%) skewX(-20deg); }
         }
-
-        /* SUPER GLOSSY GOLD BUTTON (LOGIN & REGISTER) */
         .btn-login {
           position: relative;
           background: linear-gradient(135deg,#d4af37,#f8d778,#b8860b);
@@ -175,7 +311,6 @@ export default function Navbar() {
           box-shadow: 0 0 15px rgba(255,200,80,0.5);
           transition: 0.3s;
         }
-
         .btn-login::after {
           content: "";
           position: absolute;
@@ -192,31 +327,25 @@ export default function Navbar() {
           transform: skewX(-25deg);
           animation: shineLogin 2.6s infinite;
         }
-
         @keyframes shineLogin {
           0% { left: -120%; }
           60% { left: 130%; }
           100% { left: 130%; }
         }
-
         .btn-login:hover {
           transform: scale(1.05);
           box-shadow: 0 0 22px rgba(255,210,100,0.85);
         }
-
-        /* NAV LINKS */
         .navLink {
           font-weight: 600;
           color: #000;
           position: relative;
           transition: all 0.25s ease-in-out;
         }
-
         .navLink:hover {
           color: #c48000;
           text-shadow: 0 0 4px rgba(255,200,100,0.7);
         }
-
         .navLink::after {
           content: "";
           position: absolute;
@@ -228,19 +357,15 @@ export default function Navbar() {
           transition: 0.25s;
           border-radius: 8px;
         }
-
         .navLink:hover::after {
           width: 100%;
         }
-
-        /* MOBILE LINKS */
         .mobileLink {
           padding: 10px 0;
           font-weight: 600;
           color: #000;
           border-bottom: 1px solid #f4d68a;
         }
-
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(-5px); }
           to { opacity: 1; transform: translateY(0); }
