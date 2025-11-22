@@ -18,12 +18,13 @@ use App\Http\Controllers\PaymentProofController;
 |--------------------------------------------------------------------------
 */
 
-// HOMEPAGE = resources/js/Pages/Dashboard.jsx
+// HOMEPAGE = resources/js/Pages/Customer/Dashboard.jsx
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
 // REGISTER VENDOR (no login)
 Route::get('/register/vendor', [HomeController::class, 'vendorRegister'])->name('vendor.register');
 Route::post('/register/vendor', [HomeController::class, 'vendorStore'])->name('vendor.store');
+
 
 /*
 |--------------------------------------------------------------------------
@@ -38,22 +39,24 @@ Route::get('/dashboard', function () {
         return redirect()->route('home');
     }
 
-    if ($user->role === 'admin') {
+    // SESUAI ENUM DI MIGRASI: ['VISITOR', 'VENDOR', 'ADMIN']
+    if ($user->role === 'ADMIN') {
         return redirect()->route('admin.dashboard');
     }
 
-    if ($user->role === 'vendor') {
+    if ($user->role === 'VENDOR') {
         return redirect()->route('vendor.dashboard');
     }
 
-    // CUSTOMER → pakai Dashboard.jsx yang sama dengan homepage
-    return Inertia::render('Dashboard', [
+    // VISITOR / CUSTOMER → pakai Customer/Dashboard (landing WeddingExpo)
+    return Inertia::render('Customer/Dashboard', [
         'isLoggedIn' => true,
         // user sebenarnya sudah ada di shared props `auth.user`,
-        // properti ini opsional saja
-        'user'       => $user,
+        // properti ini hanya tambahan bila mau dipakai langsung
+        'user' => $user,
     ]);
 })->middleware(['auth', 'verified'])->name('dashboard');
+
 
 /*
 |--------------------------------------------------------------------------
@@ -62,7 +65,7 @@ Route::get('/dashboard', function () {
 */
 Route::prefix('admin')
     ->name('admin.')
-    ->middleware(['auth'])
+    ->middleware(['auth']) // boleh ditambah 'verified' kalau mau wajib email terverifikasi
     ->group(function () {
 
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -78,6 +81,7 @@ Route::prefix('admin')
         Route::post('/payment-proof/{id}/status', [PaymentProofController::class, 'updateStatus'])->name('paymentproof.status');
     });
 
+
 /*
 |--------------------------------------------------------------------------
 | VENDOR ROUTES
@@ -85,7 +89,7 @@ Route::prefix('admin')
 */
 Route::prefix('vendor')
     ->name('vendor.')
-    ->middleware(['auth'])
+    ->middleware(['auth']) // boleh ditambah 'verified' juga kalau mau
     ->group(function () {
 
         Route::get('/dashboard', [VendorDashboard::class, 'index'])->name('dashboard');
@@ -101,6 +105,7 @@ Route::prefix('vendor')
         Route::get('/payment/proof', fn () => Inertia::render('Vendor/Payment/PaymentProofPage'))->name('payment.proof');
     });
 
+
 /*
 |--------------------------------------------------------------------------
 | PAYMENT PROOF
@@ -109,6 +114,7 @@ Route::prefix('vendor')
 Route::post('/payment-proof/store', [PaymentProofController::class, 'store'])
     ->middleware(['auth'])
     ->name('paymentproof.store');
+
 
 /*
 |--------------------------------------------------------------------------
