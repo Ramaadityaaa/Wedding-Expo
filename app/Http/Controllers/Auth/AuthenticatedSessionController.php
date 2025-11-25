@@ -15,39 +15,42 @@ use Inertia\Response;
 class AuthenticatedSessionController extends Controller
 {
     /**
-     * Display the login view.
+     * Tampilkan halaman login.
      */
     public function create(): Response
     {
-        return Inertia::render('Auth/Login', [
+        return Inertia::render('Auth/LoginPage', [ // <-- SAMAKAN dengan nama file JSX
             'canResetPassword' => Route::has('password.request'),
-            'status' => session('status'),
+            'status'           => session('status'),
         ]);
     }
 
     /**
-     * Handle an incoming authentication request.
+     * Proses permintaan login.
      */
     public function store(LoginRequest $request): RedirectResponse
     {
+        // validasi + autentikasi (pakai LoginRequest bawaan Breeze)
         $request->authenticate();
 
+        // regenerate session ID untuk keamanan
         $request->session()->regenerate();
 
+        // arahkan ke HOME (biasanya /dashboard, sesuai RouteServiceProvider::HOME)
         return redirect()->intended(RouteServiceProvider::HOME);
     }
 
     /**
-     * Destroy an authenticated session.
+     * Logout user yang sedang login.
      */
     public function destroy(Request $request): RedirectResponse
     {
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();
-
         $request->session()->regenerateToken();
 
+        // setelah logout, balik ke halaman utama (boleh juga ->route('login'))
         return redirect('/');
     }
 }
