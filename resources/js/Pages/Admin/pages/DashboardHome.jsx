@@ -1,13 +1,17 @@
 import React, { useMemo } from 'react';
 import SummaryCard from '../components/SummaryCard';
-import { Clock, MessageSquare, FileBadge, CheckCircle } from 'lucide-react';
+import { Clock, MessageSquare, FileBadge, CheckCircle, Users, UserCheck, UserX } from 'lucide-react';
 import { GRADIENT_CLASS } from '../data/constants';
 
 const DashboardHome = ({ vendors = [], users = [], reviews = [] }) => {
   const pendingVendors = useMemo(() => vendors.filter(v => v.status === 'Pending').length, [vendors]);
   const approvedVendors = useMemo(() => vendors.filter(v => v.status === 'Approved').length, [vendors]);
   const pendingReviews = useMemo(() => reviews.filter(r => r.status === 'Pending').length, [reviews]);
+
+  // 🔥 Data User Lengkap
+  const totalUsers = useMemo(() => users.length, [users]);
   const activeUsers = useMemo(() => users.filter(u => u.status === 'Active').length, [users]);
+  const suspendedUsers = useMemo(() => users.filter(u => u.status === 'Suspended').length, [users]);
 
   const activeVendorList = vendors.filter(v => v.status === 'Approved').slice(0, 5);
   const activeUserList = users.filter(u => u.status === 'Active').slice(0, 5);
@@ -19,6 +23,15 @@ const DashboardHome = ({ vendors = [], users = [], reviews = [] }) => {
       <h1 className="text-3xl font-extrabold text-gray-800">Panel Kontrol Utama</h1>
       <p className="text-gray-500">Selamat datang kembali, Super Admin. Ini adalah ringkasan aktivitas platform Anda.</p>
 
+      {/* ⭐ SECTION BARU – Statistik User */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <SummaryCard icon={Users} title="Total Pengguna" value={totalUsers} colorClass={GRADIENT_CLASS} />
+        <SummaryCard icon={UserCheck} title="Pengguna Aktif" value={activeUsers} colorClass={GRADIENT_CLASS} />
+        <SummaryCard icon={UserX} title="Pengguna Suspend" value={suspendedUsers} colorClass={GRADIENT_CLASS} />
+        <SummaryCard icon={FileBadge} title="Vendor Disetujui" value={approvedVendors} colorClass={GRADIENT_CLASS} />
+      </div>
+
+      {/* ⭐ Statistik Vendor & Review (yang lama tetap ada) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <SummaryCard icon={Clock} title="Vendor Tertunda" value={pendingVendors} colorClass={GRADIENT_CLASS} />
         <SummaryCard icon={MessageSquare} title="Ulasan Menunggu" value={pendingReviews} colorClass={GRADIENT_CLASS} />
@@ -26,6 +39,7 @@ const DashboardHome = ({ vendors = [], users = [], reviews = [] }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* 🔥 LIST Vendor & User Aktif */}
         <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
           <h2 className="text-xl font-semibold mb-4 text-gray-800 flex items-center">
             <CheckCircle size={20} className="text-green-500 mr-2" />
@@ -49,7 +63,7 @@ const DashboardHome = ({ vendors = [], users = [], reviews = [] }) => {
               <ul className="space-y-2 text-sm text-gray-700">
                 {activeUserList.length > 0 ? activeUserList.map(u => (
                   <li key={u.id} className="flex justify-between items-center bg-gray-50 p-2 rounded-lg">
-                    <span className="font-medium truncate">{u.name}</span>
+                    <span className="font-medium truncate">{	u.name}</span>
                     <span className="text-xs text-gray-500 ml-2">{u.email}</span>
                   </li>
                 )) : <li className="italic text-gray-500">Tidak ada pengguna aktif.</li>}
@@ -58,6 +72,7 @@ const DashboardHome = ({ vendors = [], users = [], reviews = [] }) => {
           </div>
         </div>
 
+        {/* 🔥 Aktivitas terbaru */}
         <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
           <h2 className="text-xl font-semibold mb-4 text-gray-800 flex items-center">
             <MessageSquare size={20} className="text-amber-500 mr-2" />

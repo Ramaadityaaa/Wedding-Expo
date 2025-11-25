@@ -121,4 +121,16 @@ Route::post('/payment-proof/store', [PaymentProofController::class, 'store'])
 | AUTH ROUTES (BREEZE)
 |--------------------------------------------------------------------------
 */
+Route::post('/vendor/payment/upload', [VendorPaymentController::class, 'store'])
+    ->name('vendor.payment.upload.store');
+
+Route::get('/vendor/payment/loading', function () {
+    return inertia('Vendor/Payment/LoadingPage');
+})->name('vendor.payment.loading');
+
+use App\Http\Controllers\Admin\UserStatsController;
+
+Route::get('/admin/user-stats', [UserStatsController::class, 'index']);
+
+
 require __DIR__ . '/auth.php';

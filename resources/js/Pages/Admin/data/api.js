@@ -86,3 +86,25 @@ export const updatePaymentRequestStatus = (id, status) => simulateApiCall({ succ
 export const deletePaymentRequest = (id) => simulateApiCall({ success: true, id });
 
 export const saveStaticContent = (key, value) => simulateApiCall({ success: true, key, value });
+
+export async function fetchPaymentProofs() {
+    const res = await fetch("http://localhost:8000/api/payment-proofs");
+    return await res.json();
+}
+
+export async function approvePayment(id) {
+    return fetch(`http://localhost:8000/api/payment-proofs/${id}/approve`, {
+        method: "POST",
+    });
+}
+
+export async function rejectPayment(id) {
+    return fetch(`http://localhost:8000/api/payment-proofs/${id}/reject`, {
+        method: "POST",
+    });
+}
+
+export async function fetchUserStats() {
+    const res = await fetch("http://localhost:8000/api/admin/user-stats");
+    return await res.json();
+}
