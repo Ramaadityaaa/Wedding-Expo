@@ -12,6 +12,10 @@ use App\Http\Controllers\Vendor\DashboardController as VendorDashboard;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PaymentProofController;
 
+// 🚨 PERBAIKAN: Tambahkan import untuk Controller yang hilang
+use App\Http\Controllers\Admin\UserStatsController;
+use App\Http\Controllers\Vendor\PaymentController as VendorPaymentController; 
+
 /*
 |--------------------------------------------------------------------------
 | PUBLIC CUSTOMER ROUTES
@@ -79,6 +83,9 @@ Route::prefix('admin')
 
         Route::get('/payment-proofs', [PaymentProofController::class, 'index'])->name('paymentproof.index');
         Route::post('/payment-proof/{id}/status', [PaymentProofController::class, 'updateStatus'])->name('paymentproof.status');
+
+        // Menggunakan UserStatsController
+        Route::get('/user-stats', [UserStatsController::class, 'index'])->name('user-stats.index'); 
     });
 
 
@@ -96,11 +103,15 @@ Route::prefix('vendor')
 
         Route::get('/membership', fn () => Inertia::render('Vendor/MembershipPage'))->name('membership');
 
+        // Rute Pembayaran
         Route::get('/payment/invoice/{id}', [PaymentController::class, 'invoice'])->name('payment.invoice');
         Route::get('/payment/create', [PaymentController::class, 'create'])->name('payment.create');
         Route::post('/payment', [PaymentController::class, 'store'])->name('payment.store');
+        
+        // Rute Upload Proof (sudah di-group vendor, jadi tidak perlu VendorPaymentController)
         Route::get('/payment/upload', [PaymentController::class, 'uploadPage'])->name('payment.upload');
         Route::post('/payment/upload', [PaymentController::class, 'uploadProof'])->name('payment.upload.store');
+        
         Route::get('/payment/loading', fn () => Inertia::render('Vendor/Payment/LoadingPage'))->name('payment.loading');
         Route::get('/payment/proof', fn () => Inertia::render('Vendor/Payment/PaymentProofPage'))->name('payment.proof');
     });
@@ -108,7 +119,7 @@ Route::prefix('vendor')
 
 /*
 |--------------------------------------------------------------------------
-| PAYMENT PROOF
+| PAYMENT PROOF (CUSTOMER/VENDOR UNGROUPED)
 |--------------------------------------------------------------------------
 */
 Route::post('/payment-proof/store', [PaymentProofController::class, 'store'])
@@ -121,16 +132,18 @@ Route::post('/payment-proof/store', [PaymentProofController::class, 'store'])
 | AUTH ROUTES (BREEZE)
 |--------------------------------------------------------------------------
 */
+
+// 🚨 PERBAIKAN: Hapus rute ini karena konflik/redundant dan kelasnya sudah di-import
+/*
 Route::post('/vendor/payment/upload', [VendorPaymentController::class, 'store'])
     ->name('vendor.payment.upload.store');
+*/
 
+// Rute ini sudah ada di dalam Vendor Group di atas
+/*
 Route::get('/vendor/payment/loading', function () {
     return inertia('Vendor/Payment/LoadingPage');
 })->name('vendor.payment.loading');
-
-use App\Http\Controllers\Admin\UserStatsController;
-
-Route::get('/admin/user-stats', [UserStatsController::class, 'index']);
-
+*/
 
 require __DIR__ . '/auth.php';
