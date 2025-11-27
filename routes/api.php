@@ -3,23 +3,51 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+// Import Controllers
+use App\Http\Controllers\VendorController; // Controller Publik
+// Hapus import AdminVendorController dan PaymentProofController yang kini di web.php
+// use App\Http\Controllers\Admin\AdminVendorController; 
+// use App\Http\Controllers\PaymentProofController; 
+
+
 /*
 |--------------------------------------------------------------------------
-| API Routes
+| Public API Routes (Vendor Browsing)
 |--------------------------------------------------------------------------
-|
-| Here is where you can register API routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "api" middleware group. Make something great!
-|
 */
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
+// Mengambil daftar semua vendor yang sudah di-approve
+Route::get('vendors', [VendorController::class, 'index']);
+// Mengambil detail satu vendor
+Route::get('vendors/{vendor}', [VendorController::class, 'show']);
+
+
+/*
+|--------------------------------------------------------------------------
+| Admin API Routes (Telah dipindahkan ke web.php)
+|--------------------------------------------------------------------------
+| Rute ini telah dipindahkan ke routes/web.php di dalam middleware 'auth' 
+| untuk mengatasi masalah 401 Unauthorized pada aplikasi Inertia/Session-based.
+*/
+// Rute ini dihapus:
+/*
+Route::middleware(['auth:sanctum', 'can:view-admin-area'])->prefix('admin')->group(function () {
+    // ... semua rute admin api
 });
+*/
 
-use App\Http\Controllers\PaymentProofController;
 
-Route::get('/payment-proofs', [PaymentProofController::class, 'index']);
-Route::post('/payment-proofs/{id}/approve', [PaymentProofController::class, 'approve']);
-Route::post('/payment-proofs/{id}/reject', [PaymentProofController::class, 'reject']);
+/*
+|--------------------------------------------------------------------------
+| Private API Routes (Vendor & Customer Actions - Memerlukan Auth:Sanctum)
+|--------------------------------------------------------------------------
+*/
+
+Route::middleware('auth:sanctum')->group(function () {
+    
+    // Rute default user info
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    });
+    
+});

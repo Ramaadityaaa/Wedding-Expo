@@ -8,13 +8,28 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\DB; // Tambahkan DB
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class HomeController extends Controller
 {
-    // ... (metode index jika ada)
-    
+    /**
+     * Tampilkan halaman beranda (index) untuk rute '/'.
+     * Ini menyelesaikan BadMethodCallException.
+     */
+    public function index()
+    {
+        // Rute '/' (home) akan menampilkan Dashboard Customer/Visitor,
+        // sesuai dengan definisi Inertia di routes/web.php.
+        // Jika Anda ingin ini berbeda dari Dashboard setelah login,
+        // Anda mungkin ingin membuat Pages/Welcome.jsx terpisah.
+        return Inertia::render('Customer/Dashboard', [
+            // Contoh data yang mungkin ingin Anda kirim ke halaman beranda
+            'isLoggedIn' => auth()->check(),
+            'message' => 'Selamat datang di Wedding Expo!',
+        ]);
+    }
+
     /**
      * Halaman form registrasi vendor (tanpa login).
      */
@@ -110,6 +125,4 @@ class HomeController extends Controller
             ])->withInput();
         }
     }
-
-    // ... (metode index jika ada)
 }

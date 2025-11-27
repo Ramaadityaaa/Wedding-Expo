@@ -21,7 +21,7 @@ class WeddingOrganizerController extends Controller
             // 1. PENAMBAHAN VALIDASI PASSWORD
             $validated = $request->validate([
                 'name'              => 'required|string|max:255',
-                'vendor_type'       => 'required|string|max:100',
+                'vendor_type'       => 'required|string|max:100', // Divalidasi sebagai vendor_type
                 'city'              => 'required|string|max:100',
                 'province'          => 'required|string|max:100',
                 'address'           => 'required|string|max:255',
@@ -55,8 +55,10 @@ class WeddingOrganizerController extends Controller
         try {
             WeddingOrganizer::create([
                 'name'              => $validated['name'],
-                // PERBAIKAN: Ganti 'type' menjadi 'vendor_type' atau perbaiki Model/DB
-                'vendor_type'       => $validated['vendor_type'], 
+                
+                // PERBAIKAN: Gunakan 'type' (sesuai Model) dan ambil dari input 'vendor_type'
+                'type'              => $validated['vendor_type'], 
+                
                 'city'              => $validated['city'],
                 'province'          => $validated['province'],
                 'address'           => $validated['address'],
@@ -64,7 +66,7 @@ class WeddingOrganizerController extends Controller
                 'permit_number'     => $validated['permit_number'],
                 'permit_image_path' => $path,
 
-                // PERBAIKAN: Ganti pic_name/whatsapp menjadi contact_name/contact_phone (Sesuai Model)
+                // PERBAIKAN: Gunakan 'contact_name' dan 'contact_phone' (sesuai Model)
                 'contact_name'      => $validated['pic_name'], 
                 'contact_email'     => $validated['email'], 
                 'contact_phone'     => $validated['whatsapp'],
@@ -72,8 +74,10 @@ class WeddingOrganizerController extends Controller
                 // WAJIB DITAMBAHKAN: HASHING PASSWORD
                 'password'          => Hash::make($validated['password']),
                 
-                // PERBAIKAN: Gunakan 'PENDING' jika kolom DB adalah ENUM
-                'isApproved'        => 'PENDING', 
+                // 🛑 HAPUS 'isApproved' eksplisit. Model/Migration sudah memberikan default 0 (PENDING).
+                // Mengirim string 'PENDING' ke kolom boolean dapat menyebabkan masalah.
+                // 'isApproved'      => 'PENDING', 
+                
                 // Opsional: Simpan status terms_accepted
                 'terms_accepted'    => true, 
             ]);

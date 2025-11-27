@@ -4,110 +4,198 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\WeddingOrganizer; 
-use Inertia\Inertia; // HARUS ADA untuk melayani rute web
+use App\Models\WeddingOrganizer; // PASTIKAN NAMA MODEL INI BENAR dan sudah diimport
 use Illuminate\Support\Facades\Response;
+use Illuminate\Support\Facades\Log; // Import Log
+use Illuminate\Support\Facades\Storage; // Tambahkan Storage untuk URL file
+use Inertia\Inertia; // Tambahkan Inertia
+use Illuminate\Validation\Rule;
 
-/**
- * Controller ini melayani DUA fungsi:
- * 1. Web Route (Inertia::render) melalui fungsi index().
- * 2. API Route (Axios/JSON response) melalui fungsi getDashboardData() dan updateVendorStatus().
- */
 class AdminVendorController extends Controller 
 {
+    // --- WEB ROUTES (Inertia) ---
     /**
-     * [WEB] Dipanggil oleh routes/web.php. Memuat halaman VendorsIndex.jsx dengan Initial Props.
-     * Menggunakan Inertia::render().
+     * Menampilkan halaman index vendor admin (untuk Inertia).
      */
     public function index() 
     {
-        // 1. Ambil data hitungan untuk tab dinamis
-        $counts = [
-            'pending' => WeddingOrganizer::where('status_verifikasi', 'PENDING')->count(),
-            'approved' => WeddingOrganizer::where('status_verifikasi', 'APPROVED')->count(),
-            'rejected' => WeddingOrganizer::where('status_verifikasi', 'REJECTED')->count(),
-        ];
-        
-        // 2. Ambil data vendor PENDING untuk dimuat pertama kali (Initial Data)
-        // PENTING: Menggunakan ALIAS (AS) agar nama kolom dari DB cocok dengan VendorsIndex.jsx (email, phone, pic_name).
-        $pendingVendors = WeddingOrganizer::where('status_verifikasi', 'PENDING')
-                            ->select(
-                                'id', 
-                                'name', 
-                                'contact_email AS email', // FIX: Menggunakan alias
-                                'contact_phone AS phone', // FIX: Menggunakan alias
-                                'contact_name AS pic_name', // FIX: Menggunakan alias
-                                'status_verifikasi', 
-                                'created_at'
-                            )
-                            ->latest()
-                            ->get();
+        try {
+            // ASUMSI: Kolom verifikasi bernama 'type'
+            $counts = [
+                'pending' => WeddingOrganizer::where('type', 'PENDING')->count(), 
+                'approved' => WeddingOrganizer::where('type', 'APPROVED')->count(),
+                'rejected' => WeddingOrganizer::where('type', 'REJECTED')->count(),
+            ];
+            
+            $pendingVendors = WeddingOrganizer::where('type', 'PENDING') 
+                                             ->select('id', 'user_id', 'type', 'created_at') 
+                                             ->latest()
+                                             ->get();
 
-        // 3. Render halaman Inertia DENGAN data awal
-        return Inertia::render('Admin/Vendors/Index', [
-            'vendors' => $pendingVendors,
-            'counts' => $counts,
-            'currentStatus' => 'pending', 
-        ]);
+            return Inertia::render('Admin/Vendors/Index', [
+                'vendors' => $pendingVendors,
+                'counts' => $counts,
+                'currentStatus' => 'PENDING', 
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error loading Admin Vendor Index:', ['error' => $e->getMessage()]);
+            return Inertia::render('Error', ['status' => 500, 'message' => 'Terjadi kesalahan saat memuat data vendor: ' . $e->getMessage()]);
+        }
     }
+    
+    // --- API ROUTES (JSON) ---
 
     /**
-     * [API] Mengambil data vendor berdasarkan STATUS yang diminta (Dipanggil oleh Axios).
-     * Endpoint: /api/admin/vendors/dashboard?status=APPROVED
+     * [API] Mengambil semua data vendor berdasarkan STATUS.
+     * Endpoint: GET /api/admin/vendors/data?status={STATUS}
+     * MENGGANTIKAN getDashboardData()
      */
-    public function getDashboardData(Request $request) 
+    public function data(Request $request) 
     {
-        // Ambil status dari query string, defaultnya 'PENDING'
         $currentStatus = $request->get('status', 'PENDING'); 
-
-        // 1. Ambil data hitungan terbaru
-        $counts = [
-            'pending' => WeddingOrganizer::where('status_verifikasi', 'PENDING')->count(),
-            'approved' => WeddingOrganizer::where('status_verifikasi', 'APPROVED')->count(),
-            'rejected' => WeddingOrganizer::where('status_verifikasi', 'REJECTED')->count(),
-        ];
         
-        // 2. Ambil data vendor berdasarkan status yang diminta
-        $vendors = WeddingOrganizer::where('status_verifikasi', $currentStatus)
-                            ->select(
-                                'id', 
-                                'name', 
-                                'contact_email AS email', // FIX: Menggunakan alias
-                                'contact_phone AS phone', // FIX: Menggunakan alias
-                                'contact_name AS pic_name', // FIX: Menggunakan alias
-                                'status_verifikasi', 
-                                'created_at'
-                            )
-                            ->latest()
-                            ->get();
+        try {
+            // 1. Ambil data hitungan terbaru untuk semua tab
+            $counts = [
+                'pending' => WeddingOrganizer::where('type', 'PENDING')->count(),
+                'approved' => WeddingOrganizer::where('type', 'APPROVED')->count(),
+                'rejected' => WeddingOrganizer::where('type', 'REJECTED')->count(),
+            ];
+            
+            // 2. Ambil data vendor berdasarkan status yang diminta
+            $vendors = WeddingOrganizer::where('type', $currentStatus)
+                                             ->select('id', 'user_id', 'type', 'created_at') 
+                                             ->latest()
+                                             ->get();
 
-        // 3. Kembalikan data dalam format JSON
-        return Response::json([
-            'data' => $vendors,
-            'counts' => $counts
-        ]);
+            // Kembalikan data dalam format JSON
+            return Response::json([
+                'data' => $vendors,
+                'counts' => $counts
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error fetching Admin Vendor Dashboard Data:', ['error' => $e->getMessage(), 'request_status' => $currentStatus]);
+            return Response::json([
+                'message' => 'Gagal mengambil data vendor: ' . $e->getMessage(),
+                'detail' => $e->getLine() 
+            ], 500); 
+        }
     }
 
     /**
-     * [API] Memperbarui status verifikasi vendor (APPROVED atau REJECTED).
+     * [API] Ambil detail satu vendor berdasarkan ID.
+     * Endpoint: GET /api/admin/vendors/{vendor_id}
+     *
+     * @param string $vendor_id
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function updateVendorStatus(Request $request, string $vendor_id) 
+    public function show(string $vendor_id)
     {
-        $vendor = WeddingOrganizer::find($vendor_id);
-        
-        if (!$vendor) {
-            return Response::json(['message' => 'Vendor tidak ditemukan.'], 404);
+        try {
+            // Menggunakan WeddingOrganizer karena ini adalah model di draf Anda
+            // Gunakan findOrFail jika Anda ingin Laravel otomatis mengeluarkan 404 jika tidak ditemukan
+            $vendor = WeddingOrganizer::find($vendor_id);
+            
+            if (!$vendor) {
+                return Response::json([
+                    'message' => 'Vendor tidak ditemukan.'
+                ], 404);
+            }
+
+            // --- Logika untuk Surat Izin Usaha ---
+            $suratIzinUrl = null;
+            // ASUMSI: Kolom di DB untuk path file adalah 'surat_izin_usaha_path'
+            if (!empty($vendor->surat_izin_usaha_path)) {
+                // Generate URL yang bisa diakses publik (pastikan storage:link sudah jalan)
+                // Pastikan 'surat_izin_usaha_path' hanya berisi path di storage, misalnya 'public/dokumen/file.pdf'
+                $suratIzinUrl = asset(Storage::url($vendor->surat_izin_usaha_path));
+            }
+
+            // --- Format Data yang Dikembalikan ---
+            $data = $vendor->toArray();
+            
+            // Tambahkan URL Surat Izin Usaha untuk frontend
+            $data['surat_izin_usaha_url'] = $suratIzinUrl;
+
+            // Tambahkan NIB dan Alamat Usaha (gunakan nilai default jika null/kosong)
+            // ASUMSI: Kolom DB bernama 'nib' dan 'alamat_usaha'
+            $data['nib'] = $vendor->nib ?? 'Tidak Ada Data'; 
+            $data['alamat_usaha'] = $vendor->alamat_usaha ?? 'Tidak Ada Data';
+            
+            // Tambahkan data kontak
+            // ASUMSI: Kolom DB bernama 'contact_email' dan 'contact_phone'
+            $data['contact_email'] = $vendor->contact_email ?? 'Tidak Ada Data';
+            $data['contact_phone'] = $vendor->contact_phone ?? 'Tidak Ada Data';
+
+            return Response::json([
+                'status' => 'success',
+                'data' => $data
+            ]);
+
+        } catch (\Exception $e) {
+            // Log::error untuk mencatat error di log Laravel
+            Log::error('Error fetching vendor detail ID ' . $vendor_id . ': ' . $e->getMessage()); 
+            
+            return Response::json([
+                'message' => 'Gagal mengambil detail vendor. Cek log server.',
+                'error' => $e->getMessage()
+            ], 500);
         }
+    }
 
-        $status = $request->input('status');
+    /**
+     * [API] Memperbarui status verifikasi vendor.
+     * Endpoint: PATCH /api/admin/vendors/{vendor_id}/status
+     */
+    public function updateStatus(Request $request, string $vendor_id) 
+    {
+        $request->validate([
+            // Sesuaikan rule dengan kolom 'type' yang Anda gunakan
+            'status' => ['required', 'string', Rule::in(['APPROVED', 'REJECTED', 'PENDING'])], 
+        ]);
 
-        if (!in_array($status, ['APPROVED', 'REJECTED'])) {
-            return Response::json(['message' => 'Status tidak valid.'], 400);
+        try {
+            // Menggunakan find() karena find() menerima string ID
+            $vendor = WeddingOrganizer::find($vendor_id);
+            
+            if (!$vendor) {
+                return Response::json(['message' => 'Vendor tidak ditemukan.'], 404);
+            }
+
+            $status = $request->input('status');
+            
+            $vendor->type = $status; // Menggunakan kolom 'type'
+            $vendor->save();
+
+            return Response::json(['message' => "Status vendor berhasil diubah menjadi {$status}."]);
+
+        } catch (\Exception $e) {
+            Log::error('Error updating Vendor Status:', ['error' => $e->getMessage(), 'id' => $vendor_id]);
+            return Response::json(['message' => 'Gagal memperbarui status: Internal Server Error.'], 500);
         }
-        
-        $vendor->status_verifikasi = $status;
-        $vendor->save();
+    }
 
-        return Response::json(['message' => "Status vendor berhasil diubah menjadi {$status}."]);
+    /**
+     * [API] Menghapus vendor secara permanen.
+     * Endpoint: DELETE /api/admin/vendors/{vendor_id}
+     */
+    public function destroy(string $vendor_id)
+    {
+        try {
+            $vendor = WeddingOrganizer::find($vendor_id);
+
+            if (!$vendor) {
+                return Response::json(['message' => 'Vendor tidak ditemukan.'], 404);
+            }
+
+            $vendor->delete();
+
+            return Response::json(['message' => 'Vendor berhasil dihapus secara permanen.']);
+
+        } catch (\Exception $e) {
+            Log::error('Error deleting Vendor:', ['error' => $e->getMessage(), 'id' => $vendor_id]);
+            return Response::json(['message' => 'Gagal menghapus vendor: Internal Server Error.'], 500);
+        }
     }
 }

@@ -12,6 +12,18 @@ class WeddingOrganizer extends Authenticatable
 {
     use HasFactory;
 
+    // --- PERBAIKAN DITAMBAHKAN: Mengatur nilai default ---
+    /**
+     * Set default values for model attributes.
+     * Ini memastikan 'isApproved' adalah 0 (PENDING) jika tidak disetel saat creation.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'isApproved' => 0,
+    ];
+    // ---------------------------------------------------
+
     protected $fillable = [
         // ... (data bisnis)
         'name',
@@ -31,7 +43,7 @@ class WeddingOrganizer extends Authenticatable
         
         // ... (data akun & status)
         'password',
-        'isApproved', 
+        'isApproved', // Pertahankan ini di $fillable
         'terms_accepted', 
         'user_id',
         
@@ -50,7 +62,20 @@ class WeddingOrganizer extends Authenticatable
     ];
 
     /**
-     * Relasi ke model User (misalnya, jika setiap vendor terhubung ke akun admin/sistem)
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            // Casting ke integer memastikan isApproved selalu dinilai sebagai angka (0 atau 1)
+            'isApproved' => 'integer',
+        ];
+    }
+    
+    /**
+     * Relasi ke model User
      */
     public function user(): BelongsTo
     {
@@ -58,10 +83,34 @@ class WeddingOrganizer extends Authenticatable
     }
 
     /**
-     * Relasi ke Packages yang dimiliki oleh vendor ini.
+     * Relasi ke Packages
      */
     public function packages(): HasMany
     {
         return $this->hasMany(Package::class);
+    }
+
+    /**
+     * Relasi ke Portfolio
+     */
+    public function portfolios(): HasMany
+    {
+        return $this->hasMany(Portfolio::class);
+    }
+    
+    /**
+     * Relasi ke Reviews
+     */
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class);
+    }
+    
+    /**
+     * Relasi ke Favorites
+     */
+    public function favorites(): HasMany
+    {
+        return $this->hasMany(Favorite::class);
     }
 }

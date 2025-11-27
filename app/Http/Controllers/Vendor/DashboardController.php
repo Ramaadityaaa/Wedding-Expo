@@ -21,7 +21,7 @@ class DashboardController extends Controller
             // agar React tidak error
             'products' => [], 
             'orders' => []
-
+            
         ]);
     }
 }

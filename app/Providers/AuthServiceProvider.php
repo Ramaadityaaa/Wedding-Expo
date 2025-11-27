@@ -2,8 +2,9 @@
 
 namespace App\Providers;
 
-// use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Gate; // WAJIB: Import Gate Facade
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
+use App\Models\User; // WAJIB: Import model User
 
 class AuthServiceProvider extends ServiceProvider
 {
@@ -23,6 +24,21 @@ class AuthServiceProvider extends ServiceProvider
     {
         $this->registerPolicies();
 
-        //
+        // 1. DEFINISI GATE UNTUK ADMIN
+        // Gate 'view-admin-area' akan mengizinkan akses HANYA jika peran pengguna adalah ADMIN.
+        Gate::define('view-admin-area', function (User $user) {
+            return $user->role === 'ADMIN';
+        });
+
+        // 2. DEFINISI GATE UNTUK VENDOR
+        // Gate 'view-vendor-area' akan mengizinkan akses HANYA jika peran pengguna adalah VENDOR.
+        Gate::define('view-vendor-area', function (User $user) {
+            return $user->role === 'VENDOR';
+        });
+        
+        // 3. (Opsional, tapi disarankan) Definisi Super Admin (jika ada peran super admin)
+        Gate::define('manage-all', function (User $user) {
+            return $user->role === 'ADMIN'; // ADMIN bisa mengelola semuanya
+        });
     }
 }
