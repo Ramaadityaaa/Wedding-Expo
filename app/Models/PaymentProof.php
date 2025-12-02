@@ -11,7 +11,6 @@ class PaymentProof extends Model
 
     protected $table = 'payment_proofs';
 
-    // Kolom yang boleh diisi
     protected $fillable = [
         'vendor_id',
         'account_name',
@@ -20,29 +19,31 @@ class PaymentProof extends Model
         'status',
     ];
 
-    // Cast tipe data
     protected $casts = [
         'amount' => 'integer',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     /**
-     * Relasi ke Vendor
-     * 1 bukti pembayaran dimiliki oleh 1 vendor
+     * Relasi ke Vendor (WeddingOrganizer).
+     * Diubah ke WeddingOrganizer::class karena modul Admin Vendor menggunakan model tersebut.
      */
     public function vendor()
     {
-        return $this->belongsTo(Vendor::class);
+        // Pastikan foreign key di tabel payment_proofs adalah 'vendor_id'
+        // dan mengarah ke id di tabel wedding_organizers
+        return $this->belongsTo(WeddingOrganizer::class, 'vendor_id');
     }
 
     /**
      * Accessor untuk URL file bukti pembayaran
-     * Menghasilkan URL lengkap dari file_path
      */
     public function getFileUrlAttribute()
     {
         if (!$this->file_path) return null;
 
-        // Jika pakai storage link
+        // Menggunakan helper 'storage_path' atau asset storage
         return asset('storage/' . $this->file_path);
     }
 }

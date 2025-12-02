@@ -3,31 +3,37 @@
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-// Controllers
+// --- CONTROLLERS ---
 use App\Http\Controllers\HomeController;
-use App\Http\Controllers\VendorController; // 🟢 KOREKSI: Import VendorController (Controller publik root)
+use App\Http\Controllers\VendorController;
+use App\Http\Controllers\PaymentController; // Controller Vendor Bayar
+use App\Http\Controllers\PaymentProofController; // Controller Admin Konfirmasi Bayar
+
+// Admin Controllers
 use App\Http\Controllers\Admin\DashboardController;
-use App\Http\Controllers\Admin\AdminVendorController; 
+use App\Http\Controllers\Admin\AdminVendorController;
 use App\Http\Controllers\Admin\ReviewController;
-use App\Http\Controllers\Vendor\DashboardController as VendorDashboard;
-use App\Http\Controllers\PaymentController;
-use App\Http\Controllers\PaymentProofController;
 use App\Http\Controllers\Admin\UserStatsController;
+use App\Http\Controllers\Admin\PaymentSettingsController;
+use App\Http\Controllers\Admin\StaticContentController;
+
+// Vendor Controllers
+use App\Http\Controllers\Vendor\DashboardController as VendorDashboard;
 
 /*
 |---------------------------------------------------------------------------
-| PUBLIC CUSTOMER ROUTES
+| PUBLIC CUSTOMER & GUEST ROUTES
 |---------------------------------------------------------------------------
 */
 
-// HOMEPAGE = resources/js/Pages/Customer/Dashboard.jsx
+// Homepage
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
-// REGISTER VENDOR (no login)
+// Registrasi Vendor (Tanpa Login)
 Route::get('/register/vendor', [HomeController::class, 'vendorRegister'])->name('vendor.register');
 Route::post('/register/vendor', [HomeController::class, 'vendorStore'])->name('vendor.store');
 
-// 🟢 TAMBAHAN/KOREKSI: Rute API publik menggunakan VendorController (Controller root)
+// API Publik (Untuk Frontend Customer lihat list vendor)
 Route::prefix('api')->group(function () {
     Route::get('/vendors', [VendorController::class, 'index'])->name('api.vendors.index');
     Route::get('/vendors/{vendor}', [VendorController::class, 'show'])->name('api.vendors.show');
@@ -36,7 +42,7 @@ Route::prefix('api')->group(function () {
 
 /*
 |---------------------------------------------------------------------------
-| DASHBOARD DEFAULT (AFTER LOGIN)
+| DASHBOARD REDIRECTOR (SETELAH LOGIN)
 |---------------------------------------------------------------------------
 */
 Route::get('/dashboard', function () {
@@ -46,7 +52,7 @@ Route::get('/dashboard', function () {
         return redirect()->route('home');
     }
 
-    // SESUAI ENUM DI MIGRASI: ['VISITOR', 'VENDOR', 'ADMIN']
+    // Redirect berdasarkan Role
     if ($user->role === 'ADMIN') {
         return redirect()->route('admin.dashboard');
     }
@@ -55,79 +61,81 @@ Route::get('/dashboard', function () {
         return redirect()->route('vendor.dashboard');
     }
 
-    // VISITOR / CUSTOMER → pakai Customer/Dashboard (landing WeddingExpo)
+    // Default: Customer Dashboard
     return Inertia::render('Customer/Dashboard', [
         'isLoggedIn' => true,
         'user' => $user,
     ]);
 })->middleware(['auth', 'verified'])->name('dashboard');
 
+
 /*
 |---------------------------------------------------------------------------
-| ADMIN ROUTES (INERTIA PAGES & ACTIONS)
+| ADMIN ROUTES (PREFIX: /admin)
 |---------------------------------------------------------------------------
 */
 Route::prefix('admin')
     ->name('admin.')
-    ->middleware(['auth', 'can:view-admin-area']) 
+    ->middleware(['auth', 'can:view-admin-area']) // Pastikan Gate/Middleware ini ada
     ->group(function () {
 
-        // --- 1. RUTE INERTIA (PAGES) ---
+        // 1. Dashboard Utama
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-        // Vendor Management Page
+
+        // 2. Manajemen Vendor
         Route::get('/vendors', [AdminVendorController::class, 'index'])->name('vendors.index');
-        // Vendor Detail Page (Menggunakan model binding untuk Inertia Page)
-        Route::get('/vendors/{vendor}', [AdminVendorController::class, 'show'])->name('vendors.show.page');
-        
-        // Payment Proof Management Page
+        Route::patch('/vendors/{vendor}/status', [AdminVendorController::class, 'updateStatus'])->name('vendors.update-status');
+        Route::delete('/vendors/{vendor}', [AdminVendorController::class, 'destroy'])->name('vendors.destroy');
+        Route::get('/vendors/{vendor}', [AdminVendorController::class, 'show'])->name('vendors.show');
+
+        // 3. Konfirmasi Pembayaran (Payment Proofs)
         Route::get('/payment-proofs', [PaymentProofController::class, 'index'])->name('paymentproof.index');
-        // User Stats / Reporting Page
-        Route::get('/user-stats', [UserStatsController::class, 'index'])->name('user-stats.index'); 
-
-        // --- 2. RUTE ACTION LAMA (Inertia Actions) ---
-        // (Biasanya PATCH/DELETE/POST action harusnya berada di API group atau menggunakan method updateStatus)
-        // Jika Anda masih menggunakan ini, pastikan {vendor} menggunakan binding model
-        Route::patch('/vendors/{vendor}/approve', [AdminVendorController::class, 'approve'])->name('vendors.approve');
-        Route::patch('/vendors/{vendor}/reject', [AdminVendorController::class, 'reject'])->name('vendors.reject');
-        
-        Route::patch('/reviews/{review}/approve', [ReviewController::class, 'approve'])->name('reviews.approve');
-        Route::patch('/reviews/{review}/reject', [ReviewController::class, 'reject'])->name('reviews.reject');
-
         Route::post('/payment-proof/{id}/status', [PaymentProofController::class, 'updateStatus'])->name('paymentproof.status');
+        Route::delete('/payment-proof/{id}', [PaymentProofController::class, 'destroy'])->name('paymentproof.destroy');
+
+        // 4. Pengaturan Pembayaran (Payment Settings - BARU)
+        // Halaman edit nomor rekening admin & QRIS
+        Route::get('/payment-settings', [PaymentSettingsController::class, 'index'])->name('payment-settings.index');
+        Route::post('/payment-settings', [PaymentSettingsController::class, 'update'])->name('payment-settings.update');
+
+        // 5. Manajemen Pengguna (User Management)
+        Route::get('/users', [UserStatsController::class, 'index'])->name('user-stats.index');
+        Route::patch('/users/{id}/status', [UserStatsController::class, 'updateStatus'])->name('users.update-status');
+        Route::delete('/users/{id}', [UserStatsController::class, 'destroy'])->name('users.destroy');
+
+        // 6. Moderasi Ulasan (Review Management)
+        Route::get('/reviews', [ReviewController::class, 'index'])->name('reviews.index');
+        Route::patch('/reviews/{id}/approve', [ReviewController::class, 'approve'])->name('reviews.approve');
+        Route::patch('/reviews/{id}/reject', [ReviewController::class, 'reject'])->name('reviews.reject');
+
+        // 7. Role Editor untuk Vendor
+        // ROLE EDITOR (Membership)
+        Route::get('/roles', [App\Http\Controllers\Admin\RoleController::class, 'index'])->name('roles.index');
+        Route::post('/roles/update', [App\Http\Controllers\Admin\RoleController::class, 'update'])->name('roles.update');
+
+        // 8. Konten Statis (Opsional / Placeholder)
+        Route::get('/static-content', [StaticContentController::class, 'index'])->name('static-content.index');
+        Route::post('/static-content', [StaticContentController::class, 'update'])->name('static-content.update');
     });
+
 
 /*
 |---------------------------------------------------------------------------
-| ADMIN API ROUTES (DATA FETCHING - DIISOLASI)
+| ADMIN API ROUTES (LEGACY / AJAX SUPPORT)
 |---------------------------------------------------------------------------
 */
-Route::prefix('api/admin') 
+Route::prefix('api/admin')
     ->name('admin.api.')
     ->middleware(['auth', 'can:view-admin-area'])
     ->group(function () {
-        
-        // --- Vendor Management API ---
-        // 1. [GET] Mengambil semua data vendor: /api/admin/vendors/data
-        Route::get('/vendors/data', [AdminVendorController::class, 'data'])->name('vendors.data');
-        
-        // 2. [GET] DETAIL VENDOR (menggunakan model binding {vendor}): /api/admin/vendors/{vendor}
-        Route::get('/vendors/{vendor}', [AdminVendorController::class, 'show'])->name('vendors.show');
-        
-        // 3. [PATCH] Mengubah Status Vendor (menggunakan model binding {vendor}): /api/admin/vendors/{vendor}/status
-        Route::patch('/vendors/{vendor}/status', [AdminVendorController::class, 'updateStatus'])->name('vendors.updateStatus');
-        
-        // 4. [DELETE] Menghapus Vendor (menggunakan model binding {vendor}): /api/admin/vendors/{vendor}
-        Route::delete('/vendors/{vendor}', [AdminVendorController::class, 'destroy'])->name('vendors.delete');
-        
-        // --- Payment Proof Management API ---
+        // Rute ini mungkin masih dipakai oleh komponen lama yang fetch manual
         Route::get('/payment-proofs/data', [PaymentProofController::class, 'data'])->name('paymentproof.data');
-        Route::post('/payment-proofs/{id}/approve', [PaymentProofController::class, 'approve'])->name('paymentproof.approve');
-        Route::post('/payment-proofs/{id}/reject', [PaymentProofController::class, 'reject'])->name('paymentproof.reject');
     });
+
 
 /*
 |---------------------------------------------------------------------------
-| VENDOR ROUTES
+| AUTH ROUTES
 |---------------------------------------------------------------------------
 */
 require __DIR__ . '/auth.php';

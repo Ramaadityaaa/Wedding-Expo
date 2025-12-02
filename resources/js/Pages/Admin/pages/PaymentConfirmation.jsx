@@ -1,245 +1,411 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
+import { Head, router, usePage } from "@inertiajs/react"; // Import Inertia
+import AdminLayout from "@/Layouts/AdminLayout"; // Import Layout Sidebar
 
-const PaymentConfirmation = ({ paymentRequests = [], onAction }) => {
-  const [selected, setSelected] = useState(null);
-  const [filter, setFilter] = useState('Pending');
+export default function PaymentConfirmation({ paymentRequests = [] }) {
+    // Ambil user auth dari props global Inertia untuk Layout
+    const { auth } = usePage().props;
 
-  // FILTER Berdasarkan status
-  const filtered = paymentRequests.filter(p =>
-    filter === 'All' ? true : p.status === filter
-  );
+    const [selected, setSelected] = useState(null);
+    const [filter, setFilter] = useState("Pending");
 
-  return (
-    <div className="p-6">
-      <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Konfirmasi Pembayaran</h1>
-      <p className="text-gray-500 mb-6">
-        Terima dan verifikasi bukti pembayaran vendor.
-      </p>
+    // --- HANDLE ACTIONS (Realtime ke Backend) ---
+    const handleAction = (id, actionType) => {
+        const confirmationText =
+            actionType === "delete"
+                ? "menghapus"
+                : actionType === "Approved"
+                ? "menyetujui"
+                : "menolak";
 
-      {/* Filter Status */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex space-x-2">
-          {['Pending', 'Approved', 'Rejected', 'All'].map(f => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-4 py-2 rounded-full text-sm font-medium ${
-                filter === f
-                  ? 'bg-amber-500 text-white'
-                  : 'bg-white border border-gray-200 text-gray-600'
-              }`}
-            >
-              {f === 'All' ? 'Semua' : f}
-            </button>
-          ))}
-        </div>
+        if (
+            !window.confirm(
+                `Apakah Anda yakin ingin ${confirmationText} pembayaran ini?`
+            )
+        )
+            return;
 
-        <div className="text-sm text-gray-500">
-          Total: {paymentRequests.length}
-        </div>
-      </div>
+        if (actionType === "delete") {
+            // Pastikan route 'admin.paymentproof.destroy' ada di web.php jika ingin fitur hapus jalan
+            // router.delete(route('admin.paymentproof.destroy', id));
+            alert("Fitur hapus belum dikonfigurasi di Route Laravel.");
+        } else {
+            // Menggunakan route yang sudah ada: admin.paymentproof.status
+            router.post(
+                route("admin.paymentproof.status", id),
+                {
+                    status: actionType,
+                },
+                {
+                    onSuccess: () => {
+                        setSelected(null); // Tutup modal jika sukses
+                    },
+                    preserveScroll: true,
+                }
+            );
+        }
+    };
 
-      {/* Tabel */}
-      <div className="bg-white rounded-xl shadow-lg border overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-amber-100">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                Vendor
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                Nominal
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                Tanggal Kirim
-              </th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase">
-                Status
-              </th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase">
-                Aksi
-              </th>
-            </tr>
-          </thead>
+    // FILTER Berdasarkan status
+    const filtered = paymentRequests.filter((p) =>
+        filter === "All" ? true : p.status === filter
+    );
 
-          <tbody className="bg-white divide-y divide-gray-100">
-            {filtered.map(p => (
-              <tr key={p.id} className="hover:bg-gray-50 transition">
-                <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                  {p.vendor?.name ?? 'Unknown'}
-                </td>
+    return (
+        <AdminLayout user={auth?.user} header="Konfirmasi Pembayaran">
+            <Head title="Konfirmasi Pembayaran" />
 
-                <td className="px-4 py-3 text-sm text-gray-700">
-                  Rp {Number(p.amount).toLocaleString('id-ID')}
-                </td>
-
-                <td className="px-4 py-3 text-sm text-gray-500">
-                  {p.created_at
-                    ? new Date(p.created_at).toLocaleString('id-ID')
-                    : '-'}
-                </td>
-
-                <td className="px-4 py-3 text-center text-sm">
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                      p.status === 'Pending'
-                        ? 'bg-amber-100 text-amber-800'
-                        : p.status === 'Approved'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800'
-                    }`}
-                  >
-                    {p.status}
-                  </span>
-                </td>
-
-                <td className="px-4 py-3 text-center text-sm">
-                  <div className="flex items-center justify-center space-x-2">
-                    <button
-                      onClick={() => setSelected(p)}
-                      className="px-3 py-1 rounded-full border border-gray-200 text-sm"
-                    >
-                      Lihat
-                    </button>
-
-                    {p.status === 'Pending' && (
-                      <>
-                        <button
-                          onClick={() => onAction(p.id, 'Approved')}
-                          className="px-3 py-1 rounded-full bg-green-500 text-white text-sm"
-                        >
-                          Konfirmasi
-                        </button>
-
-                        <button
-                          onClick={() => onAction(p.id, 'Rejected')}
-                          className="px-3 py-1 rounded-full bg-red-500 text-white text-sm"
-                        >
-                          Tolak
-                        </button>
-                      </>
-                    )}
-
-                    <button
-                      onClick={() => onAction(p.id, 'delete')}
-                      className="px-3 py-1 rounded-full border border-gray-200 text-sm text-red-600"
-                    >
-                      Hapus
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-
-            {filtered.length === 0 && (
-              <tr>
-                <td
-                  colSpan="6"
-                  className="py-8 text-center text-gray-500 italic"
-                >
-                  Tidak ada pembayaran untuk filter ini.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* MODAL DETAIL */}
-      {selected && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="text-xl font-bold">{selected.vendor?.name}</h3>
-                <p className="text-sm text-gray-500">
-                  ID Pembayaran: {selected.id}
-                </p>
-              </div>
-
-              <button
-                onClick={() => setSelected(null)}
-                className="text-gray-500 hover:text-gray-800"
-              >
-                Tutup
-              </button>
-            </div>
-
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* GAMBAR */}
-              <div className="border rounded-lg p-4 flex flex-col items-center justify-center">
-                {selected.file_url ? (
-                  <img
-                    src={selected.file_url}
-                    alt="Bukti Pembayaran"
-                    className="max-h-80 object-contain"
-                  />
-                ) : (
-                  <div className="text-sm text-gray-400 italic">
-                    Tidak ada bukti pembayaran.
-                  </div>
-                )}
-              </div>
-
-              {/* DETAIL */}
-              <div>
-                <p className="text-sm text-gray-600 mb-2">
-                  <strong>Nominal:</strong> Rp{' '}
-                  {Number(selected.amount).toLocaleString('id-ID')}
-                </p>
-
-                <p className="text-sm text-gray-600 mb-2">
-                  <strong>Status:</strong> {selected.status}
-                </p>
-
-                <p className="text-sm text-gray-600 mb-2">
-                  <strong>Dikirim pada:</strong>{' '}
-                  {new Date(selected.created_at).toLocaleString('id-ID')}
-                </p>
-
-                <div className="mt-4 flex space-x-2">
-                  {selected.status === 'Pending' && (
-                    <>
-                      <button
-                        onClick={() => {
-                          onAction(selected.id, 'Approved');
-                          setSelected(null);
-                        }}
-                        className="py-2 px-4 rounded-full bg-green-500 text-white"
-                      >
-                        Konfirmasi
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          onAction(selected.id, 'Rejected');
-                          setSelected(null);
-                        }}
-                        className="py-2 px-4 rounded-full bg-red-500 text-white"
-                      >
-                        Tolak
-                      </button>
-                    </>
-                  )}
-
-                  <button
-                    onClick={() => {
-                      onAction(selected.id, 'delete');
-                      setSelected(null);
-                    }}
-                    className="py-2 px-4 rounded-full border border-gray-200 text-red-600"
-                  >
-                    Hapus
-                  </button>
+            <div className="p-4 sm:p-6 max-w-full mx-auto">
+                <div className="mb-6">
+                    <h1 className="text-3xl font-extrabold text-gray-800 mb-2">
+                        Konfirmasi Pembayaran
+                    </h1>
+                    <p className="text-gray-500">
+                        Terima dan verifikasi bukti pembayaran vendor.
+                    </p>
                 </div>
-              </div>
+
+                {/* Filter Status */}
+                <div className="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
+                    <div className="flex space-x-2 overflow-x-auto pb-2 sm:pb-0">
+                        {["Pending", "Approved", "Rejected", "All"].map((f) => (
+                            <button
+                                key={f}
+                                onClick={() => setFilter(f)}
+                                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                                    filter === f
+                                        ? "bg-amber-500 text-white shadow-md"
+                                        : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+                                }`}
+                            >
+                                {f === "All" ? "Semua" : f}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="text-sm text-gray-500 font-medium">
+                        Total Data: {paymentRequests.length}
+                    </div>
+                </div>
+
+                {/* Tabel */}
+                <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-amber-50">
+                                <tr>
+                                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                        Vendor
+                                    </th>
+                                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                        Nominal
+                                    </th>
+                                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                        Tanggal Kirim
+                                    </th>
+                                    <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                        Status
+                                    </th>
+                                    <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                        Aksi
+                                    </th>
+                                </tr>
+                            </thead>
+
+                            <tbody className="bg-white divide-y divide-gray-100">
+                                {filtered.length > 0 ? (
+                                    filtered.map((p) => (
+                                        <tr
+                                            key={p.id}
+                                            className="hover:bg-gray-50 transition duration-150"
+                                        >
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                {p.vendor?.name ??
+                                                    "Unknown Vendor"}
+                                            </td>
+
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-mono">
+                                                Rp{" "}
+                                                {Number(
+                                                    p.amount
+                                                ).toLocaleString("id-ID")}
+                                            </td>
+
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {p.created_at
+                                                    ? new Date(
+                                                          p.created_at
+                                                      ).toLocaleDateString(
+                                                          "id-ID",
+                                                          {
+                                                              day: "numeric",
+                                                              month: "short",
+                                                              year: "numeric",
+                                                          }
+                                                      )
+                                                    : "-"}
+                                            </td>
+
+                                            <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
+                                                <span
+                                                    className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${
+                                                        p.status === "Pending"
+                                                            ? "bg-amber-100 text-amber-700"
+                                                            : p.status ===
+                                                              "Approved"
+                                                            ? "bg-green-100 text-green-700"
+                                                            : "bg-red-100 text-red-700"
+                                                    }`}
+                                                >
+                                                    {p.status}
+                                                </span>
+                                            </td>
+
+                                            <td className="px-6 py-4 whitespace-nowrap text-center text-sm">
+                                                <div className="flex items-center justify-center space-x-2">
+                                                    <button
+                                                        onClick={() =>
+                                                            setSelected(p)
+                                                        }
+                                                        className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 text-xs font-medium transition"
+                                                    >
+                                                        Detail
+                                                    </button>
+
+                                                    {p.status === "Pending" && (
+                                                        <>
+                                                            <button
+                                                                onClick={() =>
+                                                                    handleAction(
+                                                                        p.id,
+                                                                        "Approved"
+                                                                    )
+                                                                }
+                                                                className="px-3 py-1.5 rounded-lg bg-green-600 text-white hover:bg-green-700 text-xs font-medium transition shadow-sm"
+                                                            >
+                                                                Terima
+                                                            </button>
+
+                                                            <button
+                                                                onClick={() =>
+                                                                    handleAction(
+                                                                        p.id,
+                                                                        "Rejected"
+                                                                    )
+                                                                }
+                                                                className="px-3 py-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 text-xs font-medium transition shadow-sm"
+                                                            >
+                                                                Tolak
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td
+                                            colSpan="5"
+                                            className="px-6 py-10 text-center text-gray-500 italic"
+                                        >
+                                            <div className="flex flex-col items-center justify-center">
+                                                <span className="mb-2 text-2xl">
+                                                    📭
+                                                </span>
+                                                Tidak ada data pembayaran untuk
+                                                filter "{filter}".
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* MODAL DETAIL */}
+                {selected && (
+                    <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity">
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden transform transition-all scale-100">
+                            {/* Header Modal */}
+                            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-900">
+                                        Detail Pembayaran
+                                    </h3>
+                                    <p className="text-xs text-gray-500">
+                                        ID: #{selected.id} •{" "}
+                                        {selected.vendor?.name}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setSelected(null)}
+                                    className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200 transition"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        className="h-6 w-6"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M6 18L18 6M6 6l12 12"
+                                        />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+                                {/* GAMBAR BUKTI */}
+                                <div className="bg-gray-100 rounded-xl border border-gray-200 flex items-center justify-center p-4 min-h-[300px]">
+                                    {selected.file_url ||
+                                    selected.permit_image_path ? (
+                                        <img
+                                            src={
+                                                selected.file_url ||
+                                                `/storage/${selected.permit_image_path}`
+                                            } // Fallback path logic
+                                            alt="Bukti Pembayaran"
+                                            className="max-h-[400px] w-full object-contain rounded-lg shadow-sm"
+                                        />
+                                    ) : (
+                                        <div className="text-center text-gray-400">
+                                            <svg
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                className="h-16 w-16 mx-auto mb-2 opacity-50"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={1.5}
+                                                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                                />
+                                            </svg>
+                                            <p className="text-sm">
+                                                Tidak ada lampiran gambar.
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* INFO DETAIL & AKSI */}
+                                <div className="flex flex-col justify-between">
+                                    <div className="space-y-4">
+                                        <div className="pb-4 border-b border-gray-100">
+                                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                                                Nominal Transfer
+                                            </p>
+                                            <p className="text-3xl font-extrabold text-gray-900 font-mono">
+                                                Rp{" "}
+                                                {Number(
+                                                    selected.amount
+                                                ).toLocaleString("id-ID")}
+                                            </p>
+                                        </div>
+
+                                        <div>
+                                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                                                Status Saat Ini
+                                            </p>
+                                            <span
+                                                className={`px-3 py-1 rounded-full text-xs font-bold inline-block ${
+                                                    selected.status ===
+                                                    "Pending"
+                                                        ? "bg-amber-100 text-amber-800"
+                                                        : selected.status ===
+                                                          "Approved"
+                                                        ? "bg-green-100 text-green-800"
+                                                        : "bg-red-100 text-red-800"
+                                                }`}
+                                            >
+                                                {selected.status}
+                                            </span>
+                                        </div>
+
+                                        <div>
+                                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                                                Tanggal Request
+                                            </p>
+                                            <p className="text-sm font-medium text-gray-800">
+                                                {new Date(
+                                                    selected.created_at
+                                                ).toLocaleString("id-ID", {
+                                                    weekday: "long",
+                                                    year: "numeric",
+                                                    month: "long",
+                                                    day: "numeric",
+                                                    hour: "2-digit",
+                                                    minute: "2-digit",
+                                                })}
+                                            </p>
+                                        </div>
+
+                                        {/* Placeholder info bank jika ada di database */}
+                                        {selected.bank_name && (
+                                            <div>
+                                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                                                    Bank Pengirim
+                                                </p>
+                                                <p className="text-sm font-medium text-gray-800">
+                                                    {selected.bank_name} -{" "}
+                                                    {selected.account_number}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* TOMBOL AKSI MODAL */}
+                                    <div className="mt-8 pt-6 border-t border-gray-100">
+                                        {selected.status === "Pending" ? (
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <button
+                                                    onClick={() =>
+                                                        handleAction(
+                                                            selected.id,
+                                                            "Rejected"
+                                                        )
+                                                    }
+                                                    className="w-full py-3 rounded-xl border border-red-200 text-red-700 font-bold hover:bg-red-50 transition"
+                                                >
+                                                    Tolak Pembayaran
+                                                </button>
+                                                <button
+                                                    onClick={() =>
+                                                        handleAction(
+                                                            selected.id,
+                                                            "Approved"
+                                                        )
+                                                    }
+                                                    className="w-full py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold shadow-lg hover:shadow-xl hover:from-green-600 hover:to-emerald-700 transition transform hover:-translate-y-0.5"
+                                                >
+                                                    Konfirmasi (Terima)
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="bg-gray-50 p-3 rounded-lg text-center text-sm text-gray-500">
+                                                Transaksi ini telah diproses
+                                                sebagai{" "}
+                                                <strong>
+                                                    {selected.status}
+                                                </strong>
+                                                .
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
-
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default PaymentConfirmation;
+        </AdminLayout>
+    );
+}

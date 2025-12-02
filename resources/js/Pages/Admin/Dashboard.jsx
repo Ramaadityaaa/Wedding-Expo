@@ -1,436 +1,306 @@
-import React, { useEffect, useState } from 'react';
-import { LogOut } from 'lucide-react';
-import { navItems } from './navItems';
-
-import DashboardHome from './pages/DashboardHome';
-import VendorManagement from './pages/VendorManagement';
-import UserManagement from './pages/UserManagement';
-import ReviewModeration from './pages/ReviewModeration';
-import StaticContentManagement from './pages/StaticContentManagement';
-import RoleEditor from './pages/RoleEditor';
-import PaymentSettings from './pages/PaymentSettings';
-import PaymentConfirmation from './pages/PaymentConfirmation';
-
+import React from "react";
+import AdminLayout from "@/Layouts/AdminLayout";
+import { Head, Link, usePage } from "@inertiajs/react";
 import {
-  fetchVendors, fetchReviews, fetchUsers, fetchStaticContent, fetchPaymentRequests,
-  updateVendorStatus, deleteVendor,
-  updateReviewStatus, deleteReview,
-  updateUserStatus, deleteUser,
-  updatePaymentRequestStatus, deletePaymentRequest,
-  saveStaticContent, updateVendorRole
-} from './data/api';
+    Users,
+    Store,
+    MessageSquare,
+    CreditCard,
+    Clock,
+    CheckCircle,
+    ArrowRight,
+    TrendingUp,
+    AlertCircle,
+} from "lucide-react";
 
-import showPopup from './components/Popup';
-import { PRIMARY_COLOR } from './data/constants';
+// Komponen Kartu Statistik
+const StatCard = ({
+    title,
+    count,
+    icon: Icon,
+    colorClass,
+    link,
+    linkText,
+    subText,
+}) => (
+    <div
+        className={`relative overflow-hidden rounded-2xl shadow-xl border border-white/20 ${colorClass} text-white transition-transform duration-300 hover:-translate-y-1 group`}
+    >
+        {/* Dekorasi Background */}
+        <div className="absolute -right-6 -top-6 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:scale-110 transition-transform"></div>
+        <div className="absolute -left-6 -bottom-6 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
 
-const Dashboard = () => {
+        <div className="p-6 relative z-10 flex flex-col h-full justify-between">
+            <div className="flex justify-between items-start">
+                <div>
+                    <p className="text-xs font-bold text-white/80 uppercase tracking-wider mb-1">
+                        {title}
+                    </p>
+                    <h3 className="text-3xl font-extrabold">{count}</h3>
+                    {subText && (
+                        <p className="text-xs text-white/70 mt-1 font-medium">
+                            {subText}
+                        </p>
+                    )}
+                </div>
+                <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm shadow-inner">
+                    <Icon size={24} className="text-white" />
+                </div>
+            </div>
 
-  const [activeTab, setActiveTab] = useState('Dashboard');
+            {link && (
+                <div className="mt-4 pt-3 border-t border-white/20">
+                    <Link
+                        href={link}
+                        className="flex items-center text-xs font-bold uppercase tracking-wide hover:text-white/80 transition-colors"
+                    >
+                        {linkText} <ArrowRight size={14} className="ml-2" />
+                    </Link>
+                </div>
+            )}
+        </div>
+    </div>
+);
 
-  // views
-  const [vendorView, setVendorView] = useState('Pending');
-  const [userView, setUserView] = useState('Active');
-  const [reviewView, setReviewView] = useState('Pending');
+export default function Dashboard({
+    stats,
+    pendingVendors = [],
+    pendingReviews = [],
+}) {
+    const { auth } = usePage().props;
 
-  // global states
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  const [vendors, setVendors] = useState([]);
-  const [reviews, setReviews] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [staticContent, setStaticContent] = useState({});
-  const [paymentRequests, setPaymentRequests] = useState([]);
-
-  // static editor
-  const [editingContent, setEditingContent] = useState(null);
-  const [editorValue, setEditorValue] = useState('');
-
-  // payment settings
-  const [paymentSettings, setPaymentSettings] = useState({
-    bankAccount: "123456789 - Bank Contoh",
-    qrisImage: null
-  });
-
-  const [isPaymentEditOpen, setIsPaymentEditOpen] = useState(false);
-  const [paymentForm, setPaymentForm] = useState({
-    bankAccount: "",
-    qrisImage: null,
-    bankNumber: "",
-    bankName: ""
-  });
-
-  // role edits
-  const [roleEdits, setRoleEdits] = useState({});
-
-  // load data
-  useEffect(() => {
-    const loadAll = async () => {
-      setLoading(true);
-      try {
-        const [v, r, u, c, p] = await Promise.all([
-          fetchVendors(),
-          fetchReviews(),
-          fetchUsers(),
-          fetchStaticContent(),
-          fetchPaymentRequests()
-        ]);
-
-        setVendors(v);
-        setReviews(r);
-        setUsers(u);
-        setStaticContent(c);
-        setPaymentRequests(p);
-
-      } catch (e) {
-        console.error(e);
-        setError("Gagal memuat data API.");
-      } finally {
-        setLoading(false);
-      }
+    // Helper Format Rupiah
+    const formatRupiah = (number) => {
+        return new Intl.NumberFormat("id-ID", {
+            style: "currency",
+            currency: "IDR",
+            maximumFractionDigits: 0,
+        }).format(number);
     };
 
-    loadAll();
-  }, []);
-
-  // ---------------- HANDLERS ----------------
-
-  const handleVendorAction = async (id, action) => {
-    const text = action === "delete" ? "menghapus" 
-      : action === "Approved" ? "menyetujui" : "menolak";
-
-    if (!window.confirm(`Yakin ingin ${text} vendor ID ${id}?`)) return;
-
-    try {
-      if (action === "delete") {
-        await deleteVendor(id);
-        setVendors(v => v.filter(x => x.id !== id));
-      } else {
-        await updateVendorStatus(id, action);
-        setVendors(v => v.map(x => x.id === id ? { ...x, status: action } : x));
-      }
-    } catch {
-      setError("Gagal memproses vendor");
-    }
-  };
-
-  const handleReviewAction = async (id, action) => {
-    const text = action === "delete" ? "menghapus"
-      : action === "Approved" ? "menyetujui" : "menolak";
-
-    if (!window.confirm(`Yakin ingin ${text} ulasan ID ${id}?`)) return;
-
-    try {
-      if (action === "delete") {
-        await deleteReview(id);
-        setReviews(r => r.filter(x => x.id !== id));
-      } else {
-        await updateReviewStatus(id, action);
-        setReviews(r => r.map(x => x.id === id ? { ...x, status: action } : x));
-      }
-    } catch {
-      setError("Gagal memproses ulasan");
-    }
-  };
-
-  const handleUserAction = async (id, status) => {
-    const text = status === "delete" ? "menghapus"
-      : status === "Suspended" ? "menangguhkan" : "mengaktifkan";
-
-    if (!window.confirm(`Yakin ingin ${text} user ID ${id}?`)) return;
-
-    try {
-      if (status === "delete") {
-        await deleteUser(id);
-        setUsers(u => u.filter(x => x.id !== id));
-      } else {
-        await updateUserStatus(id, status);
-        setUsers(u => u.map(x => x.id === id ? { ...x, status } : x));
-      }
-    } catch {
-      setError("Gagal memproses user");
-    }
-  };
-
-  const handlePaymentAction = async (id, action) => {
-    const text = action === "delete" ? "menghapus"
-      : action === "Confirmed" ? "mengonfirmasi" : "menolak";
-
-    if (!window.confirm(`Yakin ingin ${text} pembayaran ID ${id}?`)) return;
-
-    try {
-      if (action === "delete") {
-        await deletePaymentRequest(id);
-        setPaymentRequests(p => p.filter(x => x.id !== id));
-      } else {
-        await updatePaymentRequestStatus(id, action);
-        setPaymentRequests(p => p.map(x => x.id === id ? { ...x, status: action } : x));
-      }
-      showPopup("Status pembayaran diperbarui.");
-
-    } catch {
-      setError("Gagal memproses pembayaran");
-    }
-  };
-
-  const handleStaticContentSave = async () => {
-    if (!editingContent) return;
-    if (!window.confirm(`Simpan perubahan?`)) return;
-
-    try {
-      await saveStaticContent(editingContent, editorValue);
-      setStaticContent(s => ({ ...s, [editingContent]: editorValue }));
-      setEditingContent(null);
-      showPopup("Konten statis disimpan.");
-    } catch {
-      setError("Gagal menyimpan konten");
-    }
-  };
-
-  const handleSaveRoles = async () => {
-    const edits = Object.entries(roleEdits);
-    if (edits.length === 0) {
-      showPopup("Tidak ada perubahan");
-      return;
-    }
-
-    if (!window.confirm("Simpan role vendor?")) return;
-
-    try {
-      for (const [id, role] of edits) {
-        await updateVendorRole(id, role);
-        setVendors(v => v.map(x => x.id === id ? { ...x, role } : x));
-      }
-      setRoleEdits({});
-      showPopup("Role berhasil disimpan");
-    } catch {
-      setError("Gagal menyimpan role");
-    }
-  };
-
-  // ------ payment editor ------
-  const openPaymentEdit = () => {
-    const parts = paymentSettings.bankAccount.split(" - ");
-    setPaymentForm({
-      bankNumber: parts[0] || "",
-      bankName: parts[1] || "",
-      qrisImage: paymentSettings.qrisImage
-    });
-    setIsPaymentEditOpen(true);
-  };
-
-  const savePaymentForm = () => {
-    const merged = `${paymentForm.bankNumber} - ${paymentForm.bankName}`;
-    setPaymentSettings({
-      bankAccount: merged,
-      qrisImage: paymentForm.qrisImage
-    });
-    setIsPaymentEditOpen(false);
-    showPopup("Payment disimpan (preview)");
-  };
-
-  // ---- loading & error ----
-  if (loading)
     return (
-      <div className="flex items-center justify-center h-screen text-gray-600">
-        Memuat Dashboard...
-      </div>
-    );
+        <AdminLayout user={auth.user} header="Dashboard Ringkasan">
+            <Head title="Admin Dashboard" />
 
-  if (error)
-    return (
-      <div className="flex items-center justify-center h-screen text-red-600">
-        {error}
-      </div>
-    );
+            <div className="p-4 sm:p-6 max-w-7xl mx-auto font-sans">
+                {/* Welcome Banner */}
+                <div className="mb-8 bg-white p-6 rounded-2xl shadow-lg border border-orange-100 flex flex-col md:flex-row items-center justify-between">
+                    <div>
+                        <h2 className="text-2xl font-bold text-gray-800">
+                            Selamat Datang,{" "}
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-orange-600">
+                                {auth.user.name}
+                            </span>
+                            ! 👋
+                        </h2>
+                        <p className="text-gray-500 mt-1">
+                            Berikut adalah ringkasan aktivitas platform Wedding
+                            Expo hari ini.
+                        </p>
+                    </div>
+                    <div className="mt-4 md:mt-0 px-4 py-2 bg-orange-50 text-orange-700 rounded-lg text-sm font-medium border border-orange-100 shadow-sm">
+                        {new Date().toLocaleDateString("id-ID", {
+                            weekday: "long",
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                        })}
+                    </div>
+                </div>
 
-  // ------- derived counts -------
-  const pendingVendors = vendors.filter(v => v.status === "Pending").length;
-  const approvedVendors = vendors.filter(v => v.status === "Approved").length;
-  const pendingReviews = reviews.filter(r => r.status === "Pending").length;
-  const activeUsers = users.filter(u => u.status === "Active").length;
-  const pendingPayments = paymentRequests.filter(p => p.status === "Pending").length;
+                {/* Grid Statistik Utama */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    {/* Kartu Vendor Pending */}
+                    <StatCard
+                        title="Verifikasi Vendor"
+                        count={stats.pendingVendors}
+                        icon={Store}
+                        colorClass="bg-gradient-to-br from-amber-400 to-orange-500"
+                        link={route("admin.vendors.index")}
+                        linkText="Proses Sekarang"
+                        subText={`${stats.approvedVendors} Vendor Aktif`}
+                    />
 
-  // render routes
-  const renderContent = () => {
-    switch (activeTab) {
-      case "Dashboard":
-        return (
-          <DashboardHome
-            vendors={vendors}
-            users={users}
-            reviews={reviews}
-          />
-        );
+                    {/* Kartu Revenue */}
+                    <StatCard
+                        title="Total Pendapatan"
+                        count={formatRupiah(stats.totalRevenue || 0)}
+                        icon={CreditCard}
+                        colorClass="bg-gradient-to-br from-emerald-400 to-teal-600"
+                        link={route("admin.paymentproof.index")}
+                        linkText="Lihat Transaksi"
+                        subText={`+${stats.monthlyGrowth}% bulan ini`}
+                    />
 
-      case "Vendor":
-        return (
-          <VendorManagement
-            vendors={vendors}
-            vendorView={vendorView}
-            setVendorView={setVendorView}
-            handleVendorAction={handleVendorAction}
-            pendingVendors={pendingVendors}
-            approvedVendors={approvedVendors}
-          />
-        );
+                    {/* Kartu Ulasan Pending */}
+                    <StatCard
+                        title="Moderasi Ulasan"
+                        count={stats.pendingReviews}
+                        icon={MessageSquare}
+                        colorClass="bg-gradient-to-br from-blue-400 to-indigo-500"
+                        link={route("admin.reviews.index")}
+                        linkText="Moderasi Ulasan"
+                        subText={`${stats.totalReviews} Total Ulasan`}
+                    />
 
-      case "Users":
-        return (
-          <UserManagement
-            users={users}
-            userView={userView}
-            setUserView={setUserView}
-            handleUserAction={handleUserAction}
-          />
-        );
+                    {/* Kartu Total User */}
+                    <StatCard
+                        title="Total Pengguna"
+                        count={stats.totalUsers}
+                        icon={Users}
+                        colorClass="bg-gradient-to-br from-pink-400 to-rose-500"
+                        link={route("admin.user-stats.index")}
+                        linkText="Kelola Pengguna"
+                        subText="Customer Terdaftar"
+                    />
+                </div>
 
-      case "Reviews":
-        return (
-          <ReviewModeration
-            reviews={reviews}
-            reviewView={reviewView}
-            setReviewView={setReviewView}
-            handleReviewAction={handleReviewAction}
-          />
-        );
+                {/* Section Detail: Split View */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Daftar Vendor Pending Terbaru */}
+                    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden flex flex-col">
+                        <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                            <h3 className="text-lg font-bold text-gray-800 flex items-center">
+                                <Clock
+                                    className="mr-2 text-amber-500"
+                                    size={20}
+                                />
+                                Vendor Menunggu Verifikasi
+                            </h3>
+                            <Link
+                                href={route("admin.vendors.index")}
+                                className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                            >
+                                Lihat Semua
+                            </Link>
+                        </div>
+                        <div className="p-0 flex-1">
+                            {pendingVendors.length > 0 ? (
+                                <ul className="divide-y divide-gray-100">
+                                    {pendingVendors.map((vendor) => (
+                                        <li
+                                            key={vendor.id}
+                                            className="p-4 hover:bg-gray-50 transition flex items-center justify-between"
+                                        >
+                                            <div className="flex items-center">
+                                                <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 font-bold mr-3">
+                                                    {vendor.name
+                                                        .charAt(0)
+                                                        .toUpperCase()}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-semibold text-gray-800">
+                                                        {vendor.name}
+                                                    </p>
+                                                    <p className="text-xs text-gray-500">
+                                                        {vendor.city ||
+                                                            "Kota tidak diketahui"}{" "}
+                                                        • {vendor.type}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <Link
+                                                href={route(
+                                                    "admin.vendors.index"
+                                                )}
+                                                className="px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-bold hover:bg-amber-200 transition"
+                                            >
+                                                Review
+                                            </Link>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <div className="p-8 text-center text-gray-400 italic">
+                                    <CheckCircle
+                                        className="mx-auto mb-2 text-green-300"
+                                        size={32}
+                                    />
+                                    Tidak ada vendor pending saat ini.
+                                </div>
+                            )}
+                        </div>
+                    </div>
 
-      case "StaticContent":
-        return (
-          <StaticContentManagement
-            staticContent={staticContent}
-            setEditingContent={setEditingContent}
-            setEditorValue={setEditorValue}
-            editingContent={editingContent}
-          />
-        );
-
-      case "EditRole":
-        return (
-          <RoleEditor
-            vendors={vendors}
-            roleEdits={roleEdits}
-            setRoleEdits={setRoleEdits}
-            handleSaveRoles={handleSaveRoles}
-          />
-        );
-
-      case "Payment":
-        return (
-          <PaymentSettings
-            paymentSettings={paymentSettings}
-            openPaymentEdit={openPaymentEdit}
-            setPaymentSettings={setPaymentSettings}
-            isPaymentEditOpen={isPaymentEditOpen}
-            paymentForm={paymentForm}
-            setPaymentForm={setPaymentForm}
-            savePaymentForm={savePaymentForm}
-          />
-        );
-
-      case "KonfirmasiPembayaran":
-        return (
-          <PaymentConfirmation
-            paymentRequests={paymentRequests}
-            onAction={handlePaymentAction}
-          />
-        );
-
-      default:
-        return <DashboardHome vendors={vendors} users={users} reviews={reviews} />;
-    }
-  };
-
-  return (
-    <div className="flex bg-gray-50">
-
-      {/* SIDEBAR */}
-      <nav className="w-64 bg-white shadow-xl p-6 border-r fixed h-screen">
-
-        {/* LOGO */}
-        <div className="mb-10">
-          <h1
-            className="text-2xl font-extrabold bg-clip-text text-transparent"
-            style={{ background: "linear-gradient(90deg,#facc15,#fb923c)" }}
-          >
-            Admin Dashboard
-          </h1>
-        </div>
-
-        {/* NAV ITEMS */}
-        <ul className="space-y-2 overflow-y-auto max-h-[calc(100vh-160px)]">
-
-          {navItems.map(item => {
-            const isActive = activeTab === item.name;
-            const Icon = item.icon;
-
-            let count = 0;
-            if (item.name === "Vendor") count = pendingVendors;
-            if (item.name === "Reviews") count = pendingReviews;
-            if (item.name === "KonfirmasiPembayaran") count = pendingPayments;
-
-            return (
-              <li key={item.name}>
-                <button
-                  onClick={() => setActiveTab(item.name)}
-                  className={`flex items-center w-full p-3 rounded-xl
-                    ${isActive ? `${PRIMARY_COLOR} text-white shadow-xl`
-                               : "text-gray-600 hover:bg-amber-50 hover:text-amber-600"}`}
-                >
-                  <Icon size={20} className="mr-3" />
-                  <span className="flex-1 font-semibold">{item.label}</span>
-
-                  {count > 0 && (
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-bold 
-                      ${isActive ? "bg-white text-amber-600" : "bg-red-500 text-white"}`}>
-                      {count}
-                    </span>
-                  )}
-                </button>
-              </li>
-            );
-          })}
-
-        </ul>
-
-        {/* LOGOUT */}
-        <button
-          className="w-full mt-6 flex items-center p-3 rounded-xl bg-red-50 text-red-700 hover:bg-red-600 hover:text-white"
-        >
-          <LogOut size={20} className="mr-3" />
-          Keluar
-        </button>
-
-      </nav>
-
-      {/* MAIN CONTENT */}
-      <main className="ml-64 flex-1 p-6">
-        {renderContent()}
-      </main>
-
-      {/* STATIC CONTENT EDITOR */}
-      {editingContent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-3xl">
-            <h3 className="text-xl font-bold mb-4">Edit Konten: {editingContent}</h3>
-
-            <textarea
-              rows={10}
-              className="w-full border p-3 rounded-lg"
-              value={editorValue}
-              onChange={(e) => setEditorValue(e.target.value)}
-            />
-
-            <div className="mt-4 flex justify-end space-x-3">
-              <button onClick={() => setEditingContent(null)} className="px-4 py-2 border rounded-lg">Batal</button>
-              <button onClick={handleStaticContentSave} className="px-4 py-2 bg-amber-500 text-white rounded-lg">Simpan</button>
+                    {/* Daftar Ulasan Pending Terbaru */}
+                    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden flex flex-col">
+                        <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                            <h3 className="text-lg font-bold text-gray-800 flex items-center">
+                                <AlertCircle
+                                    className="mr-2 text-blue-500"
+                                    size={20}
+                                />
+                                Ulasan Perlu Moderasi
+                            </h3>
+                            <Link
+                                href={route("admin.reviews.index")}
+                                className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                            >
+                                Lihat Semua
+                            </Link>
+                        </div>
+                        <div className="p-0 flex-1">
+                            {pendingReviews.length > 0 ? (
+                                <ul className="divide-y divide-gray-100">
+                                    {pendingReviews.map((review) => (
+                                        <li
+                                            key={review.id}
+                                            className="p-4 hover:bg-gray-50 transition"
+                                        >
+                                            <div className="flex justify-between mb-1">
+                                                <p className="text-xs font-bold text-gray-700">
+                                                    {review.user?.name ||
+                                                        "Anonim"}
+                                                </p>
+                                                <span className="text-xs text-gray-400">
+                                                    untuk{" "}
+                                                    {
+                                                        review.wedding_organizer
+                                                            ?.name
+                                                    }
+                                                </span>
+                                            </div>
+                                            <p className="text-sm text-gray-600 italic mb-2">
+                                                "
+                                                {review.comment.substring(
+                                                    0,
+                                                    60
+                                                )}
+                                                {review.comment.length > 60
+                                                    ? "..."
+                                                    : ""}
+                                                "
+                                            </p>
+                                            <div className="flex justify-end">
+                                                <Link
+                                                    href={route(
+                                                        "admin.reviews.index"
+                                                    )}
+                                                    className="text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center"
+                                                >
+                                                    Moderasi{" "}
+                                                    <ArrowRight
+                                                        size={12}
+                                                        className="ml-1"
+                                                    />
+                                                </Link>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <div className="p-8 text-center text-gray-400 italic">
+                                    <CheckCircle
+                                        className="mx-auto mb-2 text-green-300"
+                                        size={32}
+                                    />
+                                    Semua ulasan aman terkendali.
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
-        </div>
-      )}
-
-    </div>
-  );
-};
-
-export default Dashboard;
+        </AdminLayout>
+    );
+}

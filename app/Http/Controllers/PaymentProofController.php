@@ -4,34 +4,71 @@ namespace App\Http\Controllers;
 
 use App\Models\PaymentProof;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Illuminate\Support\Facades\Log;
 
 class PaymentProofController extends Controller
 {
-    // Ambil semua pembayaran yang pending
+    /**
+     * Menampilkan halaman Konfirmasi Pembayaran.
+     */
     public function index()
     {
-        return PaymentProof::with('vendor')
-            ->orderBy('created_at', 'DESC')
+        // Menggunakan 'with' untuk eager loading data vendor agar tidak N+1 problem
+        $paymentRequests = PaymentProof::with('vendor')
+            ->latest()
             ->get();
+
+        return Inertia::render('Admin/pages/PaymentConfirmation', [
+            'paymentRequests' => $paymentRequests
+        ]);
     }
 
-    // Konfirmasi pembayaran
-    public function approve($id)
+    /**
+     * Mengupdate status pembayaran (Route untuk Approve/Reject via POST/PATCH).
+     * Menangani request dari Inertia router.post()
+     */
+    public function updateStatus(Request $request, $id)
     {
-        $payment = PaymentProof::findOrFail($id);
-        $payment->status = 'Approved';
-        $payment->save();
+        try {
+            $payment = PaymentProof::findOrFail($id);
 
-        return response()->json(['message' => 'Payment approved']);
+            // Validasi input status
+            $request->validate([
+                'status' => 'required|in:Approved,Rejected,Pending'
+            ]);
+
+            // Update status
+            $payment->update([
+                'status' => $request->status
+            ]);
+
+            // [PENTING] Gunakan redirect back untuk Inertia, BUKAN response()->json()
+            return redirect()->back()->with('success', 'Status pembayaran berhasil diperbarui.');
+        } catch (\Exception $e) {
+            Log::error("Error updating payment status: " . $e->getMessage());
+            return redirect()->back()->with('error', 'Terjadi kesalahan saat memproses pembayaran.');
+        }
     }
 
-    // Tolak pembayaran
-    public function reject($id)
+    /**
+     * Menghapus bukti pembayaran.
+     */
+    public function destroy($id)
     {
-        $payment = PaymentProof::findOrFail($id);
-        $payment->status = 'Rejected';
-        $payment->save();
+        try {
+            $payment = PaymentProof::findOrFail($id);
 
-        return response()->json(['message' => 'Payment rejected']);
+            // Hapus file fisik jika ada (opsional, praktik yang baik)
+            // if ($payment->file_path && \Storage::exists('public/' . $payment->file_path)) {
+            //    \Storage::delete('public/' . $payment->file_path);
+            // }
+
+            $payment->delete();
+
+            return redirect()->back()->with('success', 'Data pembayaran berhasil dihapus.');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Gagal menghapus data.');
+        }
     }
 }

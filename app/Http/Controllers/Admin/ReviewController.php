@@ -1,33 +1,39 @@
 <?php
 
-// app/Http/Controllers/Admin/ReviewController.php
-
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Review; // <-- Pastikan model Review di-import
+use App\Models\Review;
 use Illuminate\Http\Request;
-use Illuminate\Http\RedirectResponse;
+use Inertia\Inertia;
 
 class ReviewController extends Controller
 {
-    /**
-     * Menyetujui review.
-     */
-    public function approve(Review $review): RedirectResponse
+    public function index()
     {
-        $review->update(['isApproved' => true]);
-        return redirect()->back()->with('success', 'Review approved successfully.');
+        // Ambil review dengan relasi, urutkan dari terbaru
+        $reviews = Review::with(['weddingOrganizer', 'user'])
+            ->latest()
+            ->get();
+
+        return Inertia::render('Admin/pages/ReviewModeration', [
+            'reviews' => $reviews
+        ]);
     }
 
-    /**
-     * Menolak (menghapus) review.
-     */
-    public function reject(Review $review): RedirectResponse
+    public function approve($id)
     {
-        // Anda bisa hapus review-nya, atau tandai sebagai "rejected"
-        // Untuk saat ini, kita hapus saja:
-        $review->delete(); 
-        return redirect()->back()->with('success', 'Review rejected successfully.');
+        $review = Review::findOrFail($id);
+        $review->update(['status' => 'APPROVED']); // Set status APPROVED
+
+        return redirect()->back()->with('success', 'Ulasan berhasil disetujui dan ditayangkan.');
+    }
+
+    public function reject($id)
+    {
+        $review = Review::findOrFail($id);
+        $review->update(['status' => 'REJECTED']); // Set status REJECTED (Data tetap ada)
+
+        return redirect()->back()->with('success', 'Ulasan ditolak (diarsipkan).');
     }
 }

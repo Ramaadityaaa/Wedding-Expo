@@ -1,6 +1,5 @@
 <?php
 
-// app/Models/Review.php
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -10,9 +9,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Review extends Model
 {
     use HasFactory;
-    
+
     protected $fillable = [
-        'wedding_organizer_id', 'user_id', 'rating', 'comment', 'isApproved',
+        'wedding_organizer_id',
+        'user_id',
+        'rating',
+        'comment',
+        'status' // <-- Ganti 'isApproved' dengan 'status'
     ];
 
     public function weddingOrganizer(): BelongsTo

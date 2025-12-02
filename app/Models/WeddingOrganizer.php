@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable; 
+use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -20,7 +20,7 @@ class WeddingOrganizer extends Authenticatable
      */
     protected $attributes = [
         // Asumsi ENUM di DB adalah string 'PENDING', 'APPROVED', 'REJECTED'
-        'isApproved' => 'PENDING', 
+        'isApproved' => 'PENDING',
     ];
     // ---------------------------------------------------
 
@@ -31,22 +31,23 @@ class WeddingOrganizer extends Authenticatable
         'city',
         'province',
         'address',
-        
+
         // ... (data legalitas)
         'permit_number',
         'permit_image_path',
-        
+
         // ... (data kontak)
-        'contact_name', 
-        'contact_email', 
-        'contact_phone', 
-        
+        'contact_name',
+        'contact_email',
+        'contact_phone',
+
         // ... (data akun & status)
         'password',
         'isApproved',
-        'terms_accepted', 
+        'role', // <--- TAMBAHAN: Agar kolom role bisa diupdate massal
+        'terms_accepted',
         'user_id',
-        
+
         // Kolom Opsional Lainnya
         'description',
         'logo',
@@ -71,7 +72,7 @@ class WeddingOrganizer extends Authenticatable
         // 🚨 KOREKSI: Hapus casting 'isApproved' => 'integer', karena Anda menggunakan string di Controller
         return [];
     }
-    
+
     /**
      * Relasi ke model User (Pemilik Vendor)
      */
@@ -95,7 +96,7 @@ class WeddingOrganizer extends Authenticatable
     {
         return $this->hasMany(Portfolio::class);
     }
-    
+
     /**
      * Relasi ke Reviews
      */
@@ -103,7 +104,7 @@ class WeddingOrganizer extends Authenticatable
     {
         return $this->hasMany(Review::class);
     }
-    
+
     /**
      * Relasi ke Favorites
      */

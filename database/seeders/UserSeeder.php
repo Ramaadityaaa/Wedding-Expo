@@ -16,11 +16,11 @@ class UserSeeder extends Seeder
         // Akun ADMIN utama
         User::updateOrCreate(
             [
-                'email' => 'admin@weddingexpo.com', // email unik
+                'email' => 'ullulazmia.l@gmail.com', // email unik
             ],
             [
                 'name'              => 'Admin WeddingExpo',
-                'password'          => Hash::make('password123'), // password login
+                'password'          => Hash::make('password'), // password login
                 'role'              => 'ADMIN', // SESUAI ENUM DI MIGRASI
                 'phone'             => '081234567890', // opsional
                 'email_verified_at' => now(), // supaya lolos middleware "verified"

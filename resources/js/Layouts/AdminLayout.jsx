@@ -1,122 +1,170 @@
-import React from 'react';
-import { Link } from '@inertiajs/react';
-import { useState } from 'react';
+import React, { useState } from "react";
+import { Link } from "@inertiajs/react";
+import { navItems } from "@/Pages/Admin/navItems";
+import { LogOut, Menu, X, ChevronRight } from "lucide-react";
 
-// === SVG INLINE ICONS (Telah Disediakan) ===
-const IconDashboard = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 0 0 6 16.5h2.25M3.75 3h11.25A2.25 2.25 0 0 1 18 5.25v2.25m-15.75 0h15.75m-15.75 0A2.25 2.25 0 0 1 2.25 10.5v1.5m1.5-4.5V18m0 0h15.75m-15.75 0a2.25 2.25 0 0 0 2.25 2.25h10.5a2.25 2.25 0 0 0 2.25-2.25M7.5 12h9m-9 3h9" /></svg>;
-const IconUsers = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.125l-2.25-1.5m1.5-6.625l4.5 9.75M16.5 10.5l-4.5 4.5m-1.5-6.625L10.5 17.25M9 7.5l-2.25 1.5M7.5 15h9M3 12a9 9 0 1 1 18 0 9 9 0 0 1-18 0Z" /></svg>;
-const IconCreditCard = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9.75h19.5m-4.5-4.5v15M2.25 12h19.5m-4.5 4.5v3.75M2.25 18h19.5" /></svg>;
-const IconLogOut = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l3-3m-3 3L9 6m0 10.5h6" /></svg>;
-const IconMenu = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>;
-const IconClose = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>;
-// === END ICONS ===
-
-
-// Komponen Tata Letak Khusus untuk Admin Dashboard
 export default function AdminLayout({ user, header, children }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-    // Daftar Navigasi Sidebar (pastikan rute ini terdefinisi di routes/web.php)
-    const AdminNavigation = [
-        { name: 'Dashboard', href: route('admin.dashboard'), icon: IconDashboard, active: route().current('admin.dashboard') },
-        // Rute untuk Verifikasi Vendor (AdminVendorController@index di backend)
-        { name: 'Verifikasi Vendor', href: route('admin.vendors.index'), icon: IconUsers, active: route().current('admin.vendors.index') || route().current('admin.vendors.*') },
-        // Rute untuk Bukti Pembayaran
-        { name: 'Bukti Pembayaran', href: route('admin.paymentproof.index'), icon: IconCreditCard, active: route().current('admin.paymentproof.index') },
-    ];
-    
-    // Item navigasi yang bisa diklik (digunakan untuk sidebar dan mobile dropdown)
-    const NavItem = ({ item }) => (
-        <Link
-            href={item.href}
-            className={`flex items-center px-6 py-3 transition duration-150 ease-in-out ${
-                item.active 
-                    ? 'bg-indigo-700 border-l-4 border-indigo-300' 
-                    : 'hover:bg-indigo-700'
-            }`}
-            onClick={() => setIsSidebarOpen(false)} // Tutup sidebar setelah navigasi
-        >
-            <item.icon className="h-5 w-5 mr-3" />
-            {item.name}
-        </Link>
-    );
+    // Fungsi Helper untuk cek apakah rute aktif
+    const isRouteActive = (routeName) => {
+        if (!routeName) return false;
+        try {
+            return (
+                route().current(routeName) || route().current(routeName + ".*")
+            );
+        } catch (e) {
+            return false;
+        }
+    };
 
     return (
-        <div className="min-h-screen bg-gray-100 flex">
-            {/* Sidebar (Desktop) */}
-            <aside 
-                className={`fixed top-0 left-0 h-full w-64 bg-indigo-800 text-white shadow-2xl z-40
+        <div className="min-h-screen bg-gray-50 flex font-sans">
+            {/* --- SIDEBAR (Desktop & Mobile) --- */}
+            <aside
+                className={`fixed top-0 left-0 h-full w-72 bg-white text-gray-800 shadow-2xl z-40 border-r border-gray-100
                 transition-transform duration-300 ease-in-out
-                ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-                md:relative md:translate-x-0 md:flex-shrink-0`}
+                ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}
+                md:relative md:translate-x-0 md:flex-shrink-0 flex flex-col`}
             >
-                <div className="p-6 text-2xl font-extrabold text-center border-b border-indigo-700">
-                    Admin Panel
+                {/* LOGO AREA */}
+                <div className="p-8 mb-2">
+                    <h1
+                        className="text-2xl font-extrabold bg-clip-text text-transparent tracking-tight"
+                        style={{
+                            backgroundImage:
+                                "linear-gradient(90deg, #facc15, #fb923c)",
+                        }} // Efek Emas ke Orange
+                    >
+                        Admin Dashboard
+                    </h1>
+                    <p className="text-xs text-gray-400 mt-1 uppercase tracking-widest font-semibold">
+                        Wedding Expo Panel
+                    </p>
                 </div>
-                <nav className="mt-6">
-                    {AdminNavigation.map((item) => (
-                        <NavItem key={item.name} item={item} />
-                    ))}
-                    
-                    {/* Logout Button */}
+
+                {/* NAVIGASI */}
+                <nav className="flex-1 px-4 overflow-y-auto space-y-2 pb-4">
+                    <p className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-2">
+                        Menu Utama
+                    </p>
+
+                    {navItems.map((item) => {
+                        const isActive = isRouteActive(item.route);
+
+                        return (
+                            <Link
+                                key={item.name}
+                                href={item.route ? route(item.route) : "#"}
+                                className={`group flex items-center px-4 py-3.5 rounded-xl transition-all duration-200 ease-in-out font-medium relative overflow-hidden ${
+                                    isActive
+                                        ? "text-white shadow-lg shadow-orange-200" // Shadow halus saat aktif
+                                        : "text-gray-600 hover:bg-orange-50 hover:text-orange-600"
+                                }`}
+                                style={
+                                    isActive
+                                        ? {
+                                              background:
+                                                  "linear-gradient(90deg, #f59e0b, #ea580c)", // Gradient Orange Mengkilat
+                                          }
+                                        : {}
+                                }
+                                onClick={() => setIsSidebarOpen(false)}
+                            >
+                                {/* Indikator aktif di kiri (opsional, untuk estetika) */}
+                                {isActive && (
+                                    <span className="absolute left-0 top-0 bottom-0 w-1 bg-white/20"></span>
+                                )}
+
+                                <div
+                                    className={`mr-3 transition-transform duration-200 ${
+                                        isActive
+                                            ? "scale-110"
+                                            : "group-hover:scale-110"
+                                    }`}
+                                >
+                                    {item.icon && <item.icon size={20} />}
+                                </div>
+
+                                <span className="flex-1">{item.label}</span>
+
+                                {/* Panah kecil jika aktif */}
+                                {isActive && (
+                                    <ChevronRight
+                                        size={16}
+                                        className="text-white/80"
+                                    />
+                                )}
+                            </Link>
+                        );
+                    })}
+                </nav>
+
+                {/* FOOTER SIDEBAR (LOGOUT) */}
+                <div className="p-4 border-t border-gray-100">
                     <Link
-                        href={route('logout')}
+                        href={route("logout")}
                         method="post"
                         as="button"
-                        className="flex items-center px-6 py-3 mt-4 text-sm font-medium hover:bg-red-700 w-full text-left transition duration-150 ease-in-out"
+                        className="flex items-center w-full px-4 py-3.5 rounded-xl text-sm font-medium text-red-600 bg-red-50 hover:bg-red-600 hover:text-white hover:shadow-lg hover:shadow-red-100 transition-all duration-200"
                     >
-                        <IconLogOut className="h-5 w-5 mr-3" />
-                        Log Out
+                        <LogOut size={20} className="mr-3" />
+                        Keluar
                     </Link>
-                </nav>
+                </div>
             </aside>
 
-            {/* Backdrop untuk mobile */}
+            {/* --- BACKDROP MOBILE --- */}
             {isSidebarOpen && (
-                <div 
-                    className="fixed inset-0 bg-black opacity-50 z-30 md:hidden" 
+                <div
+                    className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-30 md:hidden"
                     onClick={() => setIsSidebarOpen(false)}
                 ></div>
             )}
 
-            {/* Main Content Area */}
-            <div className="flex-1 flex flex-col overflow-x-hidden">
-                
-                {/* Header (Top Navbar) */}
-                <header className="bg-white shadow sticky top-0 z-20">
+            {/* --- KONTEN UTAMA --- */}
+            <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                {/* HEADER (Navbar Atas) */}
+                <header className="bg-white/80 backdrop-blur-md sticky top-0 z-20 border-b border-gray-100">
                     <div className="max-w-full mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-                        
                         {/* Tombol Hamburger (Mobile) */}
-                        <button 
-                            className="text-gray-500 hover:text-gray-700 md:hidden p-2 rounded-md transition duration-150 ease-in-out"
+                        <button
+                            className="text-gray-500 hover:text-orange-500 md:hidden p-2 rounded-lg transition-colors"
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                         >
-                            {isSidebarOpen ? <IconClose className="h-6 w-6" /> : <IconMenu className="h-6 w-6" />}
+                            {isSidebarOpen ? (
+                                <X size={24} />
+                            ) : (
+                                <Menu size={24} />
+                            )}
                         </button>
-                        
+
                         {/* Judul Halaman */}
-                        <h2 className="font-semibold text-xl text-gray-800 leading-tight">
-                            {header || 'Dashboard'}
+                        <h2 className="text-xl font-bold text-gray-800 leading-tight ml-2 md:ml-0">
+                            {header || "Dashboard"}
                         </h2>
-                        
-                        {/* Info User (Desktop/Mobile) */}
-                        <div className="text-gray-600 hidden sm:block">
-                            Selamat datang, <span className="font-medium text-indigo-600">{user.name}</span>!
-                        </div>
-                        <div className="text-gray-600 sm:hidden">
-                            <span className="font-medium text-indigo-600">{user.name}</span>
+
+                        {/* Profil User */}
+                        <div className="flex items-center space-x-3">
+                            <div className="text-right hidden sm:block">
+                                <p className="text-sm font-semibold text-gray-800">
+                                    {user?.name}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                    Administrator
+                                </p>
+                            </div>
+                            <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold shadow-md">
+                                {user?.name?.charAt(0).toUpperCase()}
+                            </div>
                         </div>
                     </div>
                 </header>
 
                 {/* Page Content */}
-                <main className="p-4 sm:p-6 lg:p-8 flex-1">
-                    {children}
+                <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+                    <div className="max-w-7xl mx-auto">{children}</div>
                 </main>
-
-                <footer className="py-4 text-center text-sm text-gray-500 border-t mt-auto">
-                    &copy; {new Date().getFullYear()} Wedding Expo Admin.
-                </footer>
             </div>
         </div>
     );
