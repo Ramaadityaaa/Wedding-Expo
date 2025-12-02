@@ -13,23 +13,8 @@ import {
 } from 'firebase/firestore';
 import { Loader2, Clock, CheckCircle, XCircle, FileText, Info, Trash2 } from 'lucide-react';
 
-// --- CATATAN PENTING UNTUK MENGATASI ERROR PERIZINAN (Missing or insufficient permissions) ---
-// Error ini biasanya terjadi karena Aturan Keamanan Firestore belum dikonfigurasi.
-// Pastikan Anda menerapkan aturan berikut di konsol Firebase Anda:
-/*
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Izinkan akses Baca/Tulis penuh pada data publik untuk semua pengguna terautentikasi (termasuk anonim dan kustom token)
-    match /artifacts/{appId}/public/data/vendors/{vendorId} {
-      allow read, write: if request.auth != null;
-    }
-    // Tambahkan aturan serupa untuk koleksi lain jika diperlukan.
-  }
-}
-*/
-
 // --- MOCK / ENVIRONMENT SETUP ---
+// NOTE: Global variables are automatically provided by the execution environment.
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'vendor-management-app';
 const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
 const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
@@ -39,6 +24,7 @@ let app;
 let db;
 let auth;
 
+// MOCK utility for date formatting (using a simplified approach for demonstration)
 const moment = { 
     format: (date) => {
         if (!date) return '-';
@@ -53,6 +39,7 @@ const moment = {
         }
     }
 };
+
 const Head = ({ title }) => <title>{title}</title>; 
 const PRIMARY_COLOR = 'bg-amber-500 hover:bg-amber-600';
 
@@ -73,32 +60,35 @@ const ToastNotification = ({ message, type, onClose }) => {
 
     if (!isVisible) return null;
 
-    const baseStyle = "fixed bottom-5 right-5 p-4 rounded-xl shadow-2xl transition-opacity duration-300 z-50 transform";
+    // Use responsive positioning: slightly smaller bottom/right on mobile
+    const baseStyle = "fixed bottom-4 right-4 sm:bottom-5 sm:right-5 p-4 rounded-xl shadow-2xl transition-opacity duration-300 z-50 transform";
     const typeStyles = {
         success: "bg-green-600 text-white",
         error: "bg-red-600 text-white",
     };
 
     return (
-        <div className={`${baseStyle} ${typeStyles[type] || 'bg-gray-700 text-white'}`}>
-            <p className="font-semibold">{message}</p>
+        <div className={`${baseStyle} ${typeStyles[type] || 'bg-gray-700 text-white'} w-11/12 sm:w-auto max-w-sm`}>
+            <p className="font-semibold text-sm sm:text-base">{message}</p>
         </div>
     );
 };
 
 const StatusCard = ({ title, count, colorClass, icon: Icon }) => (
-    <div className={`p-5 bg-white rounded-xl shadow-lg border-l-4 ${colorClass}`}>
+    // Responsive padding and font size for mobile
+    <div className={`p-4 sm:p-5 bg-white rounded-xl shadow-lg border-l-4 ${colorClass}`}>
         <div className="flex items-center justify-between">
             <div>
-                <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">{title}</p>
-                <p className="text-3xl font-extrabold text-gray-900 mt-1">{count}</p>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">{title}</p>
+                <p className="text-2xl sm:text-3xl font-extrabold text-gray-900 mt-1">{count}</p>
             </div>
-            <Icon className="w-8 h-8 text-gray-300" />
+            <Icon className="w-6 h-6 sm:w-8 sm:h-8 text-gray-300" />
         </div>
     </div>
 );
 
 const ActionButton = ({ icon: Icon, title, color, onClick, disabled }) => (
+    // Larger touch target (p-2 is sufficient)
     <button
         onClick={onClick}
         title={title}
@@ -113,18 +103,22 @@ const ModalBase = ({ isOpen, title, onClose, children }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50 transition-opacity" onClick={onClose}>
+        <div 
+            className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50 transition-opacity" 
+            onClick={onClose}
+        >
             <div 
-                className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-auto transform transition-all"
+                // Full width on mobile, max-w-lg on larger screens
+                className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-auto transform transition-all max-h-[90vh] overflow-y-auto"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-                    <h3 className="text-xl font-bold text-gray-800">{title}</h3>
+                <div className="px-4 sm:px-6 py-4 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10">
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-800">{title}</h3>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">
-                        <XCircle className="w-6 h-6" />
+                        <XCircle className="w-5 h-5 sm:w-6 sm:h-6" />
                     </button>
                 </div>
-                <div className="p-6">
+                <div className="p-4 sm:p-6">
                     {children}
                 </div>
             </div>
@@ -134,7 +128,7 @@ const ModalBase = ({ isOpen, title, onClose, children }) => {
 
 const ConfirmationModal = ({ isOpen, title, message, confirmText, confirmColor, onCancel, onConfirm }) => (
     <ModalBase isOpen={isOpen} title={title} onClose={onCancel}>
-        <p className="text-gray-600 mb-6">{message}</p>
+        <p className="text-gray-600 mb-6 text-sm sm:text-base">{message}</p>
         <div className="flex justify-end space-x-3">
             <button
                 onClick={onCancel}
@@ -176,7 +170,7 @@ const VendorDetailModal = ({ isOpen, vendor, onClose, isLoadingDetail }) => (
 const DetailItem = ({ label, value, color }) => (
     <div className="border-b pb-2">
         <p className="text-xs font-medium text-gray-500 uppercase">{label}</p>
-        <p className={`text-base font-semibold text-gray-900 ${color || ''}`}>{value}</p>
+        <p className={`text-sm sm:text-base font-semibold text-gray-900 ${color || ''}`}>{value}</p>
     </div>
 );
 
@@ -186,14 +180,13 @@ const MOCK_VENDORS = [
     { id: 'v2', name: 'Toko Elektronik Super', email: 'tes@mail.com', phone: '081234567891', address: 'Jl. Sudirman No. 20', status_verifikasi: 'APPROVED', created_at: Date.now() - 86400000 * 10 },
     { id: 'v3', name: 'Jasa Katering Mantap', email: 'jkm@mail.com', phone: '081234567892', address: 'Jl. Asia Afrika No. 30', status_verifikasi: 'REJECTED', created_at: Date.now() - 86400000 * 2 },
     { id: 'v4', name: 'Bengkel Mobil Cepat', email: 'bmc@mail.com', phone: '081234567893', address: 'Jl. Pahlawan No. 40', status_verifikasi: 'PENDING', created_at: Date.now() - 86400000 * 1 },
+    { id: 'v5', name: 'Peralatan Kantor Mega', email: 'pkm@mail.com', phone: '081234567894', address: 'Jl. Kartini No. 50', status_verifikasi: 'PENDING', created_at: Date.now() - 86400000 * 7 },
 ];
 
-// Helper untuk menggunakan mock data in-memory, terutama jika izin baca/tulis gagal
 const getInMemoryMockVendors = () => {
     console.warn("Menggunakan data mock in-memory karena kegagalan otentikasi/izin Firestore.");
     return MOCK_VENDORS.map(v => ({
         ...v,
-        // Pastikan format created_at konsisten
         created_at: new Date(v.created_at).toISOString() 
     }));
 };
@@ -208,7 +201,6 @@ export default function VendorManagement() {
     const [isAuthReady, setIsAuthReady] = useState(false);
     const [firebaseInitialized, setFirebaseInitialized] = useState(false);
     
-    // Gunakan useRef untuk melacak apakah data mock sudah diisi
     const mockDataInitialized = useRef(false);
     const initialLoadAttempted = useRef(false);
 
@@ -254,19 +246,16 @@ export default function VendorManagement() {
                     }
                 } catch (error) {
                     console.error("Firebase Auth Error: Failed to sign in.", error);
-                    // Coba sign in secara anonim jika token kustom gagal
                     try {
-                         await signInAnonymously(auth); 
-                         console.log("Fallback: Signed in anonymously after custom token failure.");
+                        await signInAnonymously(auth); 
+                        console.log("Fallback: Signed in anonymously after custom token failure.");
                     } catch(anonError) {
-                         console.error("Fallback Auth Error:", anonError);
+                        console.error("Fallback Auth Error:", anonError);
                     }
                 }
             };
             
             const unsubscribe = auth.onAuthStateChanged(user => {
-                // Di sini kami tidak peduli dengan UID, hanya status terautentikasi 
-                // (anonim atau dengan token) untuk menandakan otentikasi siap.
                 setIsAuthReady(true);
                 console.log("Auth state changed. Auth is ready.");
             });
@@ -307,14 +296,12 @@ export default function VendorManagement() {
                         console.log("Mock data already exists.");
                     }
                 } catch (err) {
-                    // Tangkap error izin tulis di sini
                     if (err.message.includes('insufficient permissions')) {
-                         console.warn("WARNING: Failed to write mock data due to permission denial. This is expected if Firestore Security Rules are not set.");
+                        console.warn("WARNING: Failed to write mock data due to permission denial. This is expected if Firestore Security Rules are not set.");
                     } else {
-                         console.error("WARNING: Failed to write mock data (unknown error). Error:", err.message);
+                        console.error("WARNING: Failed to write mock data (unknown error). Error:", err.message);
                     }
                 } finally {
-                    // Set flag, terlepas dari keberhasilan, agar tidak coba tulis lagi
                     mockDataInitialized.current = true; 
                 }
             };
@@ -353,17 +340,15 @@ export default function VendorManagement() {
                     return { id: doc.id, ...data, created_at: createdAt };
                 });
                 
-                // Gunakan data dari snapshot
                 setAllVendors(fetchedVendors);
                 setIsLoading(false);
                 setApiError(''); 
                 console.log(`Data fetched successfully. Total vendors: ${fetchedVendors.length}`);
             }, (error) => {
-                // TANGKAP ERROR IZIN BACA di sini (Missing or insufficient permissions)
                 
                 if (error.code === 'permission-denied' || error.message.includes('insufficient permissions')) {
                     console.error("Firestore Snapshot Error: Missing or insufficient permissions. Falling back to mock data.");
-                    // FALLBACK: Gunakan mock data in-memory jika izin baca gagal total
+                    
                     setApiError("Gagal mengambil data real-time dari Firestore karena Izin Akses (Permission Denied). Menampilkan data contoh (in-memory). Silakan periksa Aturan Keamanan Firestore Anda.");
                     setAllVendors(getInMemoryMockVendors());
                 } else {
@@ -431,11 +416,19 @@ export default function VendorManagement() {
                     } 
                 });
             } else {
-                showToast("Detail vendor tidak ditemukan.", 'error');
-                setDetailModal({ isOpen: false, vendor: null });
+                // Fallback to in-memory data if not found in Firestore (might happen with mock data)
+                const mockVendor = getInMemoryMockVendors().find(v => v.id === vendorId);
+                if (mockVendor) {
+                    setDetailModal({ 
+                        isOpen: true, 
+                        vendor: mockVendor
+                    });
+                } else {
+                    showToast("Detail vendor tidak ditemukan.", 'error');
+                    setDetailModal({ isOpen: false, vendor: null });
+                }
             }
         } catch (error) {
-            // Tangkap error izin baca detail
             console.error("Error fetching vendor detail:", error);
             showToast("Gagal memuat detail vendor. (Error Izin Baca)", 'error');
         } finally {
@@ -473,7 +466,7 @@ export default function VendorManagement() {
                     confirmColor: 'bg-green-600'
                 };
             } else if (actionType === 'REJECTED') {
-                 modalConfig = {
+                modalConfig = {
                     title: 'Tolak Verifikasi',
                     message: `Apakah Anda yakin ingin MENOLAK Vendor "${vendor.name}"? Vendor akan kehilangan akses.`,
                     confirmText: 'Tolak Sekarang',
@@ -502,7 +495,6 @@ export default function VendorManagement() {
 
             showToast(successMessage, 'success');
         } catch (err) {
-            // TANGKAP ERROR IZIN TULIS/HAPUS di sini
             console.error(`Error updating status for ID ${vendorId}:`, err);
             const errorMessage = "Gagal memperbarui status. (Error Izin Tulis/Hapus)";
             showToast(errorMessage, 'error');
@@ -519,15 +511,15 @@ export default function VendorManagement() {
             if (counts.hasOwnProperty(status)) {
                 counts[status]++;
             }
-            // Karena allVendors sekarang bisa berisi mock data in-memory, kita harus pastikan
-            // logika penghitungan count ini tetap berjalan meskipun status aslinya
-            // tidak datang dari Firestore
         });
         return counts;
     }, [allVendors]);
 
     const visibleVendors = useMemo(() => {
-        return allVendors.filter(v => v.status_verifikasi === currentStatus);
+        return allVendors
+            .filter(v => v.status_verifikasi === currentStatus)
+            // Sort by creation date, newest first
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     }, [allVendors, currentStatus]);
 
     const getStatusStyle = (status) => {
@@ -538,36 +530,38 @@ export default function VendorManagement() {
     };
 
     return (
-        <div className="p-4 sm:p-6 max-w-full mx-auto font-sans">
+        // Use min-h-screen to ensure full coverage and better mobile feel
+        <div className="p-4 sm:p-6 min-h-screen max-w-full mx-auto font-sans bg-gray-50">
             <Head title="Manajemen Vendor" />
 
-            <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Manajemen Verifikasi Vendor</h1>
-            <p className="text-gray-500 mb-6">Kelola persetujuan dan status akun Vendor di platform.</p>
+            {/* Header - Optimized for mobile font size */}
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-800 mb-1">Manajemen Verifikasi Vendor</h1>
+            <p className="text-sm text-gray-500 mb-6">Kelola persetujuan dan status akun Vendor di platform.</p>
 
-            {/* Status Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+            {/* Status Cards - Responsive Grid: 2 columns on mobile, 4 columns on medium/desktop */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
                 <StatusCard title="Vendor Pending" count={calculatedCounts.PENDING || 0} colorClass="border-amber-500" icon={Clock} />
                 <StatusCard title="Vendor Approved" count={calculatedCounts.APPROVED || 0} colorClass="border-green-500" icon={CheckCircle} />
                 <StatusCard title="Vendor Rejected" count={calculatedCounts.REJECTED || 0} colorClass="border-red-500" icon={XCircle} />
                 <StatusCard title="Total Vendor" count={calculatedCounts.TOTAL || 0} colorClass="border-indigo-500" icon={FileText} />
             </div>
 
-            {/* Error Message untuk Kegagalan API Global */}
+            {/* Error Message */}
             {apiError && (
-                <div role="alert" className="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-xl shadow-md">
+                <div role="alert" className="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-xl shadow-md text-sm">
                     <strong className="font-bold">Perhatian: Izin Gagal!</strong>
-                    <span className="block sm:inline ml-2">{apiError} Tindakan administrasi (Approve/Reject/Delete) mungkin juga akan gagal.</span>
+                    <span className="block sm:inline ml-2">{apiError}</span>
                 </div>
             )}
             
-            {/* Tampilkan indikator loading global/auth */}
+            {/* Loading Indicator */}
             {!isAuthReady && (
-                <div className="flex items-center justify-center p-6 text-indigo-500 bg-indigo-50 rounded-xl mb-4">
-                    <Loader2 className="w-5 h-5 animate-spin mr-2" /> Menunggu otentikasi Firebase...
+                <div className="flex items-center justify-center p-4 text-indigo-500 bg-indigo-50 rounded-xl mb-4 text-sm">
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" /> Menunggu otentikasi Firebase...
                 </div>
             )}
 
-            {/* Tombol Filter Status */}
+            {/* Tombol Filter Status - Overflow-x-auto for small screens */}
             <div className="flex space-x-2 sm:space-x-4 mb-6 overflow-x-auto pb-2">
                 {['PENDING', 'APPROVED', 'REJECTED'].map(status => (
                     <button
@@ -575,7 +569,7 @@ export default function VendorManagement() {
                         onClick={() => setCurrentStatus(status)} 
                         disabled={isLoading || !isAuthReady}
                         className={`
-                            px-4 sm:px-6 py-2 rounded-full font-semibold whitespace-nowrap transition duration-150 ease-in-out 
+                            px-4 py-2 rounded-full font-semibold text-sm whitespace-nowrap transition duration-150 ease-in-out 
                             ${currentStatus === status ? `${PRIMARY_COLOR} text-white shadow-lg` : 'bg-white text-gray-600 hover:bg-amber-50 border border-gray-200'}
                             disabled:opacity-70
                         `}
@@ -585,36 +579,38 @@ export default function VendorManagement() {
                 ))}
             </div>
 
-            {/* Area Tabel */}
+            {/* Area Tabel - CRITICAL: Use overflow-x-auto on the parent div for table responsiveness */}
             <div className="overflow-x-auto bg-white rounded-xl shadow-2xl border border-gray-100">
                 {isLoading && visibleVendors.length === 0 && !apiError ? (
                     <div className="flex items-center justify-center p-12 text-gray-500">
                         <Loader2 className="w-6 h-6 animate-spin mr-3" /> Memuat data vendor...
                     </div>
                 ) : (
+                    // min-w-full ensures the table takes up full width for horizontal scrolling if needed
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-amber-50">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Nama Vendor</th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Dibuat Pada</th>
-                                <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
-                                <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Aksi</th>
+                                {/* Adjust padding and font size for small screens */}
+                                <th className="px-4 py-3 sm:px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Nama Vendor</th>
+                                <th className="px-4 py-3 sm:px-6 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Dibuat Pada</th>
+                                <th className="px-4 py-3 sm:px-6 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                                <th className="px-4 py-3 sm:px-6 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Aksi</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-100">
                             {visibleVendors.length > 0 ? (
                                 visibleVendors.map(vendor => (
                                     <tr key={vendor.id} className="hover:bg-gray-50 transition duration-100">
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{vendor.name}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <td className="px-4 py-3 sm:px-6 whitespace-nowrap text-sm font-medium text-gray-900">{vendor.name}</td>
+                                        <td className="px-4 py-3 sm:px-6 whitespace-nowrap text-sm text-gray-500">
                                             {moment.format(vendor.created_at)}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                                        <td className="px-4 py-3 sm:px-6 whitespace-nowrap text-center text-sm">
                                             <span className={`px-3 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusStyle(vendor.status_verifikasi)}`}>
                                                 {vendor.status_verifikasi}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                                        <td className="px-4 py-3 sm:px-6 whitespace-nowrap text-center text-sm font-medium">
                                             <div className="flex justify-center space-x-2">
                                                 {/* Tombol Detail */}
                                                 <ActionButton
