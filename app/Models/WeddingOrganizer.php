@@ -11,44 +11,48 @@ class WeddingOrganizer extends Authenticatable
 {
     use HasFactory;
 
-    // --- KOREKSI: Mengatur nilai default sebagai string ENUM (PENDING) ---
+    // Tentukan nama tabel
+    protected $table = 'wedding_organizers';
+
     /**
      * Set default values for model attributes.
-     * Ini memastikan 'isApproved' adalah 'PENDING' jika tidak disetel saat creation.
-     *
-     * @var array<string, mixed>
      */
     protected $attributes = [
-        // Asumsi ENUM di DB adalah string 'PENDING', 'APPROVED', 'REJECTED'
         'isApproved' => 'PENDING',
+        'role' => 'Vendor', // Set default role
     ];
-    // ---------------------------------------------------
 
+    /**
+     * The attributes that are mass assignable.
+     * SEMUA kolom yang diisi di HomeController harus ada di sini.
+     */
     protected $fillable = [
-        // ... (data bisnis)
+        // RELASI & STATUS
+        'user_id',
+        'isApproved',
+        'role',
+        'terms_accepted',
+
+        // DATA BISNIS
         'name',
         'type',
         'city',
         'province',
         'address',
 
-        // ... (data legalitas)
+        // LEGALITAS
         'permit_number',
         'permit_image_path',
 
-        // ... (data kontak)
+        // DATA KONTAK
         'contact_name',
         'contact_email',
         'contact_phone',
 
-        // ... (data akun & status)
+        // AKUN (hanya digunakan saat create/update)
         'password',
-        'isApproved',
-        'role', // <--- TAMBAHAN: Agar kolom role bisa diupdate massal
-        'terms_accepted',
-        'user_id',
 
-        // Kolom Opsional Lainnya
+        // Opsional Lainnya
         'description',
         'logo',
         'coverPhoto',
@@ -62,52 +66,33 @@ class WeddingOrganizer extends Authenticatable
         'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
-        // 🚨 KOREKSI: Hapus casting 'isApproved' => 'integer', karena Anda menggunakan string di Controller
         return [];
     }
 
-    /**
-     * Relasi ke model User (Pemilik Vendor)
-     */
+    // --- RELATIONS ---
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    /**
-     * Relasi ke Packages
-     */
     public function packages(): HasMany
     {
         return $this->hasMany(Package::class);
     }
 
-    /**
-     * Relasi ke Portfolio
-     */
     public function portfolios(): HasMany
     {
         return $this->hasMany(Portfolio::class);
     }
 
-    /**
-     * Relasi ke Reviews
-     */
     public function reviews(): HasMany
     {
         return $this->hasMany(Review::class);
     }
 
-    /**
-     * Relasi ke Favorites
-     */
     public function favorites(): HasMany
     {
         return $this->hasMany(Favorite::class);

@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User; // Pastikan model User di-import
+use App\Models\User;
 use App\Models\WeddingOrganizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -14,18 +14,24 @@ use Inertia\Inertia;
 
 class HomeController extends Controller
 {
+    // *** Tambahkan method index jika belum ada ***
     public function index()
     {
+        // Sesuaikan dengan logic homepage Anda
         return Inertia::render('Customer/Dashboard', [
             'isLoggedIn' => auth()->check(),
             'message' => 'Selamat datang di Wedding Expo!',
         ]);
     }
 
+    /**
+     * Halaman form registrasi vendor (tanpa login).
+     */
     public function vendorRegister()
     {
         return Inertia::render('Auth/Vendor/RegisterPage');
     }
+    // ********************************************
 
     /**
      * Menyimpan data registrasi vendor baru (User + WeddingOrganizer).
@@ -33,7 +39,6 @@ class HomeController extends Controller
     public function vendorStore(Request $request)
     {
         // 1. ATURAN VALIDASI
-        // Perbaikan: Cek unique email ke tabel 'users', bukan wedding_organizers saja
         $rules = [
             'name'           => 'required|string|max:255',
             'vendor_type'    => 'required|string|max:100',
@@ -43,12 +48,18 @@ class HomeController extends Controller
             'permit_number'  => 'required|string|max:255|unique:wedding_organizers,permit_number',
             'permit_image'   => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
             'pic_name'       => 'required|string|max:255',
-            'email'          => 'required|email|max:255|unique:users,email', // Cek ke tabel USERS
+            'email'          => 'required|email|max:255|unique:users,email',
             'whatsapp'       => 'required|string|max:25',
             'password'       => 'required|string|min:8|confirmed',
             'terms_accepted' => 'accepted',
+
+            // Kolom ini ada di request dari React (sync otomatis)
+            'contact_name'   => 'required|string|max:255',
+            'contact_email'  => 'required|email|max:255',
+            'contact_phone'  => 'required|string|max:25',
         ];
 
+        // ... (messages tidak berubah) ...
         $messages = [
             'terms_accepted.accepted' => 'Harap setujui syarat dan ketentuan.',
             'password.confirmed'      => 'Konfirmasi kata sandi tidak cocok.',
@@ -72,26 +83,27 @@ class HomeController extends Controller
             return back()->withErrors(['permit_image' => 'Gagal mengupload file.'])->withInput();
         }
 
-        // 3. SIMPAN DATA DALAM TRANSAKSI (USER + WO)
+        // 3. SIMPAN DATA DALAM TRANSAKSI
         DB::beginTransaction();
         try {
             // LANGKAH A: Buat User Login Dulu
             $user = User::create([
-                'name'     => $request->pic_name, // Nama pemilik akun (PIC)
+                'name'     => $request->pic_name,
                 'email'    => $request->email,
                 'password' => Hash::make($request->password),
-                'role'     => 'VENDOR', // Set Role VENDOR agar diarahkan ke dashboard vendor
+                'role'     => 'VENDOR',
             ]);
 
-            // LANGKAH B: Buat Profil Wedding Organizer
+            // LANGKAH B: Buat Profil Wedding Organizer (Pastikan SEMUA KOLOM DIMASUKKAN)
             WeddingOrganizer::create([
-                'user_id'           => $user->id, // PENTING: Sambungkan ID User yang baru dibuat
+                'user_id'           => $user->id,
 
                 'name'              => $request->name, // Nama Brand/Bisnis
                 'type'              => $request->vendor_type,
                 'city'              => $request->city,
                 'province'          => $request->province,
                 'address'           => $request->address,
+
                 'permit_number'     => $request->permit_number,
                 'permit_image_path' => $permitImagePath,
 
@@ -99,10 +111,10 @@ class HomeController extends Controller
                 'contact_email'     => $request->email,
                 'contact_phone'     => $request->whatsapp,
 
-                // Opsional: Jika tabel WO masih punya kolom password (legacy), isi saja, tapi login pakai tabel users
                 'password'          => Hash::make($request->password),
 
                 'isApproved'        => 'PENDING',
+                'role'              => 'Vendor',
                 'terms_accepted'    => true,
             ]);
 
@@ -110,7 +122,7 @@ class HomeController extends Controller
 
             return redirect()
                 ->route('login')
-                ->with('success', 'Pendaftaran berhasil! Silakan login. Akun Anda sedang menunggu verifikasi admin.');
+                ->with('success', 'Pendaftaran berhasil! Akun Anda sedang menunggu verifikasi admin.');
         } catch (\Exception $e) {
             DB::rollBack();
 

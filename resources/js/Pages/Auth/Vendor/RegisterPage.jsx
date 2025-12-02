@@ -1,608 +1,638 @@
-// resources/js/Pages/RegisterPage.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import { useForm } from "@inertiajs/react";
+import { useForm, Head, Link } from "@inertiajs/react";
+import {
+    Loader2,
+    UploadCloud,
+    CheckCircle,
+    AlertCircle,
+    Eye,
+    EyeOff,
+} from "lucide-react";
+
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 
 export default function RegisterPage() {
-  // -------------------------
-  // State & Inertia useForm
-  // -------------------------
-  const { data, setData, post, processing, errors, reset } = useForm({
-    // fields sesuai controller Laravel yang kamu tampilkan sebelumnya
-    // "name" => nama bisnis / perusahaan
-    name: "",
-    vendor_type: "",
-    city: "",
-    province: "",
-    address: "",
-    permit_number: "",
-    permit_image: null, // file
-    // contact person / PIC
-    pic_name: "",
-    contact_name: "", // optional - kita isi sama pic_name
-    contact_email: "", // optional - isi sama email
-    contact_phone: "", // optional - isi sama whatsapp
-    email: "",
-    password: "",
-    password_confirmation: "",
-    whatsapp: "",
-    terms_accepted: false,
-  });
+    // -------------------------
+    // State & Inertia useForm
+    // -------------------------
+    const { data, setData, post, processing, errors, reset } = useForm({
+        // Sesuai validasi di HomeController
+        name: "", // Nama Bisnis
+        vendor_type: "",
+        city: "",
+        province: "",
+        address: "",
+        permit_number: "",
+        permit_image: null,
 
-  // local UI state
-  const [previewUrl, setPreviewUrl] = useState("");
-  const [previewType, setPreviewType] = useState(""); // 'image' | 'pdf' | ''
-  const [statusModalOpen, setStatusModalOpen] = useState(false);
-  const [clientErrors, setClientErrors] = useState({});
-  const [passwordVisible, setPasswordVisible] = useState(false);
-  const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
-  const [fileNameDisplay, setFileNameDisplay] = useState("");
-  const [infoMessage, setInfoMessage] = useState("");
+        pic_name: "", // Nama PIC (akan jadi nama akun User)
+        contact_name: "", // Optional, sync otomatis
+        contact_email: "", // Optional, sync otomatis
+        contact_phone: "", // Optional, sync otomatis
 
-  // Useful computed values
-  const isFileTooLarge = useMemo(() => {
-    return data.permit_image && data.permit_image.size > MAX_FILE_SIZE_BYTES;
-  }, [data.permit_image]);
-
-  // -------------------------
-  // Effects
-  // -------------------------
-  // Clean up preview URL when component unmounts or file changed
-  useEffect(() => {
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-    };
-  }, [previewUrl]);
-
-  // When user changes PIC fields, keep contact_* fields in sync (so controller expects them)
-  useEffect(() => {
-    // only auto-fill contact_* if they are empty to avoid overriding user edits
-    if (!data.contact_name) setData("contact_name", data.pic_name || "");
-    if (!data.contact_email) setData("contact_email", data.email || "");
-    if (!data.contact_phone) setData("contact_phone", data.whatsapp || "");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.pic_name, data.email, data.whatsapp]);
-
-  // -------------------------
-  // Handlers
-  // -------------------------
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    if (type === "checkbox") {
-      setData(name, checked ? 1 : 0); // Laravel 'accepted' expects truthy value; use 1/0
-      return;
-    }
-    setData(name, value);
-    // clear client errors for that field
-    setClientErrors((prev) => {
-      const copy = { ...prev };
-      delete copy[name];
-      return copy;
+        email: "", // Email untuk Login (User)
+        password: "",
+        password_confirmation: "",
+        whatsapp: "",
+        terms_accepted: false,
     });
-  };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) {
-      setData("permit_image", null);
-      setPreviewUrl("");
-      setPreviewType("");
-      setFileNameDisplay("");
-      return;
-    }
+    // UI State
+    const [previewUrl, setPreviewUrl] = useState("");
+    const [previewType, setPreviewType] = useState("");
+    const [statusModalOpen, setStatusModalOpen] = useState(false);
+    const [clientErrors, setClientErrors] = useState({});
+    const [passwordVisible, setPasswordVisible] = useState(false);
+    const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
+    const [fileNameDisplay, setFileNameDisplay] = useState("");
+    const [infoMessage, setInfoMessage] = useState("");
 
-    // basic client-side checks
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      setClientErrors((prev) => ({ ...prev, permit_image: "Ukuran file melebihi 5MB." }));
-      setData("permit_image", null);
-      setPreviewUrl("");
-      setPreviewType("");
-      setFileNameDisplay("");
-      return;
-    }
+    // -------------------------
+    // Effects
+    // -------------------------
+    useEffect(() => {
+        return () => {
+            if (previewUrl) URL.revokeObjectURL(previewUrl);
+        };
+    }, [previewUrl]);
 
-    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
-    if (!allowedTypes.includes(file.type)) {
-      setClientErrors((prev) => ({ ...prev, permit_image: "Format file tidak didukung. Gunakan JPG/PNG atau PDF." }));
-      setData("permit_image", null);
-      setPreviewUrl("");
-      setPreviewType("");
-      setFileNameDisplay("");
-      return;
-    }
+    // Sync otomatis data kontak dengan data akun utama
+    useEffect(() => {
+        // Kunci: Pastikan contact fields selalu terisi jika user tidak mengisinya terpisah.
+        // Ini membantu validasi backend.
+        setData((prevData) => ({
+            ...prevData,
+            contact_name: prevData.pic_name,
+            contact_email: prevData.email,
+            contact_phone: prevData.whatsapp,
+        }));
+    }, [data.pic_name, data.email, data.whatsapp, setData]);
 
-    // set form data file
-    setData("permit_image", file);
-
-    // set preview
-    if (file.type.startsWith("image/")) {
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
-      setPreviewType("image");
-      setFileNameDisplay(file.name);
-    } else if (file.type === "application/pdf") {
-      setPreviewUrl("");
-      setPreviewType("pdf");
-      setFileNameDisplay(file.name);
-    } else {
-      setPreviewUrl("");
-      setPreviewType("");
-      setFileNameDisplay(file.name);
-    }
-
-    // clear server-side error for permit_image if any
-    if (errors && errors.permit_image) {
-      // Note: errors comes from Inertia hook; we keep it to show below
-    }
-  };
-
-  const validateClientSide = () => {
-    const newErrors = {};
-    if (!data.name || !data.name.trim()) newErrors.name = "Nama perusahaan wajib diisi.";
-    if (!data.vendor_type) newErrors.vendor_type = "Jenis layanan wajib dipilih.";
-    if (!data.city || !data.province) {
-      // If user typed in a combined field earlier, now we require both separately.
-      if (!data.city) newErrors.city = "Kota wajib diisi.";
-      if (!data.province) newErrors.province = "Provinsi wajib diisi.";
-    }
-    if (!data.address || !data.address.trim()) newErrors.address = "Alamat lengkap wajib diisi.";
-    if (!data.permit_number || !data.permit_number.trim()) newErrors.permit_number = "Nomor izin usaha wajib diisi.";
-    if (!data.permit_image) newErrors.permit_image = "File izin usaha wajib diupload.";
-    if (!data.pic_name || !data.pic_name.trim()) newErrors.pic_name = "Nama kontak (PIC) wajib diisi.";
-    if (!data.email || !data.email.includes("@")) newErrors.email = "Email tidak valid.";
-    if (!data.whatsapp || !/^\d{6,15}$/.test(data.whatsapp.replace(/\D/g, ""))) newErrors.whatsapp = "Nomor WhatsApp tidak valid.";
-    if (!data.password || data.password.length < 8) newErrors.password = "Password minimal 8 karakter.";
-    if (data.password !== data.password_confirmation) newErrors.password_confirmation = "Konfirmasi password tidak cocok.";
-    if (!data.terms_accepted || data.terms_accepted == 0) newErrors.terms_accepted = "Harap setujui syarat dan ketentuan.";
-    setClientErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-
-    // clear previous info
-    setInfoMessage("");
-    setStatusModalOpen(false);
-
-    // client-side validation
-    const ok = validateClientSide();
-    if (!ok) {
-      setInfoMessage("Perbaiki error pada form terlebih dahulu.");
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      return;
-    }
-
-    // prepare and send with Inertia
-    // use 'forceFormData' to ensure file is sent as multipart/form-data
-    post(route("vendor.store"), {
-      forceFormData: true,
-      onStart: () => {
-        setInfoMessage("Mengirim data ke server...");
-      },
-      onSuccess: () => {
-        setInfoMessage("Pendaftaran berhasil - menunggu verifikasi admin.");
-        setStatusModalOpen(true);
-        // reset local preview/file inputs
-        if (previewUrl) {
-          try {
-            URL.revokeObjectURL(previewUrl);
-          } catch (e) {}
-          setPreviewUrl("");
-          setPreviewType("");
+    // -------------------------
+    // Handlers
+    // -------------------------
+    const handleInputChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        if (type === "checkbox") {
+            setData(name, checked ? 1 : 0);
+            return;
         }
-        setFileNameDisplay("");
-        // reset form (Inertia reset) but keep some defaults if you want
-        reset("name", "vendor_type", "city", "province", "address", "permit_number", "permit_image", "pic_name", "email", "password", "password_confirmation", "whatsapp", "terms_accepted", "contact_name", "contact_email", "contact_phone");
-      },
-      onError: (serverErrors) => {
-        // serverErrors is same as 'errors' provided by useForm; they'll be auto-populated
-        setInfoMessage("Server mengembalikan error. Periksa pesan validasi.");
-        // scroll to top so user sees messages
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      },
-      onFinish: () => {
-        // nothing extra
-      },
-    });
-  };
+        setData(name, value);
+        setClientErrors((prev) => {
+            const copy = { ...prev };
+            delete copy[name];
+            return copy;
+        });
+    };
 
-  // -------------------------
-  // Helper small components
-  // -------------------------
-  const FieldError = ({ field }) => {
-    // prefer server-side errors (errors), fallback to client-side (clientErrors)
-    if (errors && errors[field]) {
-      return <p className="mt-1 text-sm text-red-600">{errors[field]}</p>;
-    }
-    if (clientErrors && clientErrors[field]) {
-      return <p className="mt-1 text-sm text-red-600">{clientErrors[field]}</p>;
-    }
-    return null;
-  };
+    const handleFileChange = (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) {
+            setData("permit_image", null);
+            setPreviewUrl("");
+            setFileNameDisplay(""); // Clear display name
+            setPreviewType("");
+            return;
+        }
 
-  // small UI for password strength
-  const passwordStrength = useMemo(() => {
-    const p = data.password || "";
-    let score = 0;
-    if (p.length >= 8) score++;
-    if (/[A-Z]/.test(p)) score++;
-    if (/[0-9]/.test(p)) score++;
-    if (/[^A-Za-z0-9]/.test(p)) score++;
-    return score; // 0..4
-  }, [data.password]);
+        if (file.size > MAX_FILE_SIZE_BYTES) {
+            setClientErrors((prev) => ({
+                ...prev,
+                permit_image: "Ukuran file melebihi 5MB.",
+            }));
+            setData("permit_image", null);
+            return;
+        }
 
-  const StrengthBar = () => {
-    const score = passwordStrength;
-    const labels = ["Very weak", "Weak", "OK", "Good", "Strong"];
-    const colors = ["bg-red-500", "bg-orange-400", "bg-yellow-400", "bg-blue-500", "bg-green-500"];
+        const allowedTypes = [
+            "image/jpeg",
+            "image/jpg",
+            "image/png",
+            "application/pdf",
+        ];
+        if (!allowedTypes.includes(file.type)) {
+            setClientErrors((prev) => ({
+                ...prev,
+                permit_image: "Format file wajib JPG/PNG atau PDF.",
+            }));
+            setData("permit_image", null);
+            return;
+        }
+
+        setData("permit_image", file);
+        setFileNameDisplay(file.name);
+
+        if (file.type.startsWith("image/")) {
+            const url = URL.createObjectURL(file);
+            setPreviewUrl(url);
+            setPreviewType("image");
+        } else {
+            setPreviewUrl("");
+            setPreviewType("pdf");
+        }
+        setClientErrors((prev) => ({ ...prev, permit_image: null })); // Clear client error if file is valid
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        setInfoMessage("");
+        setClientErrors({});
+
+        // Validasi sederhana di client sebelum kirim
+        if (
+            !data.name ||
+            !data.email ||
+            !data.password ||
+            !data.terms_accepted
+        ) {
+            setInfoMessage("Lengkapi field wajib yang bertanda merah.");
+            window.scrollTo({ top: 0, behavior: "smooth" });
+            return;
+        }
+
+        // Validasi file besar secara eksplisit sebelum kirim
+        if (data.permit_image && data.permit_image.size > MAX_FILE_SIZE_BYTES) {
+            setInfoMessage("File izin usaha terlalu besar (Max 5MB).");
+            return;
+        }
+
+        post(route("vendor.store"), {
+            forceFormData: true,
+            onSuccess: () => {
+                setStatusModalOpen(true);
+                // Clean up file objects
+                if (data.permit_image) {
+                    URL.revokeObjectURL(previewUrl);
+                }
+                reset();
+            },
+            onError: () => {
+                setInfoMessage(
+                    "Terdapat kesalahan pada inputan. Mohon periksa kembali."
+                );
+                window.scrollTo({ top: 0, behavior: "smooth" });
+            },
+        });
+    };
+
+    // Helper Error
+    const FieldError = ({ field }) => {
+        const msg = errors[field] || clientErrors[field];
+        if (msg)
+            return (
+                <p className="mt-1 text-xs text-red-500 flex items-center">
+                    <AlertCircle size={12} className="mr-1" /> {msg}
+                </p>
+            );
+        return null;
+    };
+
     return (
-      <div className="mt-1">
-        <div className="h-2 w-full bg-gray-200 rounded overflow-hidden">
-          <div
-            className={`h-2 ${colors[score]} rounded`}
-            style={{ width: `${(score / 4) * 100}%`, transition: "width 250ms ease" }}
-          />
+        <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 font-sans">
+            <Head title="Daftar Vendor" />
+
+            <div className="max-w-4xl mx-auto">
+                {/* Header */}
+                <div className="text-center mb-10">
+                    <h2 className="text-3xl font-extrabold text-gray-900">
+                        Bergabunglah dengan{" "}
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-orange-600">
+                            Wedding Expo
+                        </span>
+                    </h2>
+                    <p className="mt-2 text-sm text-gray-600">
+                        Jangkau ribuan calon pengantin dan kembangkan bisnis
+                        pernikahan Anda.
+                    </p>
+                </div>
+
+                <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-orange-100">
+                    {/* Progress Bar Hiasan */}
+                    <div className="h-2 bg-gradient-to-r from-amber-400 via-orange-500 to-red-500"></div>
+
+                    <div className="p-8">
+                        {infoMessage && (
+                            <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 flex items-start">
+                                <AlertCircle className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" />
+                                <span className="text-sm">{infoMessage}</span>
+                            </div>
+                        )}
+
+                        <form
+                            onSubmit={handleSubmit}
+                            encType="multipart/form-data"
+                            className="space-y-8"
+                        >
+                            {/* SECTION 1: DATA BISNIS */}
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 mb-4 flex items-center">
+                                    <span className="bg-orange-100 text-orange-600 w-8 h-8 rounded-full flex items-center justify-center mr-3 text-sm">
+                                        1
+                                    </span>
+                                    Informasi Bisnis
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium text-gray-700">
+                                            Nama Bisnis / Vendor
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="name"
+                                            value={data.name}
+                                            onChange={handleInputChange}
+                                            placeholder="Contoh: Bunga Mawar Catering"
+                                            className="mt-1 block w-full px-4 py-3 rounded-lg border-gray-300 shadow-sm focus:ring-orange-500 focus:border-orange-500 bg-gray-50 focus:bg-white transition"
+                                        />
+                                        <FieldError field="name" />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">
+                                            Jenis Layanan
+                                        </label>
+                                        <select
+                                            name="vendor_type"
+                                            value={data.vendor_type}
+                                            onChange={handleInputChange}
+                                            className="mt-1 block w-full px-4 py-3 rounded-lg border-gray-300 shadow-sm focus:ring-orange-500 focus:border-orange-500 bg-gray-50 focus:bg-white"
+                                        >
+                                            <option value="">
+                                                -- Pilih Kategori --
+                                            </option>
+                                            <option value="Wedding Organizer">
+                                                Wedding Organizer
+                                            </option>
+                                            <option value="Catering">
+                                                Catering
+                                            </option>
+                                            <option value="Decoration">
+                                                Dekorasi
+                                            </option>
+                                            <option value="Photography">
+                                                Fotografi & Videografi
+                                            </option>
+                                            <option value="MUA">
+                                                MUA & Attire
+                                            </option>
+                                            <option value="Venue">Venue</option>
+                                            <option value="Entertainment">
+                                                Hiburan / Musik
+                                            </option>
+                                        </select>
+                                        <FieldError field="vendor_type" />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">
+                                            Nomor WhatsApp Bisnis
+                                        </label>
+                                        <div className="mt-1 relative rounded-md shadow-sm">
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <span className="text-gray-500 sm:text-sm">
+                                                    +62
+                                                </span>
+                                            </div>
+                                            <input
+                                                type="tel"
+                                                name="whatsapp"
+                                                value={data.whatsapp}
+                                                onChange={handleInputChange}
+                                                placeholder="81234567890"
+                                                className="block w-full pl-12 pr-4 py-3 rounded-lg border-gray-300 focus:ring-orange-500 focus:border-orange-500 bg-gray-50 focus:bg-white"
+                                            />
+                                        </div>
+                                        <FieldError field="whatsapp" />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">
+                                            Kota Domisili
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="city"
+                                            value={data.city}
+                                            onChange={handleInputChange}
+                                            className="mt-1 block w-full px-4 py-3 rounded-lg border-gray-300 shadow-sm focus:ring-orange-500 focus:border-orange-500 bg-gray-50"
+                                        />
+                                        <FieldError field="city" />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">
+                                            Provinsi
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="province"
+                                            value={data.province}
+                                            onChange={handleInputChange}
+                                            className="mt-1 block w-full px-4 py-3 rounded-lg border-gray-300 shadow-sm focus:ring-orange-500 focus:border-orange-500 bg-gray-50"
+                                        />
+                                        <FieldError field="province" />
+                                    </div>
+
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium text-gray-700">
+                                            Alamat Lengkap
+                                        </label>
+                                        <textarea
+                                            name="address"
+                                            rows="3"
+                                            value={data.address}
+                                            onChange={handleInputChange}
+                                            className="mt-1 block w-full px-4 py-3 rounded-lg border-gray-300 shadow-sm focus:ring-orange-500 focus:border-orange-500 bg-gray-50"
+                                        ></textarea>
+                                        <FieldError field="address" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* SECTION 2: LEGALITAS */}
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 mb-4 flex items-center">
+                                    <span className="bg-orange-100 text-orange-600 w-8 h-8 rounded-full flex items-center justify-center mr-3 text-sm">
+                                        2
+                                    </span>
+                                    Dokumen Legalitas
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">
+                                            Nomor Izin Usaha (NIB/SIUP)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="permit_number"
+                                            value={data.permit_number}
+                                            onChange={handleInputChange}
+                                            className="mt-1 block w-full px-4 py-3 rounded-lg border-gray-300 shadow-sm focus:ring-orange-500 focus:border-orange-500 bg-gray-50"
+                                        />
+                                        <FieldError field="permit_number" />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Upload Dokumen (Max 5MB)
+                                        </label>
+                                        <div className="flex items-center justify-center w-full">
+                                            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition">
+                                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                                    <UploadCloud className="w-8 h-8 mb-3 text-gray-400" />
+                                                    <p className="text-sm text-gray-500">
+                                                        <span className="font-semibold">
+                                                            Klik untuk upload
+                                                        </span>
+                                                    </p>
+                                                    <p className="text-xs text-gray-500">
+                                                        JPG, PNG, atau PDF
+                                                    </p>
+                                                </div>
+                                                <input
+                                                    type="file"
+                                                    name="permit_image"
+                                                    className="hidden"
+                                                    accept="image/*,application/pdf"
+                                                    onChange={handleFileChange}
+                                                />
+                                            </label>
+                                        </div>
+                                        {fileNameDisplay && (
+                                            <div className="mt-2 text-sm text-green-600 flex items-center">
+                                                <CheckCircle
+                                                    size={14}
+                                                    className="mr-1"
+                                                />{" "}
+                                                {fileNameDisplay}
+                                            </div>
+                                        )}
+                                        {previewUrl &&
+                                            previewType === "image" && (
+                                                <img
+                                                    src={previewUrl}
+                                                    alt="Preview"
+                                                    className="mt-2 h-20 rounded border object-cover"
+                                                />
+                                            )}
+                                        <FieldError field="permit_image" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* SECTION 3: AKUN LOGIN */}
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-800 border-b border-gray-200 pb-2 mb-4 flex items-center">
+                                    <span className="bg-orange-100 text-orange-600 w-8 h-8 rounded-full flex items-center justify-center mr-3 text-sm">
+                                        3
+                                    </span>
+                                    Akun Login (PIC)
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium text-gray-700">
+                                            Nama Lengkap PIC
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="pic_name"
+                                            value={data.pic_name}
+                                            onChange={handleInputChange}
+                                            placeholder="Nama Pemilik / Penanggung Jawab"
+                                            className="mt-1 block w-full px-4 py-3 rounded-lg border-gray-300 shadow-sm focus:ring-orange-500 focus:border-orange-500 bg-gray-50"
+                                        />
+                                        <FieldError field="pic_name" />
+                                    </div>
+
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium text-gray-700">
+                                            Email Login
+                                        </label>
+                                        <input
+                                            type="email"
+                                            name="email"
+                                            value={data.email}
+                                            onChange={handleInputChange}
+                                            className="mt-1 block w-full px-4 py-3 rounded-lg border-gray-300 shadow-sm focus:ring-orange-500 focus:border-orange-500 bg-gray-50"
+                                        />
+                                        <FieldError field="email" />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">
+                                            Password
+                                        </label>
+                                        <div className="relative mt-1">
+                                            <input
+                                                type={
+                                                    passwordVisible
+                                                        ? "text"
+                                                        : "password"
+                                                }
+                                                name="password"
+                                                value={data.password}
+                                                onChange={handleInputChange}
+                                                className="block w-full px-4 py-3 rounded-lg border-gray-300 shadow-sm focus:ring-orange-500 focus:border-orange-500 bg-gray-50"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setPasswordVisible(
+                                                        !passwordVisible
+                                                    )
+                                                }
+                                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                                            >
+                                                {passwordVisible ? (
+                                                    <EyeOff size={20} />
+                                                ) : (
+                                                    <Eye size={20} />
+                                                )}
+                                            </button>
+                                        </div>
+                                        <FieldError field="password" />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">
+                                            Konfirmasi Password
+                                        </label>
+                                        <div className="relative mt-1">
+                                            <input
+                                                type={
+                                                    confirmPasswordVisible
+                                                        ? "text"
+                                                        : "password"
+                                                }
+                                                name="password_confirmation"
+                                                value={
+                                                    data.password_confirmation
+                                                }
+                                                onChange={handleInputChange}
+                                                className="block w-full px-4 py-3 rounded-lg border-gray-300 shadow-sm focus:ring-orange-500 focus:border-orange-500 bg-gray-50"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setConfirmPasswordVisible(
+                                                        !confirmPasswordVisible
+                                                    )
+                                                }
+                                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                                            >
+                                                {confirmPasswordVisible ? (
+                                                    <EyeOff size={20} />
+                                                ) : (
+                                                    <Eye size={20} />
+                                                )}
+                                            </button>
+                                        </div>
+                                        <FieldError field="password_confirmation" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* TERMS */}
+                            <div className="flex items-start bg-gray-50 p-4 rounded-lg">
+                                <div className="flex items-center h-5">
+                                    <input
+                                        id="terms"
+                                        name="terms_accepted"
+                                        type="checkbox"
+                                        checked={!!data.terms_accepted}
+                                        onChange={(e) => {
+                                            setData(
+                                                "terms_accepted",
+                                                e.target.checked ? 1 : 0
+                                            );
+                                            setClientErrors((p) => ({
+                                                ...p,
+                                                terms_accepted: null,
+                                            }));
+                                        }}
+                                        className="w-5 h-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                                    />
+                                </div>
+                                <div className="ml-3 text-sm">
+                                    <label
+                                        htmlFor="terms"
+                                        className="font-medium text-gray-700"
+                                    >
+                                        Saya menyetujui{" "}
+                                        <a
+                                            href="#"
+                                            className="text-orange-600 hover:underline"
+                                        >
+                                            Syarat dan Ketentuan
+                                        </a>{" "}
+                                        serta{" "}
+                                        <a
+                                            href="#"
+                                            className="text-orange-600 hover:underline"
+                                        >
+                                            Kebijakan Privasi
+                                        </a>{" "}
+                                        Wedding Expo.
+                                    </label>
+                                    <FieldError field="terms_accepted" />
+                                </div>
+                            </div>
+
+                            <div className="pt-2">
+                                <button
+                                    type="submit"
+                                    disabled={processing}
+                                    className="w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:-translate-y-0.5"
+                                >
+                                    {processing ? (
+                                        <span className="flex items-center">
+                                            <Loader2 className="animate-spin mr-2" />{" "}
+                                            Memproses...
+                                        </span>
+                                    ) : (
+                                        "DAFTAR SEBAGAI VENDOR"
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <p className="mt-8 text-center text-sm text-gray-600">
+                    Sudah punya akun?{" "}
+                    <Link
+                        href={route("login")}
+                        className="font-medium text-orange-600 hover:text-orange-500"
+                    >
+                        Masuk di sini
+                    </Link>
+                </p>
+            </div>
+
+            {/* Success Modal */}
+            {statusModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center transform transition-all scale-100">
+                        <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-6">
+                            <CheckCircle className="h-8 w-8 text-green-600" />
+                        </div>
+                        <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                            Pendaftaran Berhasil!
+                        </h3>
+                        <p className="text-gray-500 mb-6">
+                            Terima kasih telah mendaftar. Data Anda sedang kami
+                            verifikasi. Silakan login untuk melihat status akun
+                            Anda.
+                        </p>
+                        <Link
+                            href={route("login")}
+                            className="w-full inline-flex justify-center px-6 py-3 border border-transparent text-base font-medium rounded-xl text-white bg-orange-600 hover:bg-orange-700 shadow-lg transition"
+                        >
+                            Lanjut ke Halaman Login
+                        </Link>
+                    </div>
+                </div>
+            )}
         </div>
-        <div className="text-xs text-gray-500 mt-1">Strength: {labels[score]}</div>
-      </div>
     );
-  };
-
-  // -------------------------
-  // Markup (long & descriptive)
-  // -------------------------
-  return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4">
-      <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-md overflow-hidden">
-        <div className="p-6 border-b">
-          <h1 className="text-2xl font-bold text-gray-800">Daftar Vendor Baru</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Isi data vendor dan lampirkan dokumen izin usaha. Pendaftaran akan diverifikasi oleh admin sebelum aktif.
-          </p>
-          {infoMessage && (
-            <div className="mt-3 p-3 bg-yellow-50 text-yellow-800 rounded text-sm">{infoMessage}</div>
-          )}
-        </div>
-
-        <form
-          onSubmit={handleSubmit}
-          encType="multipart/form-data"
-          className="p-6 space-y-6"
-          noValidate
-        >
-          {/* PRIMARY / BUSINESS SECTION */}
-          <section>
-            <h2 className="text-lg font-semibold text-gray-700">Informasi Vendor</h2>
-            <p className="text-sm text-gray-500 mt-1">Isi data usaha Anda.</p>
-
-            <div className="mt-4 grid gap-4 grid-cols-1 md:grid-cols-2">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Nama Bisnis / Perusahaan</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={data.name}
-                  onChange={handleInputChange}
-                  placeholder="Contoh: Bunga Mawar Wedding Organizer"
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                />
-                <FieldError field="name" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Jenis Layanan</label>
-                <select
-                  name="vendor_type"
-                  value={data.vendor_type}
-                  onChange={handleInputChange}
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value="">-- Pilih --</option>
-                  <option value="wo">Wedding Organizer (WO)</option>
-                  <option value="catering">Katering</option>
-                  <option value="decoration">Dekorasi</option>
-                  <option value="photography">Fotografi & Videografi</option>
-                  <option value="mua">MUA & Busana</option>
-                  <option value="other">Lainnya</option>
-                </select>
-                <FieldError field="vendor_type" />
-              </div>
-            </div>
-
-            <div className="mt-4 grid gap-4 grid-cols-1 md:grid-cols-2">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Kota</label>
-                <input
-                  type="text"
-                  name="city"
-                  value={data.city}
-                  onChange={handleInputChange}
-                  placeholder="Contoh: Jakarta"
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                />
-                <FieldError field="city" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Provinsi</label>
-                <input
-                  type="text"
-                  name="province"
-                  value={data.province}
-                  onChange={handleInputChange}
-                  placeholder="Contoh: DKI Jakarta"
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                />
-                <FieldError field="province" />
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700">Alamat Lengkap</label>
-              <textarea
-                name="address"
-                value={data.address}
-                onChange={handleInputChange}
-                placeholder="Alamat kantor / studio"
-                rows="3"
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-              />
-              <FieldError field="address" />
-            </div>
-          </section>
-
-          {/* LEGAL / PERMIT SECTION */}
-          <section>
-            <h2 className="text-lg font-semibold text-gray-700">Dokumen Legalitas</h2>
-            <p className="text-sm text-gray-500 mt-1">Nomor izin usaha & file lampiran (SIUP / NIB).</p>
-
-            <div className="mt-4 grid gap-4 grid-cols-1 md:grid-cols-2">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Nomor Izin Usaha (NIB / SIUP)</label>
-                <input
-                  type="text"
-                  name="permit_number"
-                  value={data.permit_number}
-                  onChange={handleInputChange}
-                  placeholder="Contoh: NIB 123456789"
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                />
-                <FieldError field="permit_number" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Upload Izin (JPG/PNG/PDF, max 5MB)</label>
-                <input
-                  type="file"
-                  name="permit_image"
-                  accept="image/jpeg,image/png,application/pdf"
-                  onChange={(e) => {
-                    // both custom handler and setData for Inertia
-                    handleFileChange(e);
-                  }}
-                  className="mt-1 block w-full text-sm text-gray-700"
-                />
-                <FieldError field="permit_image" />
-                {clientErrors.permit_image && (
-                  <p className="mt-1 text-sm text-red-600">{clientErrors.permit_image}</p>
-                )}
-
-                {/* preview area */}
-                {previewType === "image" && previewUrl && (
-                  <div className="mt-3">
-                    <div className="text-sm text-gray-600">Preview gambar:</div>
-                    <img src={previewUrl} alt="preview" className="mt-2 rounded-md border max-h-56 object-contain" />
-                    <div className="text-xs text-gray-500 mt-1">{fileNameDisplay}</div>
-                  </div>
-                )}
-                {previewType === "pdf" && fileNameDisplay && (
-                  <div className="mt-3">
-                    <div className="text-sm text-gray-600">File PDF dipilih:</div>
-                    <div className="mt-2 text-sm text-gray-700 font-medium">{fileNameDisplay}</div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </section>
-
-          {/* CONTACT / ACCOUNT */}
-          <section>
-            <h2 className="text-lg font-semibold text-gray-700">Informasi Kontak & Akun</h2>
-            <p className="text-sm text-gray-500 mt-1">Data PIC & akun untuk login.</p>
-
-            <div className="mt-4 grid gap-4 grid-cols-1 md:grid-cols-2">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Nama Kontak (PIC)</label>
-                <input
-                  type="text"
-                  name="pic_name"
-                  value={data.pic_name}
-                  onChange={handleInputChange}
-                  placeholder="Nama orang yang dapat dihubungi"
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                />
-                <FieldError field="pic_name" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Nama Email Kontak (jika berbeda)</label>
-                <input
-                  type="text"
-                  name="contact_name"
-                  value={data.contact_name}
-                  onChange={handleInputChange}
-                  placeholder="Opsional"
-                  className="mt-1 block w-full border-gray-200 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                />
-                <FieldError field="contact_name" />
-              </div>
-            </div>
-
-            <div className="mt-4 grid gap-4 grid-cols-1 md:grid-cols-2">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Email</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={data.email}
-                  onChange={handleInputChange}
-                  placeholder="email@contoh.com"
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                />
-                <FieldError field="email" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Nomor WhatsApp</label>
-                <input
-                  type="tel"
-                  name="whatsapp"
-                  value={data.whatsapp}
-                  onChange={handleInputChange}
-                  placeholder="0812xxxxxxx"
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                />
-                <FieldError field="whatsapp" />
-              </div>
-            </div>
-
-            <div className="mt-4 grid gap-4 grid-cols-1 md:grid-cols-2 items-end">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Password</label>
-                <div className="relative mt-1">
-                  <input
-                    type={passwordVisible ? "text" : "password"}
-                    name="password"
-                    value={data.password}
-                    onChange={handleInputChange}
-                    placeholder="Minimal 8 karakter"
-                    className="block w-full border-gray-300 rounded-md shadow-sm pr-10 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setPasswordVisible((s) => !s)}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-sm text-gray-600"
-                  >
-                    {passwordVisible ? "Sembunyikan" : "Tampilkan"}
-                  </button>
-                </div>
-                <FieldError field="password" />
-                <StrengthBar />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Konfirmasi Password</label>
-                <div className="relative mt-1">
-                  <input
-                    type={confirmPasswordVisible ? "text" : "password"}
-                    name="password_confirmation"
-                    value={data.password_confirmation}
-                    onChange={handleInputChange}
-                    placeholder="Ulangi password"
-                    className="block w-full border-gray-300 rounded-md shadow-sm pr-10 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setConfirmPasswordVisible((s) => !s)}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-sm text-gray-600"
-                  >
-                    {confirmPasswordVisible ? "Sembunyikan" : "Tampilkan"}
-                  </button>
-                </div>
-                <FieldError field="password_confirmation" />
-              </div>
-            </div>
-          </section>
-
-          {/* TERMS */}
-          <section>
-            <div className="flex items-start">
-              <div className="flex items-center h-5">
-                <input
-                  id="terms"
-                  name="terms_accepted"
-                  type="checkbox"
-                  checked={!!data.terms_accepted}
-                  onChange={(e) => {
-                    // our handler expects 1/0 for Laravel 'accepted' check
-                    setData("terms_accepted", e.target.checked ? 1 : 0);
-                    setClientErrors((prev) => {
-                      const cp = { ...prev };
-                      delete cp.terms_accepted;
-                      return cp;
-                    });
-                  }}
-                  className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
-                />
-              </div>
-              <div className="ml-3 text-sm">
-                <label htmlFor="terms" className="font-medium text-gray-700">
-                  Saya setuju dengan <a href="/terms" target="_blank" rel="noreferrer" className="text-indigo-600 underline">Syarat dan Ketentuan</a>.
-                </label>
-                <FieldError field="terms_accepted" />
-              </div>
-            </div>
-          </section>
-
-          {/* SUBMIT */}
-          <div className="pt-4 border-t">
-            <div className="flex items-center justify-between gap-4">
-              <div className="text-sm text-gray-600">
-                <strong>Catatan:</strong> Setelah mendaftar, admin akan memverifikasi dokumen Anda.
-              </div>
-
-              <div className="flex items-center gap-3">
-                <button
-                  type="submit"
-                  disabled={processing}
-                  className={`inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white ${
-                    processing ? "bg-gray-400 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700"
-                  }`}
-                >
-                  {processing ? "Mengirim..." : "Daftar Sekarang"}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    // reset both Inertia form and local ui
-                    reset();
-                    setPreviewUrl("");
-                    setPreviewType("");
-                    setFileNameDisplay("");
-                    setClientErrors({});
-                    setInfoMessage("");
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                  }}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md bg-white hover:bg-gray-50"
-                >
-                  Reset
-                </button>
-              </div>
-            </div>
-          </div>
-        </form>
-
-        {/* Success modal */}
-        {statusModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black opacity-30" onClick={() => setStatusModalOpen(false)} />
-            <div className="relative max-w-md w-full bg-white rounded-lg shadow-lg p-6 z-10">
-              <h3 className="text-xl font-semibold">Pendaftaran Berhasil</h3>
-              <p className="mt-2 text-sm text-gray-600">Terima kasih, data Anda sudah kami terima. Admin akan memverifikasi dokumen dan menginformasikan melalui email.</p>
-              <div className="mt-4 text-right">
-                <button
-                  onClick={() => setStatusModalOpen(false)}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm"
-                >
-                  Tutup
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
 }

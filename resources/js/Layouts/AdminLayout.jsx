@@ -1,12 +1,77 @@
 import React, { useState } from "react";
 import { Link } from "@inertiajs/react";
-import { navItems } from "@/Pages/Admin/navItems";
-import { LogOut, Menu, X, ChevronRight } from "lucide-react";
+import {
+    LayoutDashboard,
+    DollarSign,
+    Users,
+    MessageSquare,
+    FileText,
+    FileBadge,
+    CreditCard,
+    LogOut,
+    Menu,
+    X,
+    ChevronRight,
+    Search,
+    Bell,
+    Settings,
+} from "lucide-react";
 
 export default function AdminLayout({ user, header, children }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-    // Fungsi Helper untuk cek apakah rute aktif
+    // === DEFINISI MENU SIDEBAR ===
+    const navItems = [
+        {
+            name: "Dashboard",
+            icon: LayoutDashboard,
+            label: "Dashboard",
+            route: "admin.dashboard",
+        },
+        {
+            name: "KonfirmasiPembayaran",
+            icon: DollarSign,
+            label: "Konfirmasi Bayar",
+            route: "admin.paymentproof.index",
+        },
+        {
+            name: "Vendor",
+            icon: Users,
+            label: "Vendor",
+            route: "admin.vendors.index",
+        },
+        {
+            name: "Users",
+            icon: Users,
+            label: "Pengguna",
+            route: "admin.user-stats.index",
+        },
+        {
+            name: "Reviews",
+            icon: MessageSquare,
+            label: "Ulasan",
+            route: "admin.reviews.index",
+        },
+        {
+            name: "StaticContent",
+            icon: FileText,
+            label: "Konten Statis",
+            route: "admin.static-content.index",
+        },
+        {
+            name: "EditRole",
+            icon: FileBadge,
+            label: "Edit Role",
+            route: "admin.roles.index",
+        },
+        {
+            name: "PaymentSettings",
+            icon: CreditCard,
+            label: "Pengaturan Bayar",
+            route: "admin.payment-settings.index",
+        },
+    ];
+
     const isRouteActive = (routeName) => {
         if (!routeName) return false;
         try {
@@ -19,34 +84,40 @@ export default function AdminLayout({ user, header, children }) {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 flex font-sans">
-            {/* --- SIDEBAR (Desktop & Mobile) --- */}
+        // Wrapper utama menggunakan h-screen overflow-hidden agar layout terkunci di viewport
+        <div className="flex h-screen bg-gray-50 font-sans overflow-hidden selection:bg-orange-500 selection:text-white">
+            {/* --- SIDEBAR (Futuristic Dark Theme) --- */}
             <aside
-                className={`fixed top-0 left-0 h-full w-72 bg-white text-gray-800 shadow-2xl z-40 border-r border-gray-100
-                transition-transform duration-300 ease-in-out
-                ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}
-                md:relative md:translate-x-0 md:flex-shrink-0 flex flex-col`}
+                className={`
+                    absolute md:relative z-50 h-full w-72 flex-shrink-0 flex flex-col 
+                    bg-[#0f172a] text-white border-r border-slate-800 shadow-2xl
+                    transition-transform duration-300 ease-out
+                    ${
+                        isSidebarOpen
+                            ? "translate-x-0"
+                            : "-translate-x-full md:translate-x-0"
+                    }
+                `}
             >
-                {/* LOGO AREA */}
-                <div className="p-8 mb-2">
-                    <h1
-                        className="text-2xl font-extrabold bg-clip-text text-transparent tracking-tight"
-                        style={{
-                            backgroundImage:
-                                "linear-gradient(90deg, #facc15, #fb923c)",
-                        }} // Efek Emas ke Orange
-                    >
-                        Admin Dashboard
-                    </h1>
-                    <p className="text-xs text-gray-400 mt-1 uppercase tracking-widest font-semibold">
-                        Wedding Expo Panel
-                    </p>
+                {/* 1. LOGO AREA (Modern Gradient) */}
+                <div className="h-20 flex items-center px-8 border-b border-slate-800/50 bg-[#0f172a]/50 backdrop-blur-xl">
+                    <div>
+                        <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
+                            <span className="bg-clip-text text-transparent bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 drop-shadow-sm">
+                                WEDDING
+                            </span>
+                            <span className="text-slate-100">EXPO</span>
+                        </h1>
+                        <p className="text-[10px] text-slate-400 font-medium tracking-[0.2em] mt-0.5">
+                            ADMINISTRATION PANEL
+                        </p>
+                    </div>
                 </div>
 
-                {/* NAVIGASI */}
-                <nav className="flex-1 px-4 overflow-y-auto space-y-2 pb-4">
-                    <p className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-2">
-                        Menu Utama
+                {/* 2. NAVIGATION (Scrollable) */}
+                <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1 custom-scrollbar">
+                    <p className="px-4 text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">
+                        Main Menu
                     </p>
 
                     {navItems.map((item) => {
@@ -56,43 +127,45 @@ export default function AdminLayout({ user, header, children }) {
                             <Link
                                 key={item.name}
                                 href={item.route ? route(item.route) : "#"}
-                                className={`group flex items-center px-4 py-3.5 rounded-xl transition-all duration-200 ease-in-out font-medium relative overflow-hidden ${
-                                    isActive
-                                        ? "text-white shadow-lg shadow-orange-200" // Shadow halus saat aktif
-                                        : "text-gray-600 hover:bg-orange-50 hover:text-orange-600"
-                                }`}
-                                style={
-                                    isActive
-                                        ? {
-                                              background:
-                                                  "linear-gradient(90deg, #f59e0b, #ea580c)", // Gradient Orange Mengkilat
-                                          }
-                                        : {}
-                                }
                                 onClick={() => setIsSidebarOpen(false)}
+                                className={`
+                                    group relative flex items-center px-4 py-3.5 rounded-xl font-medium text-sm transition-all duration-300
+                                    ${
+                                        isActive
+                                            ? "text-white shadow-lg shadow-orange-500/20"
+                                            : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                                    }
+                                `}
                             >
-                                {/* Indikator aktif di kiri (opsional, untuk estetika) */}
+                                {/* Active Background with "Glassy & Shiny" Effect */}
                                 {isActive && (
-                                    <span className="absolute left-0 top-0 bottom-0 w-1 bg-white/20"></span>
+                                    <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 opacity-100 transition-opacity"></div>
                                 )}
 
+                                {/* Icon */}
                                 <div
-                                    className={`mr-3 transition-transform duration-200 ${
+                                    className={`relative z-10 mr-3 transition-transform duration-300 ${
                                         isActive
-                                            ? "scale-110"
-                                            : "group-hover:scale-110"
+                                            ? "scale-110 text-white"
+                                            : "group-hover:scale-110 group-hover:text-orange-400"
                                     }`}
                                 >
-                                    {item.icon && <item.icon size={20} />}
+                                    <item.icon
+                                        size={20}
+                                        strokeWidth={isActive ? 2.5 : 2}
+                                    />
                                 </div>
 
-                                <span className="flex-1">{item.label}</span>
+                                {/* Label */}
+                                <span className="relative z-10 flex-1">
+                                    {item.label}
+                                </span>
 
-                                {/* Panah kecil jika aktif */}
+                                {/* Active Indicator (Chevron) */}
                                 {isActive && (
                                     <ChevronRight
                                         size={16}
-                                        className="text-white/80"
+                                        className="relative z-10 text-white/80 animate-pulse"
                                     />
                                 )}
                             </Link>
@@ -100,36 +173,50 @@ export default function AdminLayout({ user, header, children }) {
                     })}
                 </nav>
 
-                {/* FOOTER SIDEBAR (LOGOUT) */}
-                <div className="p-4 border-t border-gray-100">
+                {/* 3. SIDEBAR FOOTER (User & Logout) */}
+                <div className="p-4 border-t border-slate-800 bg-[#0b1120]">
+                    <div className="flex items-center gap-3 mb-4 px-2">
+                        <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-amber-400 to-orange-600 p-[2px]">
+                            <div className="h-full w-full rounded-full bg-slate-900 flex items-center justify-center text-white font-bold text-sm">
+                                {user?.name?.charAt(0).toUpperCase()}
+                            </div>
+                        </div>
+                        <div className="overflow-hidden">
+                            <p className="text-sm font-bold text-white truncate">
+                                {user?.name}
+                            </p>
+                            <p className="text-xs text-slate-400 truncate">
+                                Administrator
+                            </p>
+                        </div>
+                    </div>
                     <Link
                         href={route("logout")}
                         method="post"
                         as="button"
-                        className="flex items-center w-full px-4 py-3.5 rounded-xl text-sm font-medium text-red-600 bg-red-50 hover:bg-red-600 hover:text-white hover:shadow-lg hover:shadow-red-100 transition-all duration-200"
+                        className="flex items-center justify-center w-full py-2.5 px-4 rounded-lg bg-slate-800 text-red-400 text-sm font-semibold hover:bg-red-500/10 hover:text-red-400 transition-colors border border-transparent hover:border-red-500/20"
                     >
-                        <LogOut size={20} className="mr-3" />
+                        <LogOut size={16} className="mr-2" />
                         Keluar
                     </Link>
                 </div>
             </aside>
 
-            {/* --- BACKDROP MOBILE --- */}
+            {/* --- MOBILE BACKDROP --- */}
             {isSidebarOpen && (
                 <div
-                    className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-30 md:hidden"
+                    className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-40 md:hidden"
                     onClick={() => setIsSidebarOpen(false)}
                 ></div>
             )}
 
-            {/* --- KONTEN UTAMA --- */}
-            <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                {/* HEADER (Navbar Atas) */}
-                <header className="bg-white/80 backdrop-blur-md sticky top-0 z-20 border-b border-gray-100">
-                    <div className="max-w-full mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-                        {/* Tombol Hamburger (Mobile) */}
+            {/* --- MAIN CONTENT WRAPPER --- */}
+            <div className="flex-1 flex flex-col min-w-0 bg-gray-50 h-screen overflow-hidden">
+                {/* 1. TOP NAVBAR (Sticky Glass) */}
+                <header className="h-20 flex-shrink-0 bg-white/80 backdrop-blur-md border-b border-gray-200/60 sticky top-0 z-30 flex items-center justify-between px-4 sm:px-8">
+                    <div className="flex items-center gap-4">
                         <button
-                            className="text-gray-500 hover:text-orange-500 md:hidden p-2 rounded-lg transition-colors"
+                            className="p-2 -ml-2 rounded-lg text-slate-600 hover:bg-slate-100 md:hidden transition-colors"
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                         >
                             {isSidebarOpen ? (
@@ -139,31 +226,33 @@ export default function AdminLayout({ user, header, children }) {
                             )}
                         </button>
 
-                        {/* Judul Halaman */}
-                        <h2 className="text-xl font-bold text-gray-800 leading-tight ml-2 md:ml-0">
+                        <h2 className="text-xl font-bold text-slate-800 tracking-tight">
                             {header || "Dashboard"}
                         </h2>
+                    </div>
 
-                        {/* Profil User */}
-                        <div className="flex items-center space-x-3">
-                            <div className="text-right hidden sm:block">
-                                <p className="text-sm font-semibold text-gray-800">
-                                    {user?.name}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                    Administrator
-                                </p>
-                            </div>
-                            <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold shadow-md">
-                                {user?.name?.charAt(0).toUpperCase()}
-                            </div>
+                    <div className="flex items-center gap-3 sm:gap-4">
+                        {/* Search Bar (Visual Only) */}
+                        <div className="hidden md:flex items-center bg-gray-100 rounded-full px-4 py-2 border border-transparent focus-within:border-orange-300 focus-within:bg-white transition-all w-64">
+                            <Search size={18} className="text-gray-400 mr-2" />
+                            <input
+                                type="text"
+                                placeholder="Cari sesuatu..."
+                                className="bg-transparent border-none outline-none text-sm text-gray-600 w-full placeholder-gray-400"
+                            />
                         </div>
+
+                        {/* Notifications */}
+                        <button className="p-2.5 rounded-full text-slate-500 hover:bg-orange-50 hover:text-orange-600 transition-colors relative">
+                            <Bell size={20} />
+                            <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                        </button>
                     </div>
                 </header>
 
-                {/* Page Content */}
-                <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-                    <div className="max-w-7xl mx-auto">{children}</div>
+                {/* 2. SCROLLABLE CONTENT AREA */}
+                <main className="flex-1 overflow-y-auto p-4 sm:p-8 scroll-smooth">
+                    <div className="max-w-7xl mx-auto pb-10">{children}</div>
                 </main>
             </div>
         </div>

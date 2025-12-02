@@ -3,21 +3,22 @@
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-// --- CONTROLLERS ---
+// --- KONTROLER UMUM ---
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\VendorController;
-use App\Http\Controllers\PaymentController; // Controller Vendor Bayar
-use App\Http\Controllers\PaymentProofController; // Controller Admin Konfirmasi Bayar
+use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\PaymentProofController;
 
-// Admin Controllers
+// --- KONTROLER ADMIN ---
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\AdminVendorController;
 use App\Http\Controllers\Admin\ReviewController;
 use App\Http\Controllers\Admin\UserStatsController;
 use App\Http\Controllers\Admin\PaymentSettingsController;
+use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\StaticContentController;
 
-// Vendor Controllers
+// --- KONTROLER VENDOR ---
 use App\Http\Controllers\Vendor\DashboardController as VendorDashboard;
 
 /*
@@ -26,14 +27,11 @@ use App\Http\Controllers\Vendor\DashboardController as VendorDashboard;
 |---------------------------------------------------------------------------
 */
 
-// Homepage
 Route::get('/', [HomeController::class, 'index'])->name('home');
-
-// Registrasi Vendor (Tanpa Login)
 Route::get('/register/vendor', [HomeController::class, 'vendorRegister'])->name('vendor.register');
 Route::post('/register/vendor', [HomeController::class, 'vendorStore'])->name('vendor.store');
 
-// API Publik (Untuk Frontend Customer lihat list vendor)
+// API Publik
 Route::prefix('api')->group(function () {
     Route::get('/vendors', [VendorController::class, 'index'])->name('api.vendors.index');
     Route::get('/vendors/{vendor}', [VendorController::class, 'show'])->name('api.vendors.show');
@@ -42,7 +40,23 @@ Route::prefix('api')->group(function () {
 
 /*
 |---------------------------------------------------------------------------
-| DASHBOARD REDIRECTOR (SETELAH LOGIN)
+| VENDOR ROUTES
+|---------------------------------------------------------------------------
+*/
+Route::prefix('vendor')
+    ->name('vendor.')
+    ->middleware(['auth', 'vendor']) // Menggunakan alias 'vendor' dari Kernel.php
+    ->group(function () {
+        // Dashboard Vendor
+        Route::get('/dashboard', [VendorDashboard::class, 'index'])->name('dashboard');
+
+        // Tambahkan rute vendor lainnya di sini
+    });
+
+
+/*
+|---------------------------------------------------------------------------
+| DASHBOARD DEFAULT (AFTER LOGIN)
 |---------------------------------------------------------------------------
 */
 Route::get('/dashboard', function () {
@@ -52,7 +66,6 @@ Route::get('/dashboard', function () {
         return redirect()->route('home');
     }
 
-    // Redirect berdasarkan Role
     if ($user->role === 'ADMIN') {
         return redirect()->route('admin.dashboard');
     }
@@ -61,13 +74,12 @@ Route::get('/dashboard', function () {
         return redirect()->route('vendor.dashboard');
     }
 
-    // Default: Customer Dashboard
+    // Default Customer/Visitor Dashboard
     return Inertia::render('Customer/Dashboard', [
         'isLoggedIn' => true,
         'user' => $user,
     ]);
 })->middleware(['auth', 'verified'])->name('dashboard');
-
 
 /*
 |---------------------------------------------------------------------------
@@ -76,7 +88,7 @@ Route::get('/dashboard', function () {
 */
 Route::prefix('admin')
     ->name('admin.')
-    ->middleware(['auth', 'can:view-admin-area']) // Pastikan Gate/Middleware ini ada
+    ->middleware(['auth', 'admin']) // Menggunakan alias 'admin' dari Kernel.php
     ->group(function () {
 
         // 1. Dashboard Utama
@@ -93,8 +105,7 @@ Route::prefix('admin')
         Route::post('/payment-proof/{id}/status', [PaymentProofController::class, 'updateStatus'])->name('paymentproof.status');
         Route::delete('/payment-proof/{id}', [PaymentProofController::class, 'destroy'])->name('paymentproof.destroy');
 
-        // 4. Pengaturan Pembayaran (Payment Settings - BARU)
-        // Halaman edit nomor rekening admin & QRIS
+        // 4. Pengaturan Pembayaran (Payment Settings)
         Route::get('/payment-settings', [PaymentSettingsController::class, 'index'])->name('payment-settings.index');
         Route::post('/payment-settings', [PaymentSettingsController::class, 'update'])->name('payment-settings.update');
 
@@ -108,16 +119,14 @@ Route::prefix('admin')
         Route::patch('/reviews/{id}/approve', [ReviewController::class, 'approve'])->name('reviews.approve');
         Route::patch('/reviews/{id}/reject', [ReviewController::class, 'reject'])->name('reviews.reject');
 
-        // 7. Role Editor untuk Vendor
-        // ROLE EDITOR (Membership)
-        Route::get('/roles', [App\Http\Controllers\Admin\RoleController::class, 'index'])->name('roles.index');
-        Route::post('/roles/update', [App\Http\Controllers\Admin\RoleController::class, 'update'])->name('roles.update');
+        // 7. Edit Role
+        Route::get('/roles', [RoleController::class, 'index'])->name('roles.index');
+        Route::post('/roles/update', [RoleController::class, 'update'])->name('roles.update');
 
-        // 8. Konten Statis (Opsional / Placeholder)
+        // 8. Konten Statis
         Route::get('/static-content', [StaticContentController::class, 'index'])->name('static-content.index');
         Route::post('/static-content', [StaticContentController::class, 'update'])->name('static-content.update');
     });
-
 
 /*
 |---------------------------------------------------------------------------
@@ -126,12 +135,10 @@ Route::prefix('admin')
 */
 Route::prefix('api/admin')
     ->name('admin.api.')
-    ->middleware(['auth', 'can:view-admin-area'])
+    ->middleware(['auth', 'admin'])
     ->group(function () {
-        // Rute ini mungkin masih dipakai oleh komponen lama yang fetch manual
         Route::get('/payment-proofs/data', [PaymentProofController::class, 'data'])->name('paymentproof.data');
     });
-
 
 /*
 |---------------------------------------------------------------------------

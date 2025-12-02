@@ -42,9 +42,24 @@ class Kernel extends HttpKernel
 
         'api' => [
             // \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
-            \Illuminate\Routing\Middleware\ThrottleRequests::class.':api',
+            \Illuminate\Routing\Middleware\ThrottleRequests::class . ':api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ],
+    ];
+
+    /**
+     * The application's route middleware.
+     *
+     * These middleware may be assigned to groups or used individually.
+     *
+     * @var array<string, class-string|string>
+     */
+    protected $routeMiddleware = [
+        // Middleware individual (HANYA class, bukan alias)
+        'auth' => \App\Http\Middleware\Authenticate::class,
+        'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
+        'can' => \Illuminate\Auth\Middleware\Authorize::class,
+        // Baris yang dipilih telah dihapus karena ini adalah array $routeMiddleware.
     ];
 
     /**
@@ -66,6 +81,7 @@ class Kernel extends HttpKernel
         'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
+        // Menggunakan alias 'vendor' yang sudah ada di Kernel Anda untuk IsVendor.php
         'vendor' => \App\Http\Middleware\IsVendor::class,
     ];
 }
