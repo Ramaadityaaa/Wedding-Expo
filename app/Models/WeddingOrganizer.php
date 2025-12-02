@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable; 
-// 🚨 PERBAIKAN: Tambahkan import untuk BelongsTo dan HasMany
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -12,22 +11,23 @@ class WeddingOrganizer extends Authenticatable
 {
     use HasFactory;
 
-    // --- PERBAIKAN DITAMBAHKAN: Mengatur nilai default ---
+    // --- KOREKSI: Mengatur nilai default sebagai string ENUM (PENDING) ---
     /**
      * Set default values for model attributes.
-     * Ini memastikan 'isApproved' adalah 0 (PENDING) jika tidak disetel saat creation.
+     * Ini memastikan 'isApproved' adalah 'PENDING' jika tidak disetel saat creation.
      *
      * @var array<string, mixed>
      */
     protected $attributes = [
-        'isApproved' => 0,
+        // Asumsi ENUM di DB adalah string 'PENDING', 'APPROVED', 'REJECTED'
+        'isApproved' => 'PENDING', 
     ];
     // ---------------------------------------------------
 
     protected $fillable = [
         // ... (data bisnis)
         'name',
-        'type', // Kolom DB yang benar (bukan 'vendor_type')
+        'type',
         'city',
         'province',
         'address',
@@ -43,11 +43,11 @@ class WeddingOrganizer extends Authenticatable
         
         // ... (data akun & status)
         'password',
-        'isApproved', // Pertahankan ini di $fillable
+        'isApproved',
         'terms_accepted', 
         'user_id',
         
-        // Kolom Opsional Lainnya (Pastikan semua kolom ini ada di DB dan $fillable jika digunakan)
+        // Kolom Opsional Lainnya
         'description',
         'logo',
         'coverPhoto',
@@ -68,14 +68,12 @@ class WeddingOrganizer extends Authenticatable
      */
     protected function casts(): array
     {
-        return [
-            // Casting ke integer memastikan isApproved selalu dinilai sebagai angka (0 atau 1)
-            'isApproved' => 'integer',
-        ];
+        // 🚨 KOREKSI: Hapus casting 'isApproved' => 'integer', karena Anda menggunakan string di Controller
+        return [];
     }
     
     /**
-     * Relasi ke model User
+     * Relasi ke model User (Pemilik Vendor)
      */
     public function user(): BelongsTo
     {

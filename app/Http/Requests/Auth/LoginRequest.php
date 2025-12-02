@@ -9,6 +9,10 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
+// TIDAK PERLU: use Illuminate\Database\Query\Builder;
+// Jika Anda mendapatkan error 'Builder not found', itu berarti file lain (kemungkinan salah satu Controller Anda)
+// yang di-require sebelum file ini memiliki error di bagian use statement atau pemanggilan method.
+
 class LoginRequest extends FormRequest
 {
     /**
@@ -16,6 +20,7 @@ class LoginRequest extends FormRequest
      */
     public function authorize(): bool
     {
+        // Standar Form Request di Laravel, selalu return true
         return true;
     }
 

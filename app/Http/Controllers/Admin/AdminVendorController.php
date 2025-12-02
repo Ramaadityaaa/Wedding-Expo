@@ -4,147 +4,173 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\WeddingOrganizer;
+use App\Models\WeddingOrganizer; 
+use Illuminate\Support\Facades\Log; 
+use Inertia\Inertia; 
+use Illuminate\Support\Facades\Response; 
+use Illuminate\Support\Facades\Storage; // Digunakan di method show
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator; // Tambahkan untuk validasi eksplisit
 
-class AdminVendorController extends Controller
+class AdminVendorController extends Controller 
 {
     /**
-     * Helper function to get vendor status counts.
-     * Menggunakan String status di kolom 'isApproved'.
+     * Menghitung total vendor dan menampilkan halaman indeks verifikasi vendor (default PENDING).
      */
-    private function getVendorStatusCounts()
+    public function index() 
     {
-        // Menghitung status berdasarkan nilai String di kolom 'isApproved'
-        $approvedCount = WeddingOrganizer::where('isApproved', 'APPROVED')->count();
-        $pendingCount = WeddingOrganizer::where('isApproved', 'PENDING')->count(); 
-        $rejectedCount = WeddingOrganizer::where('isApproved', 'REJECTED')->count();
-
-        return [
-            'TOTAL' => WeddingOrganizer::count(),
-            'PENDING' => $pendingCount, 
-            'APPROVED' => $approvedCount,
-            // Sekarang menghitung REJECTED dari DB
-            'REJECTED' => $rejectedCount, 
-        ];
-    }
-
-    /**
-     * Tampilkan halaman utama Vendor Management (Inertia Page).
-     */
-    public function index()
-    {
-        $statusCounts = $this->getVendorStatusCounts();
-        return inertia('Admin/pages/VendorManagement', [
-            'initialStatusCounts' => $statusCounts,
-        ]);
-    }
-
-    /**
-     * [API] Ambil data vendor berdasarkan status (untuk tabel di frontend).
-     * Rute: /api/admin/vendors/data (GET)
-     */
-    public function data(Request $request)
-    {
-        $request->validate([
-            'status' => 'nullable|string|in:PENDING,APPROVED,REJECTED', 
-        ]);
-
-        $statusFilter = $request->input('status', 'PENDING'); // Default ke PENDING
-
-        // Query dasar
-        $query = WeddingOrganizer::query();
-
-        // Terapkan filter status menggunakan nilai String di 'isApproved'
-        $query->where('isApproved', $statusFilter);
-        // Catatan: Jika Anda ingin menampilkan REJECTED, 
-        // pastikan ada data dengan 'isApproved' = 'REJECTED' di DB
-
-        // Ambil data, urutkan dari yang terbaru (dibuat)
-        $vendors = $query->latest()->get([
-            'id',
-            'name',
-            'created_at',
-            'isApproved', // Diperlukan untuk mapping
-            'contact_email',
-            'contact_phone',
-        ]);
-        
-        // Return sebagai JSON (API Response)
-        return response()->json([
-            'data' => $vendors->map(function ($vendor) {
-                // Mapping status_verifikasi langsung dari nilai String di DB
-                $vendor->status_verifikasi = $vendor->isApproved; 
-                unset($vendor->isApproved); 
-                return $vendor;
-            })->values(),
-        ]);
-    }
-
-    /**
-     * [API] Perbarui status verifikasi Vendor.
-     * Rute: PATCH /api/admin/vendors/{vendor_id}/status
-     */
-    public function updateStatus(Request $request, $vendorId)
-    {
-        $request->validate([
-            'status_verifikasi' => 'required|string|in:APPROVED,REJECTED,PENDING', 
-        ]);
-
-        $vendor = WeddingOrganizer::findOrFail($vendorId);
-        $newStatus = $request->status_verifikasi; // String status baru
-
         try {
-            DB::beginTransaction();
+            // Menghitung jumlah vendor untuk setiap status
+            $counts = [
+                'PENDING' => WeddingOrganizer::where('isApproved', 'PENDING')->count(), 
+                'APPROVED' => WeddingOrganizer::where('isApproved', 'APPROVED')->count(),
+                'REJECTED' => WeddingOrganizer::where('isApproved', 'REJECTED')->count(),
+            ];
+            
+            // Mengambil daftar vendor PENDING untuk tampilan awal
+            $pendingVendors = WeddingOrganizer::where('isApproved', 'PENDING')
+                                             ->select('id', 'user_id', 'isApproved', 'created_at', 'name')
+                                             ->latest()
+                                             ->get();
 
-            // Lakukan pembaruan status: Langsung simpan string status baru
-            $vendor->isApproved = $newStatus;
-            $vendor->save();
-
-            DB::commit();
-
-            return response()->json([
-                'message' => "Status vendor {$vendor->name} berhasil diubah menjadi {$newStatus}.",
-                'vendor' => $vendor,
+            return Inertia::render('Admin/Vendors/Index', [
+                'vendors' => $pendingVendors,
+                'counts' => $counts,
+                'currentStatus' => 'PENDING',
             ]);
-
         } catch (\Exception $e) {
-            DB::rollBack();
-            \Log::error("Gagal memperbarui status vendor ID: {$vendorId}. Error: " . $e->getMessage());
-
-            return response()->json([
-                'message' => 'Gagal memperbarui status vendor. Kesalahan database.',
-                'error' => $e->getMessage(), 
-            ], 500);
+            Log::error("Error loading Admin Vendor Index:", ['error' => $e->getMessage()]);
+            // Mengembalikan ke halaman admin dashboard jika terjadi error fatal
+            return redirect()->route('admin.dashboard')->with('error', 'Gagal memuat data vendor.');
         }
     }
 
     /**
-     * [API] Hapus Vendor secara permanen.
-     * Rute: DELETE /api/admin/vendors/{vendor_id}
+     * Mengambil data vendor berdasarkan status (dipanggil via AJAX/API dari frontend).
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function destroy($vendorId)
+    public function data(Request $request) 
     {
-        $vendor = WeddingOrganizer::findOrFail($vendorId);
-        $vendorName = $vendor->name;
+        $currentStatus = $request->get('status', 'PENDING'); 
+        
+        // Pengecekan keamanan: pastikan status yang diminta valid
+        $validStatuses = ['PENDING', 'APPROVED', 'REJECTED'];
+        if (!in_array(strtoupper($currentStatus), $validStatuses)) {
+            return Response::json(['message' => 'Status yang diminta tidak valid.'], 400);
+        }
 
         try {
-            DB::beginTransaction();
-            $vendor->delete();
-            DB::commit();
+            // Menghitung ulang jumlah vendor untuk memastikan tampilan tab/badge benar
+            $counts = [
+                'PENDING' => WeddingOrganizer::where('isApproved', 'PENDING')->count(),
+                'APPROVED' => WeddingOrganizer::where('isApproved', 'APPROVED')->count(),
+                'REJECTED' => WeddingOrganizer::where('isApproved', 'REJECTED')->count(),
+            ];
 
-            return response()->json([
-                'message' => "Vendor '{$vendorName}' dan semua datanya berhasil dihapus permanen.",
+            // Mengambil vendor berdasarkan status dan melakukan pagination
+            $vendors = WeddingOrganizer::where('isApproved', strtoupper($currentStatus))
+                                       ->select('id', 'user_id', 'isApproved', 'created_at', 'name')
+                                       ->latest()
+                                       ->paginate(10); // Gunakan paginate untuk data yang lebih besar
+            
+            // Mengembalikan data JSON yang terstruktur (dan dijamin Array/Collection oleh paginate)
+            return Response::json([
+                'vendors' => $vendors->items(),
+                'counts' => $counts,
+                'pagination' => [
+                    'total' => $vendors->total(),
+                    'current_page' => $vendors->currentPage(),
+                    'per_page' => $vendors->perPage(),
+                    'last_page' => $vendors->lastPage(),
+                ],
             ]);
-
         } catch (\Exception $e) {
-            DB::rollBack();
-            \Log::error("Gagal menghapus vendor ID: {$vendorId}. Error: " . $e->getMessage());
-
-            return response()->json([
-                'message' => 'Gagal menghapus vendor. Kesalahan database.',
-                'error' => $e->getMessage(),
+            Log::error("Error fetching vendor data for status {$currentStatus}:", ['error' => $e->getMessage()]);
+            
+            // Mengembalikan error 500 yang jelas
+            return Response::json([
+                'message' => 'Internal server error. Gagal memuat data vendor.',
+                'error_detail' => $e->getMessage()
             ], 500);
+        }
+    }
+    
+    /**
+     * Mengubah status verifikasi vendor (APPROVED/REJECTED).
+     */
+    public function updateStatus(Request $request, string $vendor_id) 
+    {
+        // Validasi input
+        $validator = Validator::make($request->all(), [
+            'status' => ['required', Rule::in(['APPROVED', 'REJECTED'])],
+        ]);
+
+        if ($validator->fails()) {
+            return Response::json(['message' => 'Status yang dikirim tidak valid.'], 400);
+        }
+
+        $vendor = WeddingOrganizer::find($vendor_id);
+        
+        if (!$vendor) {
+            return Response::json(['message' => 'Vendor tidak ditemukan.'], 404);
+        }
+
+        try {
+            $status = $request->input('status');
+            
+            // Update kolom 'isApproved'
+            $vendor->isApproved = $status; 
+            $vendor->save();
+
+            return Response::json(['message' => "Status vendor '{$vendor->name}' berhasil diubah menjadi {$status}."]);
+        } catch (\Exception $e) {
+            Log::error("Error updating vendor status for ID {$vendor_id}:", ['error' => $e->getMessage()]);
+            return Response::json(['message' => 'Gagal memperbarui status vendor.'], 500);
+        }
+    }
+
+    /**
+     * Menampilkan detail lengkap vendor dan dokumen.
+     */
+    public function show(WeddingOrganizer $vendor)
+    {
+        // Asumsi relasi 'user' ada dan dibutuhkan
+        $vendor->load('user'); 
+
+        // Untuk menampilkan path dokumen/foto, pastikan kolomnya ada di model/tabel
+        // Contoh: Mengubah path storage menjadi URL publik
+        if ($vendor->logo) {
+             $vendor->logo_url = Storage::url($vendor->logo);
+        }
+        if ($vendor->coverPhoto) {
+             $vendor->cover_photo_url = Storage::url($vendor->coverPhoto);
+        }
+        if ($vendor->permit_image_path) {
+             $vendor->permit_image_url = Storage::url($vendor->permit_image_path);
+        }
+        
+        return Inertia::render('Admin/Vendors/Show', [
+            'vendor' => $vendor,
+        ]);
+    }
+    
+    /**
+     * Menghapus vendor (opsional).
+     */
+    public function destroy(WeddingOrganizer $vendor)
+    {
+        try {
+            $vendorName = $vendor->name;
+            $vendor->delete();
+            
+            // Redirect setelah penghapusan
+            return redirect()->route('admin.vendors.index')->with('success', "Vendor '{$vendorName}' berhasil dihapus.");
+        } catch (\Exception $e) {
+            Log::error("Error deleting vendor:", ['error' => $e->getMessage()]);
+            return redirect()->back()->with('error', 'Gagal menghapus vendor. Pastikan tidak ada data terkait.');
         }
     }
 }
