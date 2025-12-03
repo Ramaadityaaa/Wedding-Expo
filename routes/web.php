@@ -47,8 +47,15 @@ Route::prefix('vendor')
     ->name('vendor.')
     ->middleware(['auth', 'vendor']) // Menggunakan alias 'vendor' dari Kernel.php
     ->group(function () {
-        // Dashboard Vendor
+        
+        // 1. Dashboard Vendor Utama (Menangani /vendor/dashboard)
         Route::get('/dashboard', [VendorDashboard::class, 'index'])->name('dashboard');
+
+        // 2. Catch-all untuk Path-based Routing React (Menangani /vendor/dashboard/portfolio, /vendor/dashboard/packages, dll.)
+        // Rute ini harus diletakkan setelah rute dashboard utama.
+        Route::get('/dashboard/{tab}', [VendorDashboard::class, 'index'])
+             ->where('tab', '.*') // Wajib agar menangkap semua segmen (e.g., portfolio, packages)
+             ->name('dashboard.tab');
 
         // Tambahkan rute vendor lainnya di sini
     });
@@ -71,6 +78,7 @@ Route::get('/dashboard', function () {
     }
 
     if ($user->role === 'VENDOR') {
+        // Ubah redirect ke rute vendor dashboard yang bersih (tanpa tab)
         return redirect()->route('vendor.dashboard');
     }
 
