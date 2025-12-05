@@ -31,12 +31,32 @@ use App\Http\Controllers\ProfileController;
 
 
 /*
-|---------------------------------------------------------------------------
+|--------------------------------------------------------------------------- 
 | PUBLIC CUSTOMER & GUEST ROUTES
-|---------------------------------------------------------------------------
+|--------------------------------------------------------------------------- 
 */
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
+
+// Rute Halaman Favorit (Memuat komponen Inertia FavoritePage)
+Route::get('/favorites', function () {
+    return Inertia::render('Customer/FavoritePage');
+})->name('favorites');
+
+// Rute Halaman Vendor Detail untuk Customer
+// Rute Halaman Vendor Detail untuk Customer
+Route::get('/vendors/{vendor}', function ($vendorId) {
+    // Mengambil data vendor berdasarkan ID
+    $vendor = App\Models\Vendor::findOrFail($vendorId);
+
+    // Kirim data vendor ke komponen VendorDetails di React (Inertia)
+    return Inertia::render('Customer/VendorDetails', [
+        'vendor' => $vendor, // Data vendor yang akan ditampilkan
+    ]);
+})->name('vendors.details');
+
+
+// Rute pendaftaran vendor
 Route::get('/register/vendor', [HomeController::class, 'vendorRegister'])->name('vendor.register');
 Route::post('/register/vendor', [HomeController::class, 'vendorStore'])->name('vendor.store');
 
@@ -46,11 +66,10 @@ Route::prefix('api')->group(function () {
     Route::get('/vendors/{vendor}', [VendorController::class, 'show'])->name('api.vendors.show');
 });
 
-
 /*
-|---------------------------------------------------------------------------
+|--------------------------------------------------------------------------- 
 | VENDOR ROUTES
-|---------------------------------------------------------------------------
+|--------------------------------------------------------------------------- 
 */
 Route::prefix('vendor')
     ->name('vendor.')
@@ -96,7 +115,6 @@ Route::prefix('vendor')
         });
     });
 
-
 /*
 |---------------------------------------------------------------------------
 | DASHBOARD REDIRECTOR (AFTER LOGIN)
@@ -114,9 +132,9 @@ Route::get('/dashboard', function () {
 
 
 /*
-|---------------------------------------------------------------------------
+|--------------------------------------------------------------------------- 
 | ADMIN ROUTES (PREFIX: /admin)
-|---------------------------------------------------------------------------
+|--------------------------------------------------------------------------- 
 */
 Route::prefix('admin')
     ->name('admin.')
@@ -149,6 +167,6 @@ Route::prefix('admin')
 /*
 |---------------------------------------------------------------------------
 | AUTH ROUTES
-|---------------------------------------------------------------------------
+|--------------------------------------------------------------------------- 
 */
 require __DIR__ . '/auth.php';
