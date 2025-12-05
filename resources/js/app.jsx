@@ -1,27 +1,38 @@
-import './bootstrap'; // Mengimpor pengaturan awal bootstrap.js
-import '../css/app.css'; // Mengimpor styling aplikasi
-import { createRoot } from 'react-dom/client'; // Membuat root React untuk aplikasi
-import { createInertiaApp } from '@inertiajs/react'; // Inertia.js untuk membangun aplikasi SPA
+import "./bootstrap";
+import "../css/app.css";
+import { createRoot } from "react-dom/client";
+import { createInertiaApp } from "@inertiajs/react";
+import { resolvePageComponent } from "laravel-vite-plugin/inertia-helpers"; // Helper untuk resolusi halaman
+
+// Import Layouts utama secara eksplisit
+import AdminLayout from "@/Layouts/AdminLayout";
+import VendorLayout from "@/Layouts/VendorLayout";
 
 // Fungsi untuk membuat title dinamis
 const getTitle = (title) => {
-  const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
-  return title ? `${title} - ${appName}` : appName;
-};
-
-// Resolusi halaman dinamis berdasarkan pola './Pages/${name}.jsx'
-const resolvePage = (name) => {
-  const pages = import.meta.glob('./Pages/**/*.jsx', { eager: true });
-  return pages[`./Pages/${name}.jsx`];
+    const appName = import.meta.env.VITE_APP_NAME || "WeddingExpo";
+    return title ? `${title} - ${appName}` : appName;
 };
 
 // Setup aplikasi Inertia.js
 createInertiaApp({
-  title: getTitle,
-  resolve: resolvePage,
-  setup({ el, App, props }) {
-    // Membuat root Inertia dan merender aplikasi
-    createRoot(el).render(<App {...props} />);
-  },
-  progress: { color: '#4B5563' },  // Setel warna progress bar
+    title: getTitle,
+
+    // Resolusi Halaman: Menggunakan helper Laravel-Vite
+    // Kita tidak perlu lagi mengatur Layouts di sini karena kita akan
+    // membungkus setiap halaman dengan Layout di dalam filenya masing-masing (misal: VendorDashboard.jsx)
+    resolve: (name) =>
+        resolvePageComponent(
+            `./Pages/${name}.jsx`,
+            import.meta.glob("./Pages/**/*.jsx")
+        ),
+
+    setup({ el, App, props }) {
+        createRoot(el).render(<App {...props} />);
+    },
+
+    progress: {
+        color: "#fb923c", // Warna Orange 400
+        showSpinner: true,
+    },
 });

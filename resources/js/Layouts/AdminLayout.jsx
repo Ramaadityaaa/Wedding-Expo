@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "@inertiajs/react";
+// >>> PERBAIKAN: Import navItems dari file terpisah <<<
+import { navItems } from "@/Pages/Admin/navItems";
 import {
     LayoutDashboard,
     DollarSign,
@@ -15,62 +17,14 @@ import {
     Search,
     Bell,
     Settings,
+    Package, // PENTING: Import ikon Package di sini juga
 } from "lucide-react";
 
 export default function AdminLayout({ user, header, children }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-    // === DEFINISI MENU SIDEBAR ===
-    const navItems = [
-        {
-            name: "Dashboard",
-            icon: LayoutDashboard,
-            label: "Dashboard",
-            route: "admin.dashboard",
-        },
-        {
-            name: "KonfirmasiPembayaran",
-            icon: DollarSign,
-            label: "Konfirmasi Bayar",
-            route: "admin.paymentproof.index",
-        },
-        {
-            name: "Vendor",
-            icon: Users,
-            label: "Vendor",
-            route: "admin.vendors.index",
-        },
-        {
-            name: "Users",
-            icon: Users,
-            label: "Pengguna",
-            route: "admin.user-stats.index",
-        },
-        {
-            name: "Reviews",
-            icon: MessageSquare,
-            label: "Ulasan",
-            route: "admin.reviews.index",
-        },
-        {
-            name: "StaticContent",
-            icon: FileText,
-            label: "Konten Statis",
-            route: "admin.static-content.index",
-        },
-        {
-            name: "EditRole",
-            icon: FileBadge,
-            label: "Edit Role",
-            route: "admin.roles.index",
-        },
-        {
-            name: "PaymentSettings",
-            icon: CreditCard,
-            label: "Pengaturan Bayar",
-            route: "admin.payment-settings.index",
-        },
-    ];
+    // KODE YANG MENDUPLIKAT DEFINISI navItems TELAH DIHAPUS.
+    // Sekarang layout menggunakan 'navItems' yang di-import dari atas.
 
     const isRouteActive = (routeName) => {
         if (!routeName) return false;
@@ -120,8 +74,13 @@ export default function AdminLayout({ user, header, children }) {
                         Main Menu
                     </p>
 
+                    {/* >>> PERBAIKAN: Menggunakan navItems yang di-import <<< */}
                     {navItems.map((item) => {
+                        // Jika item.icon tidak ada, gunakan ikon default atau lompat
+                        if (!item.icon) return null;
+
                         const isActive = isRouteActive(item.route);
+                        const Icon = item.icon; // Ikon adalah komponen React
 
                         return (
                             <Link
@@ -150,7 +109,7 @@ export default function AdminLayout({ user, header, children }) {
                                             : "group-hover:scale-110 group-hover:text-orange-400"
                                     }`}
                                 >
-                                    <item.icon
+                                    <Icon
                                         size={20}
                                         strokeWidth={isActive ? 2.5 : 2}
                                     />

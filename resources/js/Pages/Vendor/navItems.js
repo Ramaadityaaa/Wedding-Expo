@@ -1,4 +1,14 @@
-import { LayoutDashboard, DollarSign, Users, MessageSquare, FileText, FileBadge, CreditCard } from "lucide-react";
+import {
+    LayoutDashboard,
+    Package,
+    Image,
+    MessageSquare,
+    CreditCard,
+    FileText,
+    DollarSign,
+    UserCog,
+    FileBadge, // Tambahkan ini jika belum ada
+} from "lucide-react";
 
 export const vendorNavItems = [
     {
@@ -8,39 +18,40 @@ export const vendorNavItems = [
         route: "vendor.dashboard",
     },
     {
-        name: "Konfirmasi Pembayaran",
-        icon: DollarSign,
-        label: "Konfirmasi Bayar",
-        route: "vendor.paymentproof.index",
+        name: "Profile",
+        icon: UserCog,
+        label: "Profil & Info",
+        route: null, // Menggunakan rute bawaan Laravel
     },
     {
-        name: "Vendor",
-        icon: Users,
-        label: "Vendor",
-        route: "vendor.vendors.index",
+        name: "Packages",
+        icon: Package,
+        label: "Paket Harga",
+        route: null,
+    },
+    {
+        name: "Portfolio",
+        icon: Image,
+        label: "Portofolio",
+        route: null,
     },
     {
         name: "Reviews",
         icon: MessageSquare,
         label: "Ulasan",
-        route: "vendor.reviews.index",
+        route: null,
     },
     {
-        name: "Payment Settings",
+        name: "PaymentProof",
+        icon: DollarSign,
+        label: "Status Pembayaran",
+        route: null,
+    },
+    {
+        name: "Membership",
         icon: CreditCard,
-        label: "Pengaturan Bayar",
-        route: "vendor.payment-settings.index",
-    },
-    {
-        name: "Static Content",
-        icon: FileText,
-        label: "Konten Statis",
-        route: "vendor.static-content.index",
-    },
-    {
-        name: "Role Editor",
-        icon: FileBadge,
-        label: "Editor Peran",
-        route: "vendor.roles.index",
+        label: "Atur Membership",
+        // >>> PERBAIKAN UTAMA DI SINI <<<
+        route: "vendor.membership.index", // Menggunakan nama rute yang BENAR
     },
 ];
