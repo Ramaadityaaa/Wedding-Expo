@@ -22,12 +22,32 @@ use App\Http\Controllers\Admin\StaticContentController;
 use App\Http\Controllers\Vendor\DashboardController as VendorDashboard;
 
 /*
-|---------------------------------------------------------------------------
+|--------------------------------------------------------------------------- 
 | PUBLIC CUSTOMER & GUEST ROUTES
-|---------------------------------------------------------------------------
+|--------------------------------------------------------------------------- 
 */
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
+
+// Rute Halaman Favorit (Memuat komponen Inertia FavoritePage)
+Route::get('/favorites', function () {
+    return Inertia::render('Customer/FavoritePage'); 
+})->name('favorites');
+
+// Rute Halaman Vendor Detail untuk Customer
+// Rute Halaman Vendor Detail untuk Customer
+Route::get('/vendors/{vendor}', function ($vendorId) {
+    // Mengambil data vendor berdasarkan ID
+    $vendor = App\Models\Vendor::findOrFail($vendorId);
+
+    // Kirim data vendor ke komponen VendorDetails di React (Inertia)
+    return Inertia::render('Customer/VendorDetails', [
+        'vendor' => $vendor, // Data vendor yang akan ditampilkan
+    ]);
+})->name('vendors.details');
+
+
+// Rute pendaftaran vendor
 Route::get('/register/vendor', [HomeController::class, 'vendorRegister'])->name('vendor.register');
 Route::post('/register/vendor', [HomeController::class, 'vendorStore'])->name('vendor.store');
 
@@ -37,11 +57,10 @@ Route::prefix('api')->group(function () {
     Route::get('/vendors/{vendor}', [VendorController::class, 'show'])->name('api.vendors.show');
 });
 
-
 /*
-|---------------------------------------------------------------------------
+|--------------------------------------------------------------------------- 
 | VENDOR ROUTES
-|---------------------------------------------------------------------------
+|--------------------------------------------------------------------------- 
 */
 Route::prefix('vendor')
     ->name('vendor.')
@@ -52,19 +71,15 @@ Route::prefix('vendor')
         Route::get('/dashboard', [VendorDashboard::class, 'index'])->name('dashboard');
 
         // 2. Catch-all untuk Path-based Routing React (Menangani /vendor/dashboard/portfolio, /vendor/dashboard/packages, dll.)
-        // Rute ini harus diletakkan setelah rute dashboard utama.
         Route::get('/dashboard/{tab}', [VendorDashboard::class, 'index'])
              ->where('tab', '.*') // Wajib agar menangkap semua segmen (e.g., portfolio, packages)
              ->name('dashboard.tab');
-
-        // Tambahkan rute vendor lainnya di sini
     });
 
-
 /*
-|---------------------------------------------------------------------------
+|--------------------------------------------------------------------------- 
 | DASHBOARD DEFAULT (AFTER LOGIN)
-|---------------------------------------------------------------------------
+|--------------------------------------------------------------------------- 
 */
 Route::get('/dashboard', function () {
     $user = auth()->user();
@@ -90,9 +105,9 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 /*
-|---------------------------------------------------------------------------
+|--------------------------------------------------------------------------- 
 | ADMIN ROUTES (PREFIX: /admin)
-|---------------------------------------------------------------------------
+|--------------------------------------------------------------------------- 
 */
 Route::prefix('admin')
     ->name('admin.')
@@ -137,9 +152,9 @@ Route::prefix('admin')
     });
 
 /*
-|---------------------------------------------------------------------------
+|--------------------------------------------------------------------------- 
 | ADMIN API ROUTES (LEGACY / AJAX SUPPORT)
-|---------------------------------------------------------------------------
+|--------------------------------------------------------------------------- 
 */
 Route::prefix('api/admin')
     ->name('admin.api.')
@@ -149,8 +164,8 @@ Route::prefix('api/admin')
     });
 
 /*
-|---------------------------------------------------------------------------
+|--------------------------------------------------------------------------- 
 | AUTH ROUTES
-|---------------------------------------------------------------------------
+|--------------------------------------------------------------------------- 
 */
 require __DIR__ . '/auth.php';
