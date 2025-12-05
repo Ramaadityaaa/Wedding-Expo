@@ -6,6 +6,7 @@ import {
     FileText,
     FileBadge,
     CreditCard,
+    Package, // Import ikon Package untuk manajemen paket
 } from "lucide-react";
 
 export const navItems = [
@@ -37,24 +38,30 @@ export const navItems = [
         name: "Reviews",
         icon: MessageSquare,
         label: "Ulasan",
-        route: "admin.reviews.index", // Rute baru untuk moderasi ulasan
+        route: "admin.reviews.index",
+    },
+    {
+        name: "PackagePlans", // Nama baru untuk manajemen paket
+        icon: Package, // Menggunakan ikon paket
+        label: "Kelola Paket",
+        route: "admin.package-plans.index", // Rute baru yang sudah kita buat
     },
     {
         name: "StaticContent",
         icon: FileText,
         label: "Konten Statis",
-        route: "admin.static-content.index", // Set null jika controller belum dibuat, atau ganti 'admin.static-content.index'
+        route: "admin.static-content.index",
     },
     {
-        name: "PaymentSettings", // Ganti nama agar unik dari 'KonfirmasiPembayaran'
+        name: "EditRole",
+        icon: FileBadge,
+        label: "Edit Role",
+        route: "admin.roles.index",
+    },
+    {
+        name: "PaymentSettings",
         icon: CreditCard,
         label: "Pengaturan Bayar",
-        route: "admin.payment-settings.index", // Rute baru yang akan kita buat
-    },
-    {
-        name: "RoleEditor",
-        icon: FileBadge,
-        label: "Editor Peran",
-        route: "admin.roles.index", // Rute baru untuk editor peran
+        route: "admin.payment-settings.index",
     },
 ];

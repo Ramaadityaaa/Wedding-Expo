@@ -6,54 +6,50 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
     /**
-     * Menampilkan dashboard untuk vendor.
+     * Menampilkan dashboard Vendor atau halaman verifikasi (LoadingPage).
      */
     public function index(): Response
     {
-        // =========================================================
-        // PENTING: Simulasi Mendapatkan Nilai Global dari Environment
-        // (Di lingkungan Canvas, nilai ini sudah disediakan secara otomatis)
-        // Jika Anda menggunakan Laravel murni, Anda harus mengambilnya
-        // dari config atau service Anda.
-        // =========================================================
-        
-        // 1. Dapatkan Firebase Config (misal dari env atau config/services.php)
-        // Biasanya ini adalah string JSON dari konfigurasi Firebase Anda.
-        // const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        $firebaseConfig = [
-            'apiKey'            => env('FIREBASE_API_KEY', 'default_key'),
-            'authDomain'        => env('FIREBASE_AUTH_DOMAIN', 'default-domain.firebaseapp.com'),
-            'projectId'         => env('FIREBASE_PROJECT_ID', 'default-project'),
-            'storageBucket'     => env('FIREBASE_STORAGE_BUCKET'),
-            'messagingSenderId' => env('FIREBASE_MESSAGING_SENDER_ID'),
-            'appId'             => env('FIREBASE_APP_ID'),
-        ];
-        
-        // 2. Dapatkan Custom Auth Token (Jika Anda menggunakan Custom Auth di Laravel)
-        // Jika Anda menggunakan autentikasi default Inertia/Laravel, Anda 
-        // mungkin perlu menukarkan token tersebut atau bisa dikosongkan 
-        // (dan React akan menggunakan signInAnonymously).
-        // const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        $customFirebaseToken = null; 
-        
-        // Asumsikan kita punya App ID yang sama yang digunakan di frontend
-        $appId = env('CANVAS_APP_ID', 'default-app-id');
-        
-        // =========================================================
+        $user = Auth::user();
 
+        // Asumsi relasi vendor (WeddingOrganizer) ada di model User
+        $vendor = $user->weddingOrganizer;
+
+        // 1. Cek Data Profil (Seharusnya selalu ada setelah register fix)
+        if (!$vendor) {
+            return Inertia::render('Vendor/Payment/LoadingPage', [
+                'status' => 'error',
+                'message' => 'Profil Vendor Anda tidak ditemukan. Silakan hubungi admin.'
+            ]);
+        }
+
+        // 2. Cek Status Verifikasi (isApproved: PENDING/APPROVED/REJECTED)
+
+        // Status PENDING: Arahkan ke halaman tunggu/loading
+        if ($vendor->isApproved === 'PENDING') {
+            return Inertia::render('Vendor/Payment/LoadingPage', [
+                'status' => 'pending',
+                'message' => 'Akun Anda sedang dalam proses verifikasi oleh Administrator. Mohon tunggu.'
+            ]);
+        }
+
+        // Status REJECTED: Arahkan ke halaman ditolak
+        if ($vendor->isApproved === 'REJECTED') {
+            return Inertia::render('Vendor/Payment/LoadingPage', [
+                'status' => 'rejected',
+                'message' => 'Pendaftaran Anda ditolak. Silakan hubungi admin untuk detail lebih lanjut.'
+            ]);
+        }
+
+        // Status APPROVED: Tampilkan Dashboard utama
         return Inertia::render('Vendor/Dashboard', [
-            // Kirim data yang dibutuhkan frontend untuk inisialisasi Firebase
-            'firebaseConfig' => json_encode($firebaseConfig),
-            'initialAuthToken' => $customFirebaseToken,
-            'appId' => $appId,
-            
-            // Pertahankan props lama (misalnya untuk data non-realtime)
-            'products' => [], 
-            'orders' => []
+            'vendor' => $vendor, // Kirim data vendor untuk Layout
+            'message' => 'Selamat datang kembali di Dashboard Vendor!'
         ]);
     }
 }

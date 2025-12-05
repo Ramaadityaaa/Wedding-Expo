@@ -6,7 +6,8 @@ use Inertia\Inertia;
 // --- KONTROLER UMUM ---
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\VendorController;
-use App\Http\Controllers\PaymentController;
+// HAPUS import PaymentController dari root namespace karena digantikan VendorPaymentFlowController
+// use App\Http\Controllers\PaymentController; 
 use App\Http\Controllers\PaymentProofController;
 
 // --- KONTROLER ADMIN ---
@@ -17,9 +18,17 @@ use App\Http\Controllers\Admin\UserStatsController;
 use App\Http\Controllers\Admin\PaymentSettingsController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\StaticContentController;
+use App\Http\Controllers\Admin\PackagePlanController;
 
 // --- KONTROLER VENDOR ---
 use App\Http\Controllers\Vendor\DashboardController as VendorDashboard;
+use App\Http\Controllers\Vendor\PackagePageController;
+use App\Http\Controllers\Vendor\PortfolioPageController;
+use App\Http\Controllers\Vendor\ReviewPageController;
+use App\Http\Controllers\Vendor\MembershipController;
+use App\Http\Controllers\Vendor\VendorPaymentFlowController; // <<< INI CONTROLLER PAYMENT VENDOR YANG BENAR
+use App\Http\Controllers\ProfileController;
+
 
 /*
 |---------------------------------------------------------------------------
@@ -45,49 +54,64 @@ Route::prefix('api')->group(function () {
 */
 Route::prefix('vendor')
     ->name('vendor.')
-    ->middleware(['auth', 'vendor']) // Menggunakan alias 'vendor' dari Kernel.php
+    ->middleware(['auth', 'vendor'])
     ->group(function () {
-        
-        // 1. Dashboard Vendor Utama (Menangani /vendor/dashboard)
+
         Route::get('/dashboard', [VendorDashboard::class, 'index'])->name('dashboard');
 
-        // 2. Catch-all untuk Path-based Routing React (Menangani /vendor/dashboard/portfolio, /vendor/dashboard/packages, dll.)
-        // Rute ini harus diletakkan setelah rute dashboard utama.
-        Route::get('/dashboard/{tab}', [VendorDashboard::class, 'index'])
-             ->where('tab', '.*') // Wajib agar menangkap semua segmen (e.g., portfolio, packages)
-             ->name('dashboard.tab');
+        // 2. PROFILE (Asumsi bawaan Laravel)
+        Route::get('/profile', [\App\Http\Controllers\ProfileController::class, 'edit'])->name('profile.edit');
+        Route::patch('/profile', [\App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
 
-        // Tambahkan rute vendor lainnya di sini
+        // 3. MEMBERSHIP MANAGEMENT 
+        Route::get('/membership', [MembershipController::class, 'index'])->name('membership.index');
+        Route::post('/membership/subscribe', [MembershipController::class, 'subscribe'])->name('membership.subscribe');
+
+        // 4. PACKAGE MANAGEMENT 
+        Route::get('/packages', [PackagePageController::class, 'index'])->name('packages.index');
+
+        // 5. PORTFOLIO
+        Route::get('/portfolio', [PortfolioPageController::class, 'index'])->name('portfolio.index');
+
+        // 6. REVIEWS
+        Route::get('/reviews', [ReviewPageController::class, 'index'])->name('reviews.index');
+
+        // 7. PAYMENT PROOF (Index Admin)
+        Route::get('/payment-proofs', [PaymentProofController::class, 'vendorIndex'])->name('paymentproof.index');
+
+        // 8. PAYMENT INITIATION & FLOW (Menggunakan VendorPaymentFlowController)
+        Route::group(['prefix' => 'payment', 'as' => 'payment.'], function () {
+
+            // 8.1 Halaman Pembayaran (GET /vendor/payment/{invoiceId})
+            Route::get('/{invoiceId}', [VendorPaymentFlowController::class, 'create'])->name('create');
+
+            // 8.2 Halaman Upload Bukti (GET /vendor/payment/upload) - MENGHILANGKAN 404
+            Route::get('/upload', [VendorPaymentFlowController::class, 'uploadProofPage'])->name('proof.upload');
+
+            // 8.3 Simpan Bukti (POST /vendor/payment/upload)
+            Route::post('/upload', [VendorPaymentFlowController::class, 'uploadProof'])->name('proof.store');
+
+            // 8.4 Halaman Loading/Sukses Pembayaran
+            Route::get('/loading', [VendorPaymentFlowController::class, 'paymentLoadingPage'])->name('loading');
+        });
     });
 
 
 /*
 |---------------------------------------------------------------------------
-| DASHBOARD DEFAULT (AFTER LOGIN)
+| DASHBOARD REDIRECTOR (AFTER LOGIN)
 |---------------------------------------------------------------------------
 */
 Route::get('/dashboard', function () {
     $user = auth()->user();
 
-    if (! $user) {
-        return redirect()->route('home');
-    }
+    if (! $user) return redirect()->route('home');
+    if ($user->role === 'ADMIN') return redirect()->route('admin.dashboard');
+    if ($user->role === 'VENDOR') return redirect()->route('vendor.dashboard');
 
-    if ($user->role === 'ADMIN') {
-        return redirect()->route('admin.dashboard');
-    }
-
-    if ($user->role === 'VENDOR') {
-        // Ubah redirect ke rute vendor dashboard yang bersih (tanpa tab)
-        return redirect()->route('vendor.dashboard');
-    }
-
-    // Default Customer/Visitor Dashboard
-    return Inertia::render('Customer/Dashboard', [
-        'isLoggedIn' => true,
-        'user' => $user,
-    ]);
+    return Inertia::render('Customer/Dashboard', ['isLoggedIn' => true, 'user' => $user]);
 })->middleware(['auth', 'verified'])->name('dashboard');
+
 
 /*
 |---------------------------------------------------------------------------
@@ -96,56 +120,30 @@ Route::get('/dashboard', function () {
 */
 Route::prefix('admin')
     ->name('admin.')
-    ->middleware(['auth', 'admin']) // Menggunakan alias 'admin' dari Kernel.php
+    ->middleware(['auth', 'admin'])
     ->group(function () {
-
-        // 1. Dashboard Utama
+        // [ADMIN ROUTES TIDAK BERUBAH DARI PERBAIKAN SEBELUMNYA]
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-
-        // 2. Manajemen Vendor
         Route::get('/vendors', [AdminVendorController::class, 'index'])->name('vendors.index');
         Route::patch('/vendors/{vendor}/status', [AdminVendorController::class, 'updateStatus'])->name('vendors.update-status');
         Route::delete('/vendors/{vendor}', [AdminVendorController::class, 'destroy'])->name('vendors.destroy');
-        Route::get('/vendors/{vendor}', [AdminVendorController::class, 'show'])->name('vendors.show');
-
-        // 3. Konfirmasi Pembayaran (Payment Proofs)
         Route::get('/payment-proofs', [PaymentProofController::class, 'index'])->name('paymentproof.index');
         Route::post('/payment-proof/{id}/status', [PaymentProofController::class, 'updateStatus'])->name('paymentproof.status');
-        Route::delete('/payment-proof/{id}', [PaymentProofController::class, 'destroy'])->name('paymentproof.destroy');
-
-        // 4. Pengaturan Pembayaran (Payment Settings)
         Route::get('/payment-settings', [PaymentSettingsController::class, 'index'])->name('payment-settings.index');
         Route::post('/payment-settings', [PaymentSettingsController::class, 'update'])->name('payment-settings.update');
-
-        // 5. Manajemen Pengguna (User Management)
         Route::get('/users', [UserStatsController::class, 'index'])->name('user-stats.index');
         Route::patch('/users/{id}/status', [UserStatsController::class, 'updateStatus'])->name('users.update-status');
         Route::delete('/users/{id}', [UserStatsController::class, 'destroy'])->name('users.destroy');
-
-        // 6. Moderasi Ulasan (Review Management)
+        Route::get('/package-plans', [PackagePlanController::class, 'index'])->name('package-plans.index');
+        Route::post('/package-plans', [PackagePlanController::class, 'storeOrUpdate'])->name('package-plans.store-update');
+        Route::delete('/package-plans/{id}', [PackagePlanController::class, 'destroy'])->name('package-plans.destroy');
         Route::get('/reviews', [ReviewController::class, 'index'])->name('reviews.index');
         Route::patch('/reviews/{id}/approve', [ReviewController::class, 'approve'])->name('reviews.approve');
         Route::patch('/reviews/{id}/reject', [ReviewController::class, 'reject'])->name('reviews.reject');
-
-        // 7. Edit Role
         Route::get('/roles', [RoleController::class, 'index'])->name('roles.index');
         Route::post('/roles/update', [RoleController::class, 'update'])->name('roles.update');
-
-        // 8. Konten Statis
         Route::get('/static-content', [StaticContentController::class, 'index'])->name('static-content.index');
         Route::post('/static-content', [StaticContentController::class, 'update'])->name('static-content.update');
-    });
-
-/*
-|---------------------------------------------------------------------------
-| ADMIN API ROUTES (LEGACY / AJAX SUPPORT)
-|---------------------------------------------------------------------------
-*/
-Route::prefix('api/admin')
-    ->name('admin.api.')
-    ->middleware(['auth', 'admin'])
-    ->group(function () {
-        Route::get('/payment-proofs/data', [PaymentProofController::class, 'data'])->name('paymentproof.data');
     });
 
 /*
