@@ -6,8 +6,6 @@ use Inertia\Inertia;
 // --- KONTROLER UMUM ---
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\VendorController;
-// HAPUS import PaymentController dari root namespace karena digantikan VendorPaymentFlowController
-// use App\Http\Controllers\PaymentController; 
 use App\Http\Controllers\PaymentProofController;
 
 // --- KONTROLER ADMIN ---
@@ -26,9 +24,9 @@ use App\Http\Controllers\Vendor\PackagePageController;
 use App\Http\Controllers\Vendor\PortfolioPageController;
 use App\Http\Controllers\Vendor\ReviewPageController;
 use App\Http\Controllers\Vendor\MembershipController;
-use App\Http\Controllers\Vendor\VendorPaymentFlowController; // <<< INI CONTROLLER PAYMENT VENDOR YANG BENAR
-use App\Http\Controllers\ProfileController;
-
+use App\Http\Controllers\Vendor\VendorPaymentFlowController;
+use App\Http\Controllers\ProfileController; // Diimpor sekali di sini
+use App\Http\Controllers\Auth\PasswordController; // Diperlukan untuk password.update
 
 /*
 |--------------------------------------------------------------------------- 
@@ -43,7 +41,6 @@ Route::get('/favorites', function () {
     return Inertia::render('Customer/FavoritePage');
 })->name('favorites');
 
-// Rute Halaman Vendor Detail untuk Customer
 // Rute Halaman Vendor Detail untuk Customer
 Route::get('/vendors/{vendor}', function ($vendorId) {
     // Mengambil data vendor berdasarkan ID
@@ -66,6 +63,31 @@ Route::prefix('api')->group(function () {
     Route::get('/vendors/{vendor}', [VendorController::class, 'show'])->name('api.vendors.show');
 });
 
+
+/*
+|--------------------------------------------------------------------------- 
+| CUSTOMER/GENERAL AUTHENTICATED ROUTES
+|--------------------------------------------------------------------------- 
+| Rute profil standar yang digunakan oleh Customer atau pengguna non-vendor.
+| Diperlukan oleh komponen UpdateProfileInformationForm.jsx
+*/
+Route::middleware('auth')->group(function () {
+    // Rute untuk menampilkan halaman edit profil customer/umum
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    // Rute untuk memproses pembaruan nama/email customer/umum
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    // Rute untuk memproses pembaruan kata sandi customer/umum
+    Route::put('/password', [PasswordController::class, 'update'])->name('password.update');
+    // Rute untuk menghapus akun (jika diperlukan)
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    
+    // Rute Verifikasi Email (Digunakan oleh UpdateProfileInformationForm)
+    Route::post('email/verification-notification', [App\Http\Controllers\Auth\EmailVerificationNotificationController::class, 'store'])
+        ->middleware('throttle:6,1')
+        ->name('verification.send');
+});
+
+
 /*
 |--------------------------------------------------------------------------- 
 | VENDOR ROUTES
@@ -78,9 +100,11 @@ Route::prefix('vendor')
 
         Route::get('/dashboard', [VendorDashboard::class, 'index'])->name('dashboard');
 
-        // 2. PROFILE (Asumsi bawaan Laravel)
-        Route::get('/profile', [\App\Http\Controllers\ProfileController::class, 'edit'])->name('profile.edit');
-        Route::patch('/profile', [\App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
+        // 2. PROFILE VENDOR
+        // Menambahkan rute edit yang hilang
+        Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+        Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+        // Vendor juga bisa ganti password, menggunakan rute umum 'password.update' atau vendor spesifik jika ada
 
         // 3. MEMBERSHIP MANAGEMENT 
         Route::get('/membership', [MembershipController::class, 'index'])->name('membership.index');
@@ -95,7 +119,7 @@ Route::prefix('vendor')
         // 6. REVIEWS
         Route::get('/reviews', [ReviewPageController::class, 'index'])->name('reviews.index');
 
-        // 7. PAYMENT PROOF (Index Admin)
+        // 7. PAYMENT PROOF (Index Vendor)
         Route::get('/payment-proofs', [PaymentProofController::class, 'vendorIndex'])->name('paymentproof.index');
 
         // 8. PAYMENT INITIATION & FLOW (Menggunakan VendorPaymentFlowController)
@@ -104,7 +128,7 @@ Route::prefix('vendor')
             // 8.1 Halaman Pembayaran (GET /vendor/payment/{invoiceId})
             Route::get('/{invoiceId}', [VendorPaymentFlowController::class, 'create'])->name('create');
 
-            // 8.2 Halaman Upload Bukti (GET /vendor/payment/upload) - MENGHILANGKAN 404
+            // 8.2 Halaman Upload Bukti (GET /vendor/payment/upload)
             Route::get('/upload', [VendorPaymentFlowController::class, 'uploadProofPage'])->name('proof.upload');
 
             // 8.3 Simpan Bukti (POST /vendor/payment/upload)
@@ -168,5 +192,6 @@ Route::prefix('admin')
 |---------------------------------------------------------------------------
 | AUTH ROUTES
 |--------------------------------------------------------------------------- 
+| Biasanya berisi rute login, register, reset password.
 */
 require __DIR__ . '/auth.php';
