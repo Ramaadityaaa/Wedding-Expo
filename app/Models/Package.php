@@ -10,22 +10,21 @@ class Package extends Model
     use HasFactory;
 
     protected $fillable = [
-        'vendor_id',
+        'vendor_id', // Pastikan ini vendor_id
         'name',
         'price',
         'description',
-        'features',
+        'features', // Jika pakai JSON cast
     ];
 
-    // Casting JSON ke Array otomatis
     protected $casts = [
         'features' => 'array',
-        'price' => 'decimal:2',
     ];
 
-    // Relasi ke Vendor
+    // Relasi balik ke WeddingOrganizer (Vendor)
     public function vendor()
     {
-        return $this->belongsTo(Vendor::class);
+        // Parameter 2: Foreign Key di tabel packages
+        return $this->belongsTo(WeddingOrganizer::class, 'vendor_id');
     }
 }

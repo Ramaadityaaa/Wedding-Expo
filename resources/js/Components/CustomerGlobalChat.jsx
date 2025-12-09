@@ -1,6 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
-import { MessageCircle, X, Send, ChevronLeft, Loader2 } from "lucide-react";
+import {
+    MessageCircle,
+    X,
+    Send,
+    ChevronLeft,
+    Loader2,
+    Headset,
+} from "lucide-react";
 
 export default function CustomerGlobalChat({ user, initialChatUser = null }) {
     const [isOpen, setIsOpen] = useState(false);
@@ -13,7 +20,7 @@ export default function CustomerGlobalChat({ user, initialChatUser = null }) {
     const [loading, setLoading] = useState(false);
     const scrollRef = useRef(null);
 
-    // --- HELPER FUNCTIONS (Definisikan dulu sebelum dipakai di useEffect) ---
+    // --- HELPER FUNCTIONS (Definisikan di atas useEffect) ---
 
     const scrollToBottom = () => {
         setTimeout(() => {
@@ -22,18 +29,19 @@ export default function CustomerGlobalChat({ user, initialChatUser = null }) {
         }, 100);
     };
 
+    // 1. Ambil Daftar Percakapan (Inbox)
     const fetchConversations = () => {
         axios.get(route("chat.conversations")).then((res) => {
             setConversations(res.data);
         });
     };
 
+    // 2. Buka Room Chat Spesifik
     const openChat = (chatUser) => {
         setActiveChat(chatUser);
         setView("room");
         setLoading(true);
-        // Pastikan widget terbuka (penting jika dipanggil dari luar)
-        setIsOpen(true);
+        setIsOpen(true); // Pastikan widget terbuka
 
         axios.get(route("chat.get", chatUser.id)).then((res) => {
             setMessages(res.data);
@@ -42,12 +50,14 @@ export default function CustomerGlobalChat({ user, initialChatUser = null }) {
         });
     };
 
+    // 3. Kembali ke List
     const backToList = () => {
         setView("list");
         setActiveChat(null);
-        fetchConversations();
+        fetchConversations(); // Refresh untuk update unread count
     };
 
+    // 4. Kirim Pesan
     const handleSend = (e) => {
         e.preventDefault();
         if (!newMessage.trim() || !activeChat) return;
@@ -59,6 +69,7 @@ export default function CustomerGlobalChat({ user, initialChatUser = null }) {
             created_at: new Date().toISOString(),
         };
 
+        // Optimistic UI Update
         setMessages([...messages, tempMsg]);
         setNewMessage("");
         scrollToBottom();
@@ -69,20 +80,46 @@ export default function CustomerGlobalChat({ user, initialChatUser = null }) {
                 message: tempMsg.message,
             })
             .then(() => {
-                fetchConversations();
+                fetchConversations(); // Update snippet pesan terakhir di list
             });
     };
 
-    // --- USE EFFECTS (Ditaruh di bawah agar bisa baca fungsi di atas) ---
+    // 5. Hubungi Admin Support
+    const contactAdmin = () => {
+        setLoading(true);
+        axios
+            .get(route("admin.contact"))
+            .then((res) => {
+                if (res.data.id) {
+                    if (res.data.id === user.id) {
+                        alert(
+                            "Anda adalah Admin, tidak bisa chat diri sendiri."
+                        );
+                        setLoading(false);
+                        return;
+                    }
+                    openChat(res.data);
+                } else {
+                    alert("Admin support sedang tidak tersedia.");
+                    setLoading(false);
+                }
+            })
+            .catch(() => {
+                setLoading(false);
+                alert("Gagal menghubungi server.");
+            });
+    };
 
-    // 1. Auto-open jika ada props initialChatUser (Dari tombol "Chat Vendor")
+    // --- USE EFFECTS ---
+
+    // Effect A: Auto-open dari props (Trigger eksternal)
     useEffect(() => {
         if (initialChatUser) {
             openChat(initialChatUser);
         }
     }, [initialChatUser]);
 
-    // 2. Load Conversation & Listen Realtime
+    // Effect B: Real-time Listener & Initial Load
     useEffect(() => {
         if (isOpen) {
             fetchConversations();
@@ -92,7 +129,9 @@ export default function CustomerGlobalChat({ user, initialChatUser = null }) {
             const channel = window.Echo.private(`chat.${user.id}`).listen(
                 "MessageSent",
                 (e) => {
-                    fetchConversations();
+                    fetchConversations(); // Selalu refresh list jika ada pesan masuk
+
+                    // Jika sedang chat dengan pengirim pesan tersebut, masukkan ke room
                     if (activeChat && e.message.sender_id === activeChat.id) {
                         setMessages((prev) => [...prev, e.message]);
                         scrollToBottom();
@@ -103,7 +142,7 @@ export default function CustomerGlobalChat({ user, initialChatUser = null }) {
         }
     }, [isOpen, activeChat, user]);
 
-    if (!user) return null;
+    if (!user) return null; // Jangan render jika user belum login
 
     return (
         <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end font-sans">
@@ -116,23 +155,37 @@ export default function CustomerGlobalChat({ user, initialChatUser = null }) {
                             {view === "room" && (
                                 <button
                                     onClick={backToList}
-                                    className="mr-1 hover:bg-white/20 p-1 rounded-full"
+                                    className="mr-1 hover:bg-white/20 p-1 rounded-full transition"
                                 >
                                     <ChevronLeft size={20} />
                                 </button>
                             )}
-                            <h4 className="font-bold text-md">
+                            <h4 className="font-bold text-md truncate max-w-[180px]">
                                 {view === "list"
                                     ? "Pesan Saya"
                                     : activeChat?.name}
                             </h4>
                         </div>
-                        <button
-                            onClick={() => setIsOpen(false)}
-                            className="hover:bg-white/20 p-1 rounded-full"
-                        >
-                            <X size={20} />
-                        </button>
+
+                        <div className="flex items-center gap-1">
+                            {/* Tombol Support (Hanya di List View) */}
+                            {view === "list" && (
+                                <button
+                                    onClick={contactAdmin}
+                                    className="bg-white/20 hover:bg-white/30 text-white px-2 py-1 rounded text-xs flex items-center gap-1 transition mr-2"
+                                    title="Hubungi Admin Support"
+                                >
+                                    <Headset size={14} /> Support
+                                </button>
+                            )}
+
+                            <button
+                                onClick={() => setIsOpen(false)}
+                                className="hover:bg-white/20 p-1 rounded-full transition"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
                     </div>
 
                     {/* CONTENT: LIST VIEW */}
@@ -141,30 +194,35 @@ export default function CustomerGlobalChat({ user, initialChatUser = null }) {
                             {conversations.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center h-full text-gray-400 text-sm p-6 text-center">
                                     <MessageCircle className="w-12 h-12 mb-2 opacity-20" />
-                                    Belum ada percakapan.
-                                    <br />
-                                    Chat vendor dari halaman detail!
+                                    <p>Belum ada percakapan.</p>
+                                    <p className="text-xs mt-2">
+                                        Chat vendor dari halaman detail atau
+                                        hubungi support.
+                                    </p>
                                 </div>
                             ) : (
                                 conversations.map((chat) => (
                                     <div
                                         key={chat.id}
                                         onClick={() => openChat(chat)}
-                                        className="flex items-center gap-3 p-4 border-b border-gray-100 bg-white hover:bg-amber-50 cursor-pointer transition"
+                                        className="flex items-center gap-3 p-4 border-b border-gray-100 bg-white hover:bg-amber-50 cursor-pointer transition relative"
                                     >
                                         <div className="relative">
-                                            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 font-bold">
-                                                {chat.avatar ? (
+                                            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 font-bold overflow-hidden border border-amber-200">
+                                                {chat.avatar &&
+                                                chat.avatar.startsWith(
+                                                    "http"
+                                                ) ? (
                                                     <img
                                                         src={chat.avatar}
-                                                        className="w-full h-full rounded-full object-cover"
+                                                        className="w-full h-full object-cover"
                                                     />
                                                 ) : (
                                                     chat.name.charAt(0)
                                                 )}
                                             </div>
                                             {chat.unread_count > 0 && (
-                                                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">
+                                                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full border border-white">
                                                     {chat.unread_count}
                                                 </span>
                                             )}
@@ -185,7 +243,8 @@ export default function CustomerGlobalChat({ user, initialChatUser = null }) {
                                                         : "text-gray-500"
                                                 }`}
                                             >
-                                                {chat.last_message}
+                                                {chat.last_message ||
+                                                    "Lampiran/Gambar"}
                                             </p>
                                         </div>
                                     </div>
@@ -205,6 +264,10 @@ export default function CustomerGlobalChat({ user, initialChatUser = null }) {
                                     <div className="flex justify-center mt-10">
                                         <Loader2 className="animate-spin text-amber-500" />
                                     </div>
+                                ) : messages.length === 0 ? (
+                                    <div className="text-center text-gray-400 text-xs mt-4">
+                                        Mulai percakapan...
+                                    </div>
                                 ) : (
                                     messages.map((msg, idx) => {
                                         const isMe = msg.sender_id === user.id;
@@ -221,7 +284,7 @@ export default function CustomerGlobalChat({ user, initialChatUser = null }) {
                                                     className={`max-w-[80%] px-4 py-2 rounded-xl text-sm shadow-sm ${
                                                         isMe
                                                             ? "bg-amber-500 text-white rounded-br-none"
-                                                            : "bg-white text-gray-700 border border-gray-100 rounded-bl-none"
+                                                            : "bg-white text-gray-700 border border-gray-200 rounded-bl-none"
                                                     }`}
                                                 >
                                                     <p>{msg.message}</p>
@@ -261,12 +324,12 @@ export default function CustomerGlobalChat({ user, initialChatUser = null }) {
                                         setNewMessage(e.target.value)
                                     }
                                     placeholder="Tulis pesan..."
-                                    className="flex-1 bg-gray-100 border-none rounded-full px-4 text-sm focus:ring-1 focus:ring-amber-500"
+                                    className="flex-1 bg-gray-100 border-none rounded-full px-4 text-sm focus:ring-1 focus:ring-amber-500 focus:outline-none"
                                 />
                                 <button
                                     type="submit"
                                     disabled={!newMessage.trim()}
-                                    className="text-amber-500 hover:bg-amber-50 p-2 rounded-full transition"
+                                    className="text-amber-500 hover:bg-amber-50 p-2 rounded-full transition disabled:opacity-50"
                                 >
                                     <Send size={20} />
                                 </button>
@@ -277,7 +340,6 @@ export default function CustomerGlobalChat({ user, initialChatUser = null }) {
             )}
 
             {/* --- FLOATING TOGGLE BUTTON --- */}
-            {/* Tombol ini akan disembunyikan jika kita sedang di mode 'room' dan window terbuka (opsional, tapi saya biarkan visible) */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className="bg-amber-500 hover:bg-amber-600 text-white p-4 rounded-full shadow-lg hover:shadow-amber-500/30 transition-all duration-300 transform hover:scale-105 flex items-center justify-center relative"

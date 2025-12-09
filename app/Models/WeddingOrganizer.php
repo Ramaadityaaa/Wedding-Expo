@@ -80,17 +80,19 @@ class WeddingOrganizer extends Authenticatable
 
     public function packages(): HasMany
     {
-        return $this->hasMany(Package::class);
+        // Parameter 2: Foreign Key di tabel packages
+        // Parameter 3: Local Key di tabel wedding_organizers (id)
+        return $this->hasMany(Package::class, 'vendor_id');
     }
 
     public function portfolios(): HasMany
     {
-        return $this->hasMany(Portfolio::class);
+        return $this->hasMany(Portfolio::class, 'vendor_id');
     }
 
     public function reviews(): HasMany
     {
-        return $this->hasMany(Review::class);
+        return $this->hasMany(Review::class, 'vendor_id');
     }
 
     public function favorites(): HasMany

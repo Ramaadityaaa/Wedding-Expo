@@ -1,31 +1,25 @@
 import React, { useState } from "react";
-import { Link } from "@inertiajs/react";
-// >>> PERBAIKAN: Import navItems dari file terpisah <<<
-import { navItems } from "@/Pages/Admin/navItems";
+import { Link, usePage } from "@inertiajs/react";
+import { navItems } from "@/Pages/Admin/navItems"; // Import menu dari file terpisah
 import {
-    LayoutDashboard,
-    DollarSign,
-    Users,
-    MessageSquare,
-    FileText,
-    FileBadge,
-    CreditCard,
-    LogOut,
     Menu,
     X,
-    ChevronRight,
+    LogOut,
     Search,
     Bell,
-    Settings,
-    Package, // PENTING: Import ikon Package di sini juga
+    ChevronRight,
+    User,
+    Package, // Import ikon jika diperlukan manual, tapi biasanya via navItems
 } from "lucide-react";
 
-export default function AdminLayout({ user, header, children }) {
+export default function AdminLayout({ header, children }) {
+    // Ambil user dari props global Inertia
+    const { auth } = usePage().props;
+    const user = auth.user;
+
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-    // KODE YANG MENDUPLIKAT DEFINISI navItems TELAH DIHAPUS.
-    // Sekarang layout menggunakan 'navItems' yang di-import dari atas.
-
+    // Helper untuk cek route aktif
     const isRouteActive = (routeName) => {
         if (!routeName) return false;
         try {
@@ -38,9 +32,8 @@ export default function AdminLayout({ user, header, children }) {
     };
 
     return (
-        // Wrapper utama menggunakan h-screen overflow-hidden agar layout terkunci di viewport
         <div className="flex h-screen bg-gray-50 font-sans overflow-hidden selection:bg-orange-500 selection:text-white">
-            {/* --- SIDEBAR (Futuristic Dark Theme) --- */}
+            {/* --- SIDEBAR (Dark Theme) --- */}
             <aside
                 className={`
                     absolute md:relative z-50 h-full w-72 flex-shrink-0 flex flex-col 
@@ -53,8 +46,8 @@ export default function AdminLayout({ user, header, children }) {
                     }
                 `}
             >
-                {/* 1. LOGO AREA (Modern Gradient) */}
-                <div className="h-20 flex items-center px-8 border-b border-slate-800/50 bg-[#0f172a]/50 backdrop-blur-xl">
+                {/* 1. LOGO AREA */}
+                <div className="h-20 flex items-center px-8 border-b border-slate-800/50 bg-[#0f172a] backdrop-blur-xl">
                     <div>
                         <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
                             <span className="bg-clip-text text-transparent bg-gradient-to-r from-amber-400 via-orange-500 to-red-500 drop-shadow-sm">
@@ -68,19 +61,17 @@ export default function AdminLayout({ user, header, children }) {
                     </div>
                 </div>
 
-                {/* 2. NAVIGATION (Scrollable) */}
+                {/* 2. NAVIGATION */}
                 <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1 custom-scrollbar">
                     <p className="px-4 text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">
                         Main Menu
                     </p>
 
-                    {/* >>> PERBAIKAN: Menggunakan navItems yang di-import <<< */}
                     {navItems.map((item) => {
-                        // Jika item.icon tidak ada, gunakan ikon default atau lompat
-                        if (!item.icon) return null;
+                        if (!item.icon) return null; // Skip jika error
 
                         const isActive = isRouteActive(item.route);
-                        const Icon = item.icon; // Ikon adalah komponen React
+                        const Icon = item.icon;
 
                         return (
                             <Link
@@ -96,7 +87,7 @@ export default function AdminLayout({ user, header, children }) {
                                     }
                                 `}
                             >
-                                {/* Active Background with "Glassy & Shiny" Effect */}
+                                {/* Active Background Gradient */}
                                 {isActive && (
                                     <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 opacity-100 transition-opacity"></div>
                                 )}
@@ -120,7 +111,7 @@ export default function AdminLayout({ user, header, children }) {
                                     {item.label}
                                 </span>
 
-                                {/* Active Indicator (Chevron) */}
+                                {/* Chevron Active */}
                                 {isActive && (
                                     <ChevronRight
                                         size={16}
@@ -132,23 +123,33 @@ export default function AdminLayout({ user, header, children }) {
                     })}
                 </nav>
 
-                {/* 3. SIDEBAR FOOTER (User & Logout) */}
+                {/* 3. SIDEBAR FOOTER (User Info & Logout) */}
                 <div className="p-4 border-t border-slate-800 bg-[#0b1120]">
                     <div className="flex items-center gap-3 mb-4 px-2">
                         <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-amber-400 to-orange-600 p-[2px]">
-                            <div className="h-full w-full rounded-full bg-slate-900 flex items-center justify-center text-white font-bold text-sm">
-                                {user?.name?.charAt(0).toUpperCase()}
+                            {/* Avatar Admin */}
+                            <div className="h-full w-full rounded-full bg-slate-900 flex items-center justify-center text-white font-bold text-sm overflow-hidden">
+                                {user?.profile_photo_url ? (
+                                    <img
+                                        src={user.profile_photo_url}
+                                        alt="Admin"
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    user?.name?.charAt(0).toUpperCase()
+                                )}
                             </div>
                         </div>
                         <div className="overflow-hidden">
-                            <p className="text-sm font-bold text-white truncate">
-                                {user?.name}
+                            <p className="text-sm font-bold text-white truncate w-32">
+                                {user?.name || "Admin"}
                             </p>
                             <p className="text-xs text-slate-400 truncate">
                                 Administrator
                             </p>
                         </div>
                     </div>
+
                     <Link
                         href={route("logout")}
                         method="post"
@@ -161,7 +162,7 @@ export default function AdminLayout({ user, header, children }) {
                 </div>
             </aside>
 
-            {/* --- MOBILE BACKDROP --- */}
+            {/* --- MOBILE OVERLAY --- */}
             {isSidebarOpen && (
                 <div
                     className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-40 md:hidden"
@@ -171,7 +172,7 @@ export default function AdminLayout({ user, header, children }) {
 
             {/* --- MAIN CONTENT WRAPPER --- */}
             <div className="flex-1 flex flex-col min-w-0 bg-gray-50 h-screen overflow-hidden">
-                {/* 1. TOP NAVBAR (Sticky Glass) */}
+                {/* 1. TOP NAVBAR */}
                 <header className="h-20 flex-shrink-0 bg-white/80 backdrop-blur-md border-b border-gray-200/60 sticky top-0 z-30 flex items-center justify-between px-4 sm:px-8">
                     <div className="flex items-center gap-4">
                         <button
@@ -185,23 +186,25 @@ export default function AdminLayout({ user, header, children }) {
                             )}
                         </button>
 
-                        <h2 className="text-xl font-bold text-slate-800 tracking-tight">
-                            {header || "Dashboard"}
-                        </h2>
+                        <div>
+                            <h2 className="text-xl font-bold text-slate-800 tracking-tight">
+                                {header || "Admin Dashboard"}
+                            </h2>
+                        </div>
                     </div>
 
                     <div className="flex items-center gap-3 sm:gap-4">
-                        {/* Search Bar (Visual Only) */}
+                        {/* Search Bar */}
                         <div className="hidden md:flex items-center bg-gray-100 rounded-full px-4 py-2 border border-transparent focus-within:border-orange-300 focus-within:bg-white transition-all w-64">
                             <Search size={18} className="text-gray-400 mr-2" />
                             <input
                                 type="text"
-                                placeholder="Cari sesuatu..."
-                                className="bg-transparent border-none outline-none text-sm text-gray-600 w-full placeholder-gray-400"
+                                placeholder="Cari data..."
+                                className="bg-transparent border-none outline-none text-sm text-gray-600 w-full placeholder-gray-400 focus:ring-0"
                             />
                         </div>
 
-                        {/* Notifications */}
+                        {/* Notification Bell */}
                         <button className="p-2.5 rounded-full text-slate-500 hover:bg-orange-50 hover:text-orange-600 transition-colors relative">
                             <Bell size={20} />
                             <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
