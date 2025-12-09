@@ -67,6 +67,31 @@ Route::prefix('api')->group(function () {
     Route::get('/vendors/{vendor}', [VendorController::class, 'show'])->name('api.vendors.show');
 });
 
+
+/*
+|--------------------------------------------------------------------------- 
+| CUSTOMER/GENERAL AUTHENTICATED ROUTES
+|--------------------------------------------------------------------------- 
+| Rute profil standar yang digunakan oleh Customer atau pengguna non-vendor.
+| Diperlukan oleh komponen UpdateProfileInformationForm.jsx
+*/
+Route::middleware('auth')->group(function () {
+    // Rute untuk menampilkan halaman edit profil customer/umum
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    // Rute untuk memproses pembaruan nama/email customer/umum
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    // Rute untuk memproses pembaruan kata sandi customer/umum
+    Route::put('/password', [PasswordController::class, 'update'])->name('password.update');
+    // Rute untuk menghapus akun (jika diperlukan)
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // Rute Verifikasi Email (Digunakan oleh UpdateProfileInformationForm)
+    Route::post('email/verification-notification', [App\Http\Controllers\Auth\EmailVerificationNotificationController::class, 'store'])
+        ->middleware('throttle:6,1')
+        ->name('verification.send');
+});
+
+
 /*
 |--------------------------------------------------------------------------- 
 | AUTHENTICATED ROUTES (GENERAL - User & Vendor)
