@@ -6,12 +6,8 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        // Hapus tabel lama jika ada agar tidak error "Table exists"
         Schema::dropIfExists('reviews');
 
         Schema::create('reviews', function (Blueprint $table) {
@@ -20,23 +16,26 @@ return new class extends Migration
             // Relasi ke Customer (User)
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
 
-            // Relasi ke Vendor (Sistem Baru)
-            $table->foreignId('vendor_id')->constrained('vendors')->onDelete('cascade');
+            // PERBAIKAN FATAL DI SINI:
+            // Jangan constrained('vendors'), tapi constrained('wedding_organizers')
+            $table->foreignId('vendor_id')
+                ->constrained('wedding_organizers')
+                ->onDelete('cascade');
 
             // Konten Review
             $table->integer('rating'); // 1 sampai 5
             $table->text('comment')->nullable();
 
-            // Kolom Balasan Vendor (Baru)
+            // Kolom Balasan Vendor
             $table->text('reply')->nullable();
+
+            // Tambahan kolom status (agar Admin Dashboard tidak error saat menghitung pending reviews)
+            $table->string('status')->default('PENDING'); // PENDING, APPROVED, REJECTED
 
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('reviews');
