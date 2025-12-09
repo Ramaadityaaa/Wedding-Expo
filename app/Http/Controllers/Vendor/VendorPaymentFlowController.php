@@ -42,12 +42,19 @@ class VendorPaymentFlowController extends Controller
         $tax = $invoice->amount - $price;
         $total = $invoice->amount;
 
+        // --- PERBAIKAN DI SINI ---
         $paymentSettings = PaymentSetting::first();
+
         $rekening = [
-            'bankName' => $paymentSettings->bank_name ?? 'Bank Transfer',
-            'accountNumber' => $paymentSettings->bank_number ?? '0000000000',
-            'accountHolder' => $paymentSettings->account_holder ?? 'Admin',
-            'qrisUrl' => $paymentSettings->qris_path ? asset('storage/' . $paymentSettings->qris_path) : null,
+            // Gunakan '?->' agar jika $paymentSettings null, dia langsung lari ke '??' (default value)
+            'bankName' => $paymentSettings?->bank_name ?? 'Bank Transfer',
+            'accountNumber' => $paymentSettings?->account_number ?? '-', // Pastikan nama kolom di DB benar (account_number atau bank_number)
+            'accountHolder' => $paymentSettings?->account_holder ?? 'Admin',
+
+            // Logika QRIS Aman: Cek apakah objectnya ada DAN pathnya ada
+            'qrisUrl' => ($paymentSettings && $paymentSettings->qris_path)
+                ? asset('storage/' . $paymentSettings->qris_path)
+                : null,
         ];
 
         return Inertia::render('Vendor/Payment/PaymentPage', [
