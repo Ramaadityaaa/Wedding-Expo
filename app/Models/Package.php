@@ -5,26 +5,25 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Review extends Model
+class Package extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'user_id',
         'vendor_id',
-        'rating',
-        'comment',
-        'reply',
-        'status'
+        'name',
+        'price',
+        'description',
+        'features',
     ];
 
-    // Relasi ke Customer (User)
-    public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
+    // Casting JSON ke Array otomatis
+    protected $casts = [
+        'features' => 'array',
+        'price' => 'decimal:2',
+    ];
 
-    // Relasi ke Vendor (Sistem Baru)
+    // Relasi ke Vendor
     public function vendor()
     {
         return $this->belongsTo(Vendor::class);

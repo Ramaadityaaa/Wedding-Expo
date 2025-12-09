@@ -12,18 +12,52 @@ class Vendor extends Model
     protected $table = 'vendors';
 
     protected $fillable = [
+        'user_id',
         'name',
+        'slug',
         'email',
         'phone',
-        'company_name',
         'address',
-        'password',
-        'status',
+        'description',
+        'logo',
+        'banner',
+        'status', // <--- PENTING: Kolom baru ini wajib ditambahkan
     ];
 
-    // Relasi ke PaymentProof
+    /**
+     * Relasi ke User
+     */
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Relasi ke Bukti Pembayaran
+     */
     public function paymentProofs()
     {
         return $this->hasMany(PaymentProof::class, 'vendor_id');
+    }
+
+    /**
+     * Relasi ke Paket Jasa
+     */
+    public function packages()
+    {
+        return $this->hasMany(Package::class);
+    }
+
+    /**
+     * Relasi ke Portofolio
+     */
+    public function portfolios()
+    {
+        return $this->hasMany(Portfolio::class);
+    }
+
+    public function reviews()
+    {
+        return $this->hasMany(Review::class);
     }
 }

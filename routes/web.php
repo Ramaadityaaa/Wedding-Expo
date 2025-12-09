@@ -6,9 +6,8 @@ use Inertia\Inertia;
 // --- KONTROLER UMUM ---
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\VendorController;
-// HAPUS import PaymentController dari root namespace karena digantikan VendorPaymentFlowController
-// use App\Http\Controllers\PaymentController; 
 use App\Http\Controllers\PaymentProofController;
+use App\Http\Controllers\ChatController; // <--- PENTING: Jangan lupa import ini
 
 // --- KONTROLER ADMIN ---
 use App\Http\Controllers\Admin\DashboardController;
@@ -22,13 +21,14 @@ use App\Http\Controllers\Admin\PackagePlanController;
 
 // --- KONTROLER VENDOR ---
 use App\Http\Controllers\Vendor\DashboardController as VendorDashboard;
-use App\Http\Controllers\Vendor\PackagePageController;
-use App\Http\Controllers\Vendor\PortfolioPageController;
-use App\Http\Controllers\Vendor\ReviewPageController;
+use App\Http\Controllers\Vendor\VendorPackageController;
+use App\Http\Controllers\Vendor\VendorPortfolioController;
 use App\Http\Controllers\Vendor\MembershipController;
-use App\Http\Controllers\Vendor\VendorPaymentFlowController; // <<< INI CONTROLLER PAYMENT VENDOR YANG BENAR
+use App\Http\Controllers\Vendor\VendorPaymentFlowController;
+use App\Http\Controllers\Vendor\VendorReviewController;
 use App\Http\Controllers\ProfileController;
 
+use App\Models\Vendor;
 
 /*
 |--------------------------------------------------------------------------- 
@@ -38,23 +38,24 @@ use App\Http\Controllers\ProfileController;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
-// Rute Halaman Favorit (Memuat komponen Inertia FavoritePage)
+// Rute Halaman Favorit
 Route::get('/favorites', function () {
     return Inertia::render('Customer/FavoritePage');
 })->name('favorites');
 
 // Rute Halaman Vendor Detail untuk Customer
-// Rute Halaman Vendor Detail untuk Customer
 Route::get('/vendors/{vendor}', function ($vendorId) {
-    // Mengambil data vendor berdasarkan ID
-    $vendor = App\Models\Vendor::findOrFail($vendorId);
+    // Ambil data vendor beserta relasi penting: Paket, Portfolio, Review (dan User-nya)
+    $vendor = Vendor::with([
+        'packages',
+        'portfolios',
+        'reviews.user' // Eager load user yang memberi review
+    ])->findOrFail($vendorId);
 
-    // Kirim data vendor ke komponen VendorDetails di React (Inertia)
     return Inertia::render('Customer/VendorDetails', [
-        'vendor' => $vendor, // Data vendor yang akan ditampilkan
+        'vendor' => $vendor,
     ]);
 })->name('vendors.details');
-
 
 // Rute pendaftaran vendor
 Route::get('/register/vendor', [HomeController::class, 'vendorRegister'])->name('vendor.register');
@@ -68,17 +69,29 @@ Route::prefix('api')->group(function () {
 
 /*
 |--------------------------------------------------------------------------- 
+| AUTHENTICATED ROUTES (GENERAL - User & Vendor)
+|--------------------------------------------------------------------------- 
+*/
+// ROUTE API CHAT (Real-time) - Ditaruh di sini agar bisa diakses User & Vendor
+Route::middleware(['auth'])->group(function () {
+    Route::get('/chat/conversations', [ChatController::class, 'getConversations'])->name('chat.conversations');
+    Route::get('/chat/{userId}', [ChatController::class, 'getMessages'])->name('chat.get');
+    Route::post('/chat', [ChatController::class, 'sendMessage'])->name('chat.send');
+});
+
+/*
+|--------------------------------------------------------------------------- 
 | VENDOR ROUTES
 |--------------------------------------------------------------------------- 
 */
 Route::prefix('vendor')
-    ->name('vendor.')
+    ->name('vendor.') // Prefix nama route jadi 'vendor.dashboard', 'vendor.chat.index', dll
     ->middleware(['auth', 'vendor'])
     ->group(function () {
 
         Route::get('/dashboard', [VendorDashboard::class, 'index'])->name('dashboard');
 
-        // 2. PROFILE (Asumsi bawaan Laravel)
+        // 2. PROFILE
         Route::get('/profile', [\App\Http\Controllers\ProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('/profile', [\App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
 
@@ -86,38 +99,41 @@ Route::prefix('vendor')
         Route::get('/membership', [MembershipController::class, 'index'])->name('membership.index');
         Route::post('/membership/subscribe', [MembershipController::class, 'subscribe'])->name('membership.subscribe');
 
-        // 4. PACKAGE MANAGEMENT 
-        Route::get('/packages', [PackagePageController::class, 'index'])->name('packages.index');
+        // 4. PACKAGE MANAGEMENT
+        Route::get('/packages', [VendorPackageController::class, 'index'])->name('packages.index');
+        Route::post('/packages', [VendorPackageController::class, 'store'])->name('packages.store');
+        Route::put('/packages/{id}', [VendorPackageController::class, 'update'])->name('packages.update');
+        Route::delete('/packages/{id}', [VendorPackageController::class, 'destroy'])->name('packages.destroy');
 
         // 5. PORTFOLIO
-        Route::get('/portfolio', [PortfolioPageController::class, 'index'])->name('portfolio.index');
+        Route::get('/portfolio', [VendorPortfolioController::class, 'index'])->name('portfolio.index');
+        Route::post('/portfolio', [VendorPortfolioController::class, 'store'])->name('portfolio.store');
+        Route::delete('/portfolio/{id}', [VendorPortfolioController::class, 'destroy'])->name('portfolio.destroy');
 
         // 6. REVIEWS
-        Route::get('/reviews', [ReviewPageController::class, 'index'])->name('reviews.index');
+        Route::get('/reviews', [VendorReviewController::class, 'index'])->name('reviews.index');
+        Route::post('/reviews/{id}/reply', [VendorReviewController::class, 'reply'])->name('reviews.reply');
 
-        // 7. PAYMENT PROOF (Index Admin)
+        // 7. HALAMAN CHAT VENDOR (INBOX) - PERBAIKAN ZIGGY ERROR
+        Route::get('/chat-page', function () {
+            return Inertia::render('Vendor/pages/ChatPage');
+        })->name('chat.index'); // Hasilnya: vendor.chat.index
+
+        // 8. PAYMENT PROOF
         Route::get('/payment-proofs', [PaymentProofController::class, 'vendorIndex'])->name('paymentproof.index');
 
-        // 8. PAYMENT INITIATION & FLOW (Menggunakan VendorPaymentFlowController)
+        // 9. PAYMENT INITIATION & FLOW
         Route::group(['prefix' => 'payment', 'as' => 'payment.'], function () {
-
-            // 8.1 Halaman Pembayaran (GET /vendor/payment/{invoiceId})
-            Route::get('/{invoiceId}', [VendorPaymentFlowController::class, 'create'])->name('create');
-
-            // 8.2 Halaman Upload Bukti (GET /vendor/payment/upload) - MENGHILANGKAN 404
             Route::get('/upload', [VendorPaymentFlowController::class, 'uploadProofPage'])->name('proof.upload');
-
-            // 8.3 Simpan Bukti (POST /vendor/payment/upload)
             Route::post('/upload', [VendorPaymentFlowController::class, 'uploadProof'])->name('proof.store');
-
-            // 8.4 Halaman Loading/Sukses Pembayaran
             Route::get('/loading', [VendorPaymentFlowController::class, 'paymentLoadingPage'])->name('loading');
+            Route::get('/{invoiceId}', [VendorPaymentFlowController::class, 'create'])->name('create');
         });
     });
 
 /*
 |---------------------------------------------------------------------------
-| DASHBOARD REDIRECTOR (AFTER LOGIN)
+| DASHBOARD REDIRECTOR
 |---------------------------------------------------------------------------
 */
 Route::get('/dashboard', function () {
@@ -133,14 +149,13 @@ Route::get('/dashboard', function () {
 
 /*
 |--------------------------------------------------------------------------- 
-| ADMIN ROUTES (PREFIX: /admin)
+| ADMIN ROUTES
 |--------------------------------------------------------------------------- 
 */
 Route::prefix('admin')
     ->name('admin.')
     ->middleware(['auth', 'admin'])
     ->group(function () {
-        // [ADMIN ROUTES TIDAK BERUBAH DARI PERBAIKAN SEBELUMNYA]
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
         Route::get('/vendors', [AdminVendorController::class, 'index'])->name('vendors.index');
         Route::patch('/vendors/{vendor}/status', [AdminVendorController::class, 'updateStatus'])->name('vendors.update-status');
@@ -164,9 +179,4 @@ Route::prefix('admin')
         Route::post('/static-content', [StaticContentController::class, 'update'])->name('static-content.update');
     });
 
-/*
-|---------------------------------------------------------------------------
-| AUTH ROUTES
-|--------------------------------------------------------------------------- 
-*/
 require __DIR__ . '/auth.php';

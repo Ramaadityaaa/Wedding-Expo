@@ -23,7 +23,7 @@ class User extends Authenticatable
         'password',
         'role',
         'phone',
-        'status', // Pastikan kolom ini ditambahkan agar bisa di-update
+        'status',
     ];
 
     /**
@@ -51,18 +51,26 @@ class User extends Authenticatable
 
     /**
      * Nilai default untuk atribut model.
-     * Berguna jika di database kolom status belum ada default value.
      */
     protected $attributes = [
-        'status' => 'Active', // Default status user baru adalah Active
-        'role' => 'USER',     // Default role user baru
+        'status' => 'Active',
+        'role' => 'USER',
     ];
 
     // --- RELASI ---
 
+    /**
+     * Relasi ke Vendor (SISTEM BARU)
+     * Ini WAJIB ADA agar Controller Portfolio bisa membaca: $user->vendor
+     */
+    public function vendor(): HasOne
+    {
+        return $this->hasOne(WeddingOrganizer::class, 'user_id');
+    }
+
     public function weddingOrganizer(): HasOne
     {
-        return $this->hasOne(WeddingOrganizer::class);
+        return $this->hasOne(WeddingOrganizer::class, 'user_id');
     }
 
     public function reviews(): HasMany

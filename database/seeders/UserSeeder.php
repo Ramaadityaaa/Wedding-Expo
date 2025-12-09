@@ -16,7 +16,7 @@ class UserSeeder extends Seeder
         // Akun ADMIN utama
         User::updateOrCreate(
             [
-                'email' => 'rama@gmail.com', // email unik
+                'email' => 'ullulazmia.l@gmail.com', // email unik
             ],
             [
                 'name'              => 'Admin WeddingExpo',

@@ -1,57 +1,49 @@
 import {
     LayoutDashboard,
-    Package,
-    Image,
-    MessageSquare,
+    User,
     CreditCard,
-    FileText,
-    DollarSign,
-    UserCog,
-    FileBadge, // Tambahkan ini jika belum ada
+    Package,
+    Image as ImageIcon,
+    MessageSquare,
 } from "lucide-react";
 
 export const vendorNavItems = [
     {
-        name: "Dashboard",
-        icon: LayoutDashboard,
+        name: "dashboard",
         label: "Dashboard",
         route: "vendor.dashboard",
+        icon: LayoutDashboard,
     },
     {
-        name: "Profile",
-        icon: UserCog,
-        label: "Profil & Info",
-        route: null, // Menggunakan rute bawaan Laravel
+        name: "profile",
+        label: "Profil Bisnis",
+        route: "vendor.profile.edit",
+        icon: User,
     },
     {
-        name: "Packages",
-        icon: Package,
-        label: "Paket Harga",
-        route: null,
-    },
-    {
-        name: "Portfolio",
-        icon: Image,
-        label: "Portofolio",
-        route: null,
-    },
-    {
-        name: "Reviews",
-        icon: MessageSquare,
-        label: "Ulasan",
-        route: null,
-    },
-    {
-        name: "PaymentProof",
-        icon: DollarSign,
-        label: "Status Pembayaran",
-        route: null,
-    },
-    {
-        name: "Membership",
+        name: "membership",
+        label: "Langganan",
+        route: "vendor.membership.index",
         icon: CreditCard,
-        label: "Atur Membership",
-        // >>> PERBAIKAN UTAMA DI SINI <<<
-        route: "vendor.membership.index", // Menggunakan nama rute yang BENAR
     },
+
+    // Menu-menu ini akan TERKUNCI otomatis jika status != active
+    {
+        name: "packages",
+        label: "Paket Jasa",
+        route: "vendor.packages.index",
+        icon: Package,
+    },
+    {
+        name: "portfolio",
+        label: "Galeri Portofolio",
+        route: "vendor.portfolio.index",
+        icon: ImageIcon,
+    },
+    {
+        name: "chat",
+        label: "Pesan & Chat",
+        route: "vendor.chat.index",
+        icon: MessageSquare,
+    }, // Pastikan nama route ini 'chat.index' (yang halaman)
 ];

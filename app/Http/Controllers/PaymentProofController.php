@@ -3,69 +3,109 @@
 namespace App\Http\Controllers;
 
 use App\Models\PaymentProof;
+use App\Models\Invoice;
+use App\Models\Vendor; // Pastikan ini mengarah ke Model Vendor Anda (bisa juga WeddingOrganizer jika belum direname)
+use App\Models\PackagePlan;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class PaymentProofController extends Controller
 {
-    /**
-     * Menampilkan halaman Konfirmasi Pembayaran.
-     */
     public function index()
     {
-        // Menggunakan 'with' untuk eager loading data vendor agar tidak N+1 problem
-        $paymentRequests = PaymentProof::with('vendor')
+        $paymentRequests = PaymentProof::with(['vendor', 'invoice'])
             ->latest()
-            ->get();
+            ->get()
+            ->map(function ($proof) {
+                // Default Value
+                $planName = 'Paket Membership';
+
+                // Cek Invoice
+                if ($proof->invoice) {
+                    // OPSI 1: Snapshot nama paket di invoice
+                    if (!empty($proof->invoice->package_name)) {
+                        $planName = $proof->invoice->package_name;
+                    }
+                    // OPSI 2: Cari Live Data dari PackagePlan
+                    elseif (!empty($proof->invoice->plan_id)) {
+                        $planId = $proof->invoice->plan_id;
+                        $plan = PackagePlan::where('id', $planId)
+                            ->orWhere('slug', $planId)
+                            ->first();
+
+                        if ($plan) {
+                            $planName = $plan->name;
+                        } else {
+                            $planName = "Paket Tidak Dikenal (ID: $planId)";
+                        }
+                    }
+                }
+
+                $proof->package_name = $planName;
+                return $proof;
+            });
 
         return Inertia::render('Admin/pages/PaymentConfirmation', [
             'paymentRequests' => $paymentRequests
         ]);
     }
 
-    /**
-     * Mengupdate status pembayaran (Route untuk Approve/Reject via POST/PATCH).
-     * Menangani request dari Inertia router.post()
-     */
     public function updateStatus(Request $request, $id)
     {
         try {
-            $payment = PaymentProof::findOrFail($id);
-
-            // Validasi input status
             $request->validate([
                 'status' => 'required|in:Approved,Rejected,Pending'
             ]);
 
-            // Update status
-            $payment->update([
-                'status' => $request->status
-            ]);
+            $payment = PaymentProof::findOrFail($id);
 
-            // [PENTING] Gunakan redirect back untuk Inertia, BUKAN response()->json()
-            return redirect()->back()->with('success', 'Status pembayaran berhasil diperbarui.');
+            // 1. Update Status Bukti Pembayaran
+            $payment->update(['status' => $request->status]);
+
+            // 2. Jika APPROVED, Update Invoice & Vendor
+            if ($payment->invoice_id) {
+                $invoice = Invoice::find($payment->invoice_id);
+
+                if ($invoice) {
+                    if ($request->status === 'Approved') {
+                        // A. Invoice Lunas
+                        $invoice->update(['status' => 'PAID']);
+
+                        // B. UPDATE VENDOR (STATUS & ROLE)
+                        if ($payment->vendor_id) {
+                            $vendor = Vendor::find($payment->vendor_id);
+
+                            if ($vendor) {
+                                // Update kolom-kolom penting agar fitur terbuka
+                                $vendor->update([
+                                    'status' => 'active',       // Agar badge menjadi "TERVERIFIKASI" (Hijau)
+                                    'isApproved' => 'APPROVED', // Kompatibilitas kolom lama
+                                    'role' => 'Membership'      // <--- KUNCI UTAMA: Membuka gembok menu Chat, Paket, dll
+                                ]);
+                            }
+                        }
+                    } elseif ($request->status === 'Rejected') {
+                        $invoice->update(['status' => 'REJECTED']);
+                    }
+                }
+            }
+            return redirect()->back()->with('success', 'Status pembayaran diperbarui. Role vendor telah diupgrade menjadi Membership.');
         } catch (\Exception $e) {
             Log::error("Error updating payment status: " . $e->getMessage());
-            return redirect()->back()->with('error', 'Terjadi kesalahan saat memproses pembayaran.');
+            return redirect()->back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
         }
     }
 
-    /**
-     * Menghapus bukti pembayaran.
-     */
     public function destroy($id)
     {
         try {
             $payment = PaymentProof::findOrFail($id);
-
-            // Hapus file fisik jika ada (opsional, praktik yang baik)
-            // if ($payment->file_path && \Storage::exists('public/' . $payment->file_path)) {
-            //    \Storage::delete('public/' . $payment->file_path);
-            // }
-
+            if ($payment->file_path && Storage::disk('public')->exists($payment->file_path)) {
+                Storage::disk('public')->delete($payment->file_path);
+            }
             $payment->delete();
-
             return redirect()->back()->with('success', 'Data pembayaran berhasil dihapus.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Gagal menghapus data.');

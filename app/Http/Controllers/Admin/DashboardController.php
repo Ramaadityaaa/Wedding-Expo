@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Models\WeddingOrganizer;
+use App\Models\Vendor; // <--- Ganti WeddingOrganizer jadi Vendor
 use App\Models\Review;
 use App\Models\PaymentProof;
 use Inertia\Inertia;
@@ -21,25 +21,26 @@ class DashboardController extends Controller
     {
         // 1. MENGHITUNG STATISTIK UTAMA
 
-        // Vendor Stats
-        $totalVendors = WeddingOrganizer::count();
-        // Menggunakan 'PENDING' string karena tipe kolom ENUM
-        $pendingVendorsCount = WeddingOrganizer::where('isApproved', 'PENDING')->count();
-        $approvedVendors = WeddingOrganizer::where('isApproved', 'APPROVED')->count();
+        // Vendor Stats (Gunakan Model Vendor Baru)
+        $totalVendors = Vendor::count();
 
-        // User Stats (Asumsi role customer adalah 'USER' atau NULL)
+        // Status di tabel vendors adalah string: 'pending' / 'active' (lowercase)
+        $pendingVendorsCount = Vendor::where('status', 'pending')->count();
+        $approvedVendors = Vendor::where('status', 'active')->count();
+
+        // User Stats
         $totalUsers = User::where(function ($q) {
             $q->where('role', 'USER')->orWhereNull('role');
         })->count();
 
-        // Review Stats (Menggunakan kolom 'status')
+        // Review Stats (Kolom status sudah ditambahkan via migrasi)
         $totalReviews = Review::count();
         $pendingReviewsCount = Review::where('status', 'PENDING')->count();
 
-        // Revenue Stats (Dari PaymentProof yang Approved)
+        // Revenue Stats (Dari PaymentProof)
         $totalRevenue = PaymentProof::where('status', 'Approved')->sum('amount');
 
-        // Menghitung Pertumbuhan Bulanan (Revenue Bulan Ini vs Bulan Lalu)
+        // Menghitung Pertumbuhan Bulanan
         $currentMonthRevenue = PaymentProof::where('status', 'Approved')
             ->whereMonth('created_at', Carbon::now()->month)
             ->whereYear('created_at', Carbon::now()->year)
@@ -54,7 +55,7 @@ class DashboardController extends Controller
         if ($lastMonthRevenue > 0) {
             $monthlyGrowth = (($currentMonthRevenue - $lastMonthRevenue) / $lastMonthRevenue) * 100;
         } elseif ($currentMonthRevenue > 0) {
-            $monthlyGrowth = 100; // Pertumbuhan 100% jika bulan lalu 0
+            $monthlyGrowth = 100;
         }
 
         $stats = [
@@ -65,21 +66,22 @@ class DashboardController extends Controller
             'totalReviews'    => $totalReviews,
             'pendingReviews'  => $pendingReviewsCount,
             'totalRevenue'    => $totalRevenue,
-            'monthlyGrowth'   => round($monthlyGrowth, 1), // Dibulatkan 1 desimal
+            'monthlyGrowth'   => round($monthlyGrowth, 1),
         ];
 
-        // 2. MENGAMBIL DATA LIST (Untuk Widget Tabel di Dashboard)
+        // 2. MENGAMBIL DATA LIST (Widget Tabel)
 
-        // Ambil 5 vendor pending terbaru
-        $pendingVendors = WeddingOrganizer::where('isApproved', 'PENDING')
-            ->select('id', 'name', 'created_at', 'type', 'city')
+        // Ambil 5 vendor pending terbaru (Dari tabel vendors)
+        $pendingVendors = Vendor::where('status', 'pending')
+            ->select('id', 'name', 'created_at', 'address', 'phone') // Sesuaikan kolom yang ada di tabel vendors
             ->latest()
             ->take(5)
             ->get();
 
-        // Ambil 5 review pending terbaru beserta relasinya
+        // Ambil 5 review pending terbaru
+        // PERBAIKAN PENTING: Relasi diganti dari 'weddingOrganizer' menjadi 'vendor'
         $pendingReviews = Review::where('status', 'PENDING')
-            ->with(['user:id,name', 'weddingOrganizer:id,name'])
+            ->with(['user:id,name', 'vendor:id,name']) // <--- INI KUNCINYA
             ->latest()
             ->take(5)
             ->get();

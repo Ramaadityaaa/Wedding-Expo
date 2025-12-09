@@ -13,6 +13,7 @@ class PaymentProof extends Model
 
     protected $fillable = [
         'vendor_id',
+        'invoice_id',   // <--- WAJIB ADA agar tidak error Mass Assignment
         'account_name',
         'amount',
         'file_path',
@@ -26,14 +27,22 @@ class PaymentProof extends Model
     ];
 
     /**
-     * Relasi ke Vendor (WeddingOrganizer).
-     * Diubah ke WeddingOrganizer::class karena modul Admin Vendor menggunakan model tersebut.
+     * Relasi ke Vendor.
+     * Menggunakan model Vendor::class karena sistem pembayaran baru
+     * menyimpan data ke tabel 'vendors'.
      */
     public function vendor()
     {
-        // Pastikan foreign key di tabel payment_proofs adalah 'vendor_id'
-        // dan mengarah ke id di tabel wedding_organizers
-        return $this->belongsTo(WeddingOrganizer::class, 'vendor_id');
+        return $this->belongsTo(Vendor::class, 'vendor_id');
+    }
+
+    /**
+     * Relasi ke Invoice.
+     * Menambahkan ini untuk memperbaiki error "Call to undefined relationship [invoice]"
+     */
+    public function invoice()
+    {
+        return $this->belongsTo(Invoice::class);
     }
 
     /**
@@ -43,7 +52,6 @@ class PaymentProof extends Model
     {
         if (!$this->file_path) return null;
 
-        // Menggunakan helper 'storage_path' atau asset storage
         return asset('storage/' . $this->file_path);
     }
 }

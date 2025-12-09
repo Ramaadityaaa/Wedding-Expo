@@ -10,20 +10,29 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void
-{
-    Schema::create('reviews', function (Blueprint $table) {
-        $table->id();
-        
-        // Relasi
-        $table->foreignId('wedding_organizer_id')->constrained('wedding_organizers')->onDelete('cascade');
-        $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-        
-        $table->integer('rating'); // 1-5
-        $table->text('comment')->nullable();
-        $table->boolean('isApproved')->default(false);
-        $table->timestamps();
-    });
-}
+    {
+        // Hapus tabel lama jika ada agar tidak error "Table exists"
+        Schema::dropIfExists('reviews');
+
+        Schema::create('reviews', function (Blueprint $table) {
+            $table->id();
+
+            // Relasi ke Customer (User)
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+
+            // Relasi ke Vendor (Sistem Baru)
+            $table->foreignId('vendor_id')->constrained('vendors')->onDelete('cascade');
+
+            // Konten Review
+            $table->integer('rating'); // 1 sampai 5
+            $table->text('comment')->nullable();
+
+            // Kolom Balasan Vendor (Baru)
+            $table->text('reply')->nullable();
+
+            $table->timestamps();
+        });
+    }
 
     /**
      * Reverse the migrations.

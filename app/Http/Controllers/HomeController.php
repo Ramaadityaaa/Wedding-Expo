@@ -11,16 +11,46 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use App\Models\Vendor;
 
 class HomeController extends Controller
 {
     // *** Tambahkan method index jika belum ada ***
     public function index()
     {
-        // Sesuaikan dengan logic homepage Anda
+        $vendors = Vendor::where('status', 'active')
+            // 1. Hitung Rata-rata Rating dari tabel reviews
+            ->withAvg('reviews', 'rating')
+
+            // 2. Urutkan: Rating Tertinggi -> Terendah
+            ->orderByDesc('reviews_avg_rating')
+
+            // 3. Jika rating sama, urutkan yang terbaru
+            ->orderByDesc('created_at')
+
+            ->take(8)
+            ->get()
+            ->map(function ($vendor) {
+                return [
+                    'id' => $vendor->id,
+                    'name' => $vendor->name,
+                    'city' => $vendor->address ?? 'Indonesia',
+                    'description' => $vendor->description,
+
+                    // Ambil Foto
+                    'coverPhoto' => $vendor->portfolios()->exists()
+                        ? asset('storage/' . $vendor->portfolios()->first()->imageUrl)
+                        : null,
+
+                    // Format Rating agar bisa dipakai di Frontend
+                    // Jika belum ada rating, kasih nilai 0 atau string 'New'
+                    'rating' => $vendor->reviews_avg_rating ? number_format($vendor->reviews_avg_rating, 1) : 0,
+                    'reviewCount' => $vendor->reviews()->count(),
+                ];
+            });
+
         return Inertia::render('Customer/Dashboard', [
-            'isLoggedIn' => auth()->check(),
-            'message' => 'Selamat datang di Wedding Expo!',
+            'vendors' => $vendors,
         ]);
     }
 
