@@ -7,7 +7,7 @@ use Inertia\Inertia;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\VendorController;
 use App\Http\Controllers\PaymentProofController;
-use App\Http\Controllers\ChatController; // Import ChatController
+use App\Http\Controllers\ChatController;
 use App\Http\Controllers\Customer\BookingController;
 
 // --- KONTROLER ADMIN ---
@@ -49,6 +49,7 @@ Route::get('/favorites', function () {
 
 // Rute Halaman Vendor Detail untuk Customer
 Route::get('/vendors/{vendor}', function ($vendorId) {
+    // Asumsi: \App\Models\WeddingOrganizer adalah model yang benar untuk vendor
     $vendor = \App\Models\WeddingOrganizer::with([
         'packages',
         'portfolios',
@@ -64,9 +65,8 @@ Route::get('/vendors/{vendor}', function ($vendorId) {
 Route::get('/register/vendor', [HomeController::class, 'vendorRegister'])->name('vendor.register');
 Route::post('/register/vendor', [HomeController::class, 'vendorStore'])->name('vendor.store');
 
-// **NEW: Halaman Pemesanan (Order)** 
-Route::get('/order/{vendorId}', [BookingController::class, 'create'])->name('order.create'); // **Menambahkan rute GET untuk menampilkan form pemesanan**
-Route::post('/order', [BookingController::class, 'store'])->name('order.store'); // **Menambahkan rute POST untuk menyimpan pemesanan**
+// **NEW: Halaman Pemesanan (Order)** // Route::get('/order/{vendorId}', [BookingController::class, 'create'])->name('order.create'); 
+Route::post('/order', [BookingController::class, 'store'])->name('order.store'); // Dipanggil oleh SelectDate.jsx, redirect ke customer.payment.page
 Route::get('/select-date/{vendorId}/{packageId}', [BookingController::class, 'selectDate'])->name('order.selectDate');
 
 
@@ -98,6 +98,17 @@ Route::middleware(['auth'])->group(function () {
             'avatar' => 'https://ui-avatars.com/api/?name=Admin+Support&background=0D8ABC&color=fff'
         ]);
     })->name('admin.contact');
+
+    // >>> [PERBAIKAN & PENAMBAHAN UNTUK CUSTOMER PAYMENT FLOW] <<<
+    Route::group(['prefix' => 'customer', 'as' => 'customer.'], function () {
+
+        // [RUTE BARU] Menampilkan halaman Pemilihan Metode Pembayaran (PaymentPage.jsx)
+        // Dipanggil setelah Order berhasil disimpan di BookingController@store
+        // File: routes/web.php
+// ... di dalam Route::group(['prefix' => 'customer', 'as' => 'customer.'], function () { ...
+        Route::get('/payment/{orderId}', [BookingController::class, 'showPaymentPage'])->name('payment.page');
+        Route::get('/payment/{orderId}/invoice', [BookingController::class, 'showPaymentInvoice'])->name('payment.invoice');
+    });
 });
 
 /*

@@ -4,15 +4,41 @@ namespace App\Http\Controllers\Customer;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\Package;
+use App\Models\Vendor; // Pastikan ini adalah model yang benar untuk vendor Anda
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth; // Pastikan Auth diimpor
-use Inertia\Inertia; // Pastikan Inertia diimpor
-use App\Models\Package;  // Pastikan Package diimpor
-use App\Models\Vendor;
+use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class BookingController extends Controller
 {
-    // Menyimpan data pemesanan baru
+    // ... (Fungsi create, showDatePicker, dll. jika ada) ...
+
+    /**
+     * Menampilkan halaman SelectDate
+     */
+    public function selectDate($vendorId, $packageId)
+    {
+        // Asumsi: Vendor Anda menggunakan model 'Vendor'
+        $vendor = Vendor::find($vendorId);
+        $package = Package::where('id', $packageId)
+            ->where('vendor_id', $vendorId)
+            ->first();
+
+        if (!$vendor || !$package) {
+            return back()->with('error', 'Vendor atau Paket yang dipilih tidak ditemukan atau tidak valid.');
+        }
+
+        return Inertia::render('Customer/Booking/SelectDate', [
+            'vendor' => $vendor,
+            'package' => $package,
+        ]);
+    }
+
+
+    /**
+     * Menyimpan order baru dan REDIRECT ke HALAMAN PEMBAYARAN.
+     */
     public function store(Request $request)
     {
         // Validasi data
@@ -24,41 +50,46 @@ class BookingController extends Controller
 
         // Menyimpan order baru
         $order = new Order;
-        $order->customer_id = Auth::id(); // Mengambil ID customer yang sedang login
+        $order->customer_id = Auth::id();
         $order->vendor_id = $request->vendor_id;
         $order->package_id = $request->package_id;
         $order->order_date = $request->order_date;
-        $order->status = 'pending'; // Status pemesanan sementara
-        $order->payment_status = 'pending'; // Status pembayaran sementara
-        $order->save(); // Simpan order ke database
+        $order->status = 'pending';
+        $order->payment_status = 'pending';
+        $order->save();
 
-        return response()->json(['message' => 'Order berhasil dibuat!'], 201);
+        // Redirect ke rute HALAMAN PEMBAYARAN BARU
+        return Inertia::location(route('customer.payment.page', ['orderId' => $order->id]));
     }
 
-    // Menampilkan form untuk memilih tanggal
-    public function showDatePicker($vendorId, $packageId)
+    /**
+     * Menampilkan halaman Pemilihan Metode Pembayaran (PaymentPage.jsx).
+     * MENGAMBIL DATA VENDOR DAN PACKAGE MELALUI RELASI ORDER
+     */
+    public function showPaymentPage($orderId)
     {
-        // Ambil data vendor dan package untuk menampilkan informasi
-        $vendor = Vendor::findOrFail($vendorId);
-        $package = Package::findOrFail($packageId);
+        // Cek kembali bagian Eager Loading ini!
+        $order = Order::with(['package.vendor', 'customer'])
+            ->where('customer_id', Auth::id())
+            ->findOrFail($orderId);
 
-        return Inertia::render('Customer/SelectDate', [
-            'vendor' => $vendor,
-            'package' => $package,
+        return Inertia::render('Customer/Payment/PaymentPage', [
+            'order' => $order,
         ]);
     }
 
-    // Halaman pemilihan tanggal
-    public function selectDate($vendorId, $packageId)
+    /**
+     * Menampilkan halaman Invoice (Mungkin dipanggil dari PaymentPage nanti).
+     */
+    public function showPaymentInvoice($orderId)
     {
-        // Ambil vendor dan package berdasarkan ID yang diterima
-        $vendor = Vendor::findOrFail($vendorId);
-        $package = Package::findOrFail($packageId);
+        // Pastikan order adalah milik customer yang sedang login
+        $order = Order::with(['package.vendor', 'customer'])
+            ->where('customer_id', Auth::id())
+            ->findOrFail($orderId);
 
-        // Kirim data ke frontend untuk ditampilkan di halaman SelectDate
-        return Inertia::render('Customer/Booking/SelectDate', [
-            'vendor' => $vendor,
-            'package' => $package,
+        return Inertia::render('Customer/Payment/InvoicePage', [
+            'order' => $order,
         ]);
     }
 }

@@ -253,9 +253,7 @@ export default function VendorDetails({ auth, vendor }) {
                                                 </div>
 
                                                 <button className="w-full mt-auto py-3 px-6 bg-white border-2 border-amber-500 text-amber-600 font-bold rounded-lg hover:bg-amber-50 transition-all ease-in-out transform hover:scale-105">
-                                                    <Link
-                                                        href={`/select-date/${vendor.id}/${pkg.id}`} // Mengarahkan ke halaman SelectDate dengan vendorId dan packageId
-                                                        className="w-full mt-auto py-3 bg-white border-2 border-amber-500 text-amber-600 font-bold rounded-lg hover:bg-amber-50 transition">
+                                                    <Link href={`/select-date/${vendor.id}/${pkg.id}`} className="">
                                                         Pilih Paket Ini
                                                     </Link>
 
