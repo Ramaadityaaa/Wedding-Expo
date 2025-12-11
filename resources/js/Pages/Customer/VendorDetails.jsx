@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Head, usePage } from "@inertiajs/react";
+import { Link } from '@inertiajs/react';
 import Navbar from "@/Components/Navbar";
 import Footer from "@/Components/Footer";
 import CustomerGlobalChat from "@/Components/CustomerGlobalChat"; // Widget Chat
@@ -33,11 +34,11 @@ export default function VendorDetails({ auth, vendor }) {
     const averageRating =
         vendor.reviews.length > 0
             ? (
-                  vendor.reviews.reduce(
-                      (acc, review) => acc + review.rating,
-                      0
-                  ) / vendor.reviews.length
-              ).toFixed(1)
+                vendor.reviews.reduce(
+                    (acc, review) => acc + review.rating,
+                    0
+                ) / vendor.reviews.length
+            ).toFixed(1)
             : 0;
 
     // --- FUNGSI KLIK TOMBOL CHAT ---
@@ -172,11 +173,10 @@ export default function VendorDetails({ auth, vendor }) {
                                     <button
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id)}
-                                        className={`flex items-center px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                                            activeTab === tab.id
-                                                ? "border-amber-500 text-amber-600"
-                                                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                                        }`}
+                                        className={`flex items-center px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id
+                                            ? "border-amber-500 text-amber-600"
+                                            : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                                            }`}
                                     >
                                         <tab.icon size={16} className="mr-2" />
                                         {tab.label}
@@ -251,8 +251,14 @@ export default function VendorDetails({ auth, vendor }) {
                                                             )}
                                                     </ul>
                                                 </div>
-                                                <button className="w-full mt-auto py-3 bg-white border-2 border-amber-500 text-amber-600 font-bold rounded-lg hover:bg-amber-50 transition">
-                                                    Pilih Paket Ini
+
+                                                <button className="w-full mt-auto py-3 px-6 bg-white border-2 border-amber-500 text-amber-600 font-bold rounded-lg hover:bg-amber-50 transition-all ease-in-out transform hover:scale-105">
+                                                    <Link
+                                                        href={`/select-date/${vendor.id}/${pkg.id}`} // Mengarahkan ke halaman SelectDate dengan vendorId dan packageId
+                                                        className="w-full mt-auto py-3 bg-white border-2 border-amber-500 text-amber-600 font-bold rounded-lg hover:bg-amber-50 transition">
+                                                        Pilih Paket Ini
+                                                    </Link>
+
                                                 </button>
                                             </div>
                                         ))
@@ -344,13 +350,13 @@ export default function VendorDetails({ auth, vendor }) {
                                                                             }
                                                                             fill={
                                                                                 i <
-                                                                                review.rating
+                                                                                    review.rating
                                                                                     ? "currentColor"
                                                                                     : "none"
                                                                             }
                                                                             className={
                                                                                 i >=
-                                                                                review.rating
+                                                                                    review.rating
                                                                                     ? "text-gray-300"
                                                                                     : ""
                                                                             }

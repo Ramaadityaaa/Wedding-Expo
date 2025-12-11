@@ -8,6 +8,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\VendorController;
 use App\Http\Controllers\PaymentProofController;
 use App\Http\Controllers\ChatController; // Import ChatController
+use App\Http\Controllers\Customer\BookingController;
 
 // --- KONTROLER ADMIN ---
 use App\Http\Controllers\Admin\DashboardController;
@@ -38,6 +39,7 @@ use App\Models\User;
 |--------------------------------------------------------------------------- 
 */
 
+// Rute Halaman Home
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
 // Rute Halaman Favorit
@@ -47,8 +49,6 @@ Route::get('/favorites', function () {
 
 // Rute Halaman Vendor Detail untuk Customer
 Route::get('/vendors/{vendor}', function ($vendorId) {
-    // Ambil data vendor beserta relasi penting: Paket, Portfolio, Review (dan User-nya)
-    // Pastikan model yang dipanggil sesuai (Vendor atau WeddingOrganizer)
     $vendor = \App\Models\WeddingOrganizer::with([
         'packages',
         'portfolios',
@@ -64,6 +64,12 @@ Route::get('/vendors/{vendor}', function ($vendorId) {
 Route::get('/register/vendor', [HomeController::class, 'vendorRegister'])->name('vendor.register');
 Route::post('/register/vendor', [HomeController::class, 'vendorStore'])->name('vendor.store');
 
+// **NEW: Halaman Pemesanan (Order)** 
+Route::get('/order/{vendorId}', [BookingController::class, 'create'])->name('order.create'); // **Menambahkan rute GET untuk menampilkan form pemesanan**
+Route::post('/order', [BookingController::class, 'store'])->name('order.store'); // **Menambahkan rute POST untuk menyimpan pemesanan**
+Route::get('/select-date/{vendorId}/{packageId}', [BookingController::class, 'selectDate'])->name('order.selectDate');
+
+
 // API Publik
 Route::prefix('api')->group(function () {
     Route::get('/vendors', [VendorController::class, 'index'])->name('api.vendors.index');
@@ -74,7 +80,6 @@ Route::prefix('api')->group(function () {
 |--------------------------------------------------------------------------- 
 | AUTHENTICATED ROUTES (GENERAL - User, Vendor & Admin)
 |--------------------------------------------------------------------------- 
-| Route ini bisa diakses oleh siapa saja yang sudah login
 */
 Route::middleware(['auth'])->group(function () {
 
@@ -85,7 +90,6 @@ Route::middleware(['auth'])->group(function () {
 
     // --- HELPER: CARI KONTAK ADMIN ---
     Route::get('/admin/contact', function () {
-        // Ambil User pertama yang memiliki role ADMIN
         $admin = User::where('role', 'ADMIN')->first();
 
         return response()->json([
@@ -135,7 +139,7 @@ Route::prefix('vendor')
         Route::get('/chat-page', function () {
             return Inertia::render('Vendor/pages/ChatPage');
         })->name('chat.index'); // Nama route final: vendor.chat.index
-
+    
         // PAYMENT PROOF
         Route::get('/payment-proofs', [PaymentProofController::class, 'vendorIndex'])->name('paymentproof.index');
 
@@ -149,16 +153,19 @@ Route::prefix('vendor')
     });
 
 /*
-|---------------------------------------------------------------------------
+|--------------------------------------------------------------------------- 
 | DASHBOARD REDIRECTOR
-|---------------------------------------------------------------------------
+|--------------------------------------------------------------------------- 
 */
 Route::get('/dashboard', function () {
     $user = auth()->user();
 
-    if (! $user) return redirect()->route('home');
-    if ($user->role === 'ADMIN') return redirect()->route('admin.dashboard');
-    if ($user->role === 'VENDOR') return redirect()->route('vendor.dashboard');
+    if (!$user)
+        return redirect()->route('home');
+    if ($user->role === 'ADMIN')
+        return redirect()->route('admin.dashboard');
+    if ($user->role === 'VENDOR')
+        return redirect()->route('vendor.dashboard');
 
     return Inertia::render('Customer/Dashboard', ['isLoggedIn' => true, 'user' => $user]);
 })->middleware(['auth', 'verified'])->name('dashboard');
