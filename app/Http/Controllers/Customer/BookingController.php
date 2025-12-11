@@ -5,21 +5,18 @@ namespace App\Http\Controllers\Customer;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Package;
-use App\Models\Vendor; // Pastikan ini adalah model yang benar untuk vendor Anda
+use App\Models\Vendor; // Model yang digunakan
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class BookingController extends Controller
 {
-    // ... (Fungsi create, showDatePicker, dll. jika ada) ...
-
     /**
      * Menampilkan halaman SelectDate
      */
     public function selectDate($vendorId, $packageId)
     {
-        // Asumsi: Vendor Anda menggunakan model 'Vendor'
         $vendor = Vendor::find($vendorId);
         $package = Package::where('id', $packageId)
             ->where('vendor_id', $vendorId)
@@ -34,7 +31,6 @@ class BookingController extends Controller
             'package' => $package,
         ]);
     }
-
 
     /**
      * Menyimpan order baru dan REDIRECT ke HALAMAN PEMBAYARAN.
@@ -59,16 +55,17 @@ class BookingController extends Controller
         $order->save();
 
         // Redirect ke rute HALAMAN PEMBAYARAN BARU
+        // Pastikan route 'customer.payment.page' sudah terdaftar di web.php
         return Inertia::location(route('customer.payment.page', ['orderId' => $order->id]));
     }
 
     /**
      * Menampilkan halaman Pemilihan Metode Pembayaran (PaymentPage.jsx).
-     * MENGAMBIL DATA VENDOR DAN PACKAGE MELALUI RELASI ORDER
+     * Data Order, Package, dan Vendor akan dimuat di sini.
      */
     public function showPaymentPage($orderId)
     {
-        // Cek kembali bagian Eager Loading ini!
+        // Eager Loading Order -> Package -> Vendor sekarang akan berhasil
         $order = Order::with(['package.vendor', 'customer'])
             ->where('customer_id', Auth::id())
             ->findOrFail($orderId);
@@ -83,7 +80,7 @@ class BookingController extends Controller
      */
     public function showPaymentInvoice($orderId)
     {
-        // Pastikan order adalah milik customer yang sedang login
+        // Eager Loading Order -> Package -> Vendor
         $order = Order::with(['package.vendor', 'customer'])
             ->where('customer_id', Auth::id())
             ->findOrFail($orderId);

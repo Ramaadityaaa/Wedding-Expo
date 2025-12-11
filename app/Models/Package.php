@@ -5,26 +5,31 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+// Pastikan ini diimpor (Ganti ke 'Vendor' jika itu nama Model Anda yang benar)
+use App\Models\Vendor; 
+
 class Package extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'vendor_id', // Pastikan ini vendor_id
+        'vendor_id', 
         'name',
         'price',
         'description',
-        'features', // Jika pakai JSON cast
+        'features',
     ];
 
     protected $casts = [
         'features' => 'array',
     ];
 
-    // Relasi balik ke WeddingOrganizer (Vendor)
+    /**
+     * Relasi ke Model Vendor (Perbaikan: Menunjuk ke Vendor::class)
+     */
     public function vendor()
     {
-        // Parameter 2: Foreign Key di tabel packages
-        return $this->belongsTo(WeddingOrganizer::class, 'vendor_id');
+        // Model target adalah Vendor::class
+        return $this->belongsTo(Vendor::class, 'vendor_id');
     }
 }

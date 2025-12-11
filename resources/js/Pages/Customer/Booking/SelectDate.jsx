@@ -5,16 +5,13 @@ import { CheckCircle, AlertTriangle } from 'lucide-react';
 const SelectDate = ({ vendor, package: packageData, auth }) => {
     
     const { props } = usePage();
-    // Ambil flash message error dari redirect
     const serverError = props.flash?.error; 
 
     // =================================================================
-    // [PERBAIKAN KRUSIAL] - Guard Clause untuk Error Props
+    // [GUARD CLAUSE] - Tetap pertahankan, ini sangat bagus
     // =================================================================
-    // Cek apakah vendor/packageData hilang ATAU ada error yang dikirim dari server
     if (!vendor || !packageData || serverError) {
         
-        // Tentukan pesan error yang akan ditampilkan
         const displayMessage = serverError || 
                                'Vendor atau Paket yang dipilih tidak ditemukan atau data hilang saat loading. Pastikan Anda mengakses halaman ini dari link yang benar.';
 
@@ -27,7 +24,6 @@ const SelectDate = ({ vendor, package: packageData, auth }) => {
                     <p className="text-gray-600 mt-2">
                         {displayMessage}
                     </p>
-                    {/* Tambahkan tombol kembali */}
                     <button 
                         onClick={() => window.history.back()}
                         className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gray-500 hover:bg-gray-600"
@@ -40,7 +36,7 @@ const SelectDate = ({ vendor, package: packageData, auth }) => {
     }
     
     // =================================================================
-    // Bagian Utama Komponen (Hanya dirender jika vendor dan packageData ADA)
+    // Bagian Utama Komponen
     // =================================================================
 
     const [orderDate, setOrderDate] = useState('');
@@ -86,8 +82,8 @@ const SelectDate = ({ vendor, package: packageData, auth }) => {
                                 Atur Jadwal Pemesanan
                             </h1>
                             <p className="text-gray-600 text-lg">
-                                {/* Di sini aman karena sudah dicek di guard clause di atas */}
-                                Pilih tanggal yang sesuai untuk pemesanan paket **"{packageData.name}"** dari vendor **"{vendor.name}"**. 
+                                {/* Penggunaan Optional Chaining untuk keamanan tambahan */}
+                                Pilih tanggal yang sesuai untuk pemesanan paket **"{packageData?.name}"** dari vendor **"{vendor?.name}"**. 
                             </p>
                         </div>
                     </div>
@@ -120,6 +116,7 @@ const SelectDate = ({ vendor, package: packageData, auth }) => {
                                         value={orderDate}
                                         onChange={(e) => setOrderDate(e.target.value)}
                                         required
+                                        // Memastikan tanggal tidak bisa mundur
                                         min={new Date().toISOString().split('T')[0]} 
                                         className="w-full py-2 px-4 rounded-lg border-2 border-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-500"
                                         disabled={processing}

@@ -1,12 +1,14 @@
 import React, { useState } from "react";
 import { router, useForm, Head } from "@inertiajs/react";
+import moment from 'moment'; // Import moment.js untuk memformat tanggal
+import 'moment/locale/id'; // Opsional: Untuk format tanggal Indonesia
 
 // --- KONFIGURASI TEMA ---
 const PRIMARY_COLOR = "#D97706";
 const SECONDARY_COLOR = "#FCD34D";
 const ACCENT_CLASS = "text-amber-700";
 
-// --- IKON SVG ---
+// --- IKON SVG (Tidak Berubah) ---
 const BankTransferIcon = () => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -69,7 +71,7 @@ const LargeCheckIcon = ({ color = "white" }) => (
         height="40"
         viewBox="0 0 24 24"
         fill="none"
-        stroke={color}
+        stroke="currentColor"
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -81,7 +83,7 @@ const LargeCheckIcon = ({ color = "white" }) => (
 );
 // --- Akhir Ikon SVG ---
 
-// Komponen Toast Notification
+// Komponen Toast Notification (Tidak Berubah)
 const ToastNotification = ({ isVisible, message }) => {
     return (
         <div
@@ -114,7 +116,7 @@ const ToastNotification = ({ isVisible, message }) => {
     );
 };
 
-// Komponen Card Header Pembayaran
+// Komponen Card Header Pembayaran (Tidak Berubah)
 const PaymentHeaderCard = ({ title }) => (
     <div className="p-6 md:p-8 rounded-t-xl text-white shadow-lg flex items-center justify-between bg-gradient-to-r from-amber-600 to-amber-400">
         <h2 className="font-bold text-3xl sm:text-4xl">{title}</h2>
@@ -122,7 +124,7 @@ const PaymentHeaderCard = ({ title }) => (
     </div>
 );
 
-// Helper formatCurrency
+// Helper formatCurrency (Tidak Berubah)
 const formatCurrency = (number) => {
     return new Intl.NumberFormat("id-ID", {
         style: "currency",
@@ -131,7 +133,7 @@ const formatCurrency = (number) => {
     }).format(number);
 };
 
-// Komponen Detail Transfer
+// Komponen Detail Transfer (Tidak Berubah)
 const TransferDetail = ({ label, value, valueStyle = {}, showToast }) => {
     const copyToClipboard = (text) => {
         try {
@@ -166,15 +168,58 @@ const TransferDetail = ({ label, value, valueStyle = {}, showToast }) => {
     );
 };
 
-// Komponen Halaman Utama
+// Komponen Halaman Utama (DI SINI PERUBAHAN UTAMA)
 export default function PaymentPage({
     auth,
-    plan,
-    tax,
-    total,
-    invoiceId,
+    order, 
     paymentSettings,
 }) {
+    // =================================================================
+    // >>> GUARD CLAUSE UTAMA UNTUK MENGHINDARI ERROR UNDEFINED (Sudah Ada)
+    // =================================================================
+    if (!order || !order.package || !order.package.vendor) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-red-50">
+                <Head title="Data Error" />
+                <div className="text-center p-8 bg-white shadow-xl rounded-xl">
+                    <h1 className="text-2xl font-bold text-red-700">Data Pemesanan Tidak Ditemukan</h1>
+                    <p className="text-gray-600 mt-2">
+                        Data Order (ID: {order?.id}), Paket, atau Vendor hilang. Pastikan Controller memuat Order dengan relasi `package.vendor`.
+                    </p>
+                    <button 
+                        onClick={() => window.history.back()}
+                        className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gray-500 hover:bg-gray-600"
+                    >
+                        &larr; Kembali
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // =================================================================
+    // >>> DESTRUKTURISASI DATA AMAN DAN PERHITUNGAN (PERUBAHAN 1)
+    // =================================================================
+    const pkg = order.package; 
+    
+    const basePrice = pkg.price || 0;
+    const taxRate = 0.11;
+    const taxAmount = basePrice * taxRate;
+    const totalAmount = basePrice + taxAmount; 
+    const invoiceId = order.id; 
+
+    // --- PERUBAHAN UTAMA: MENGAMBIL DAN MEMFORMAT TANGGAL PEMESANAN ---
+    const orderDate = order.order_date; // Mengambil tanggal dari objek Order
+    
+    // Memformat tanggal agar lebih mudah dibaca (misal: 25 Desember 2025)
+    // Pastikan Anda telah menginstal moment.js: npm install moment
+    const formattedDate = orderDate 
+        ? moment(orderDate).locale('id').format('dddd, D MMMM YYYY') 
+        : 'Tanggal Belum Dipilih'; // Fallback jika order_date kosong
+
+    // =================================================================
+
+
     const { bankName, accountNumber, accountHolder, qrisUrl } =
         paymentSettings || {
             bankName: "Bank Tujuan (BELUM DIATUR ADMIN)",
@@ -215,9 +260,10 @@ export default function PaymentPage({
                 return;
             }
 
+            // MENGIRIM DATA TOTAL JUMLAH DAN ID INVOICE YANG SUDAH DIAMBIL DARI ORDER
             router.get(route("vendor.payment.proof.upload"), {
-                invoiceId: invoiceId,
-                amount: total,
+                invoiceId: invoiceId, // Menggunakan order.id
+                amount: totalAmount,  // Menggunakan totalAmount yang dihitung
                 account_name: data.account_name,
             });
         }
@@ -255,62 +301,62 @@ export default function PaymentPage({
                                         <h3
                                             className={`text-2xl font-bold border-b pb-2 ${ACCENT_CLASS} border-amber-200`}
                                         >
-                                            Ringkasan Tagihan (
-                                            {formatCurrency(total)})
+                                            Ringkasan Tagihan ({formatCurrency(totalAmount)}) 
                                         </h3>
 
                                         <div className="bg-white p-6 rounded-lg border border-gray-200 space-y-4 shadow-sm">
                                             <div className="border-b border-gray-100 pb-4">
                                                 <div className="flex justify-between font-semibold text-lg text-gray-700">
-                                                    <span>{plan.name}</span>
+                                                    <span>{pkg.name} - ({order.package.vendor.name})</span> 
                                                     <span
                                                         className={ACCENT_CLASS}
                                                     >
-                                                        {formatCurrency(
-                                                            plan.price
-                                                        )}
+                                                        {formatCurrency(pkg.price)} 
                                                     </span>
                                                 </div>
                                             </div>
 
+                                            {/* PERUBAHAN 2: MENGGANTI BAGIAN MANFAAT UTAMA DENGAN TANGGAL */}
                                             <div className="space-y-2 text-sm text-gray-600">
                                                 <p className="font-medium text-gray-700">
-                                                    Manfaat Utama:
+                                                    Tanggal Pemesanan: {/* Ganti Manfaat Utama */}
                                                 </p>
-                                                {Array.isArray(plan.features) &&
-                                                plan.features.length > 0 ? (
-                                                    plan.features.map(
-                                                        (feature, index) => (
-                                                            <li
-                                                                key={index}
-                                                                className="flex items-start list-none"
-                                                            >
-                                                                <CheckIcon />
-                                                                {feature}
-                                                            </li>
-                                                        )
+                                                <div className="flex items-start list-none font-semibold text-base text-gray-800">
+                                                    <CheckIcon /> 
+                                                    {formattedDate} {/* Tampilkan Tanggal yang sudah diformat */}
+                                                </div>
+                                                {Array.isArray(pkg.features) && 
+                                                pkg.features.length > 0 ? (
+                                                    pkg.features.map(
+                                                         (feature, index) => (
+                                                             <li
+                                                                 key={index}
+                                                                 className="flex items-start list-none text-sm text-gray-600"
+                                                             >
+                                                                 <CheckIcon />
+                                                                 {feature}
+                                                             </li>
+                                                         )
                                                     )
                                                 ) : (
-                                                    <p className="text-gray-500 italic">
-                                                        Tidak ada fitur yang
-                                                        terdaftar.
-                                                    </p>
+                                                    <p className="text-gray-500 italic text-sm">
+                                                     </p>
                                                 )}
+
                                             </div>
+                                            {/* AKHIR PERUBAHAN 2 */}
 
                                             <div className="border-t pt-4 space-y-2 border-amber-200">
                                                 <div className="flex justify-between text-sm">
                                                     <span>Subtotal</span>
                                                     <span className="font-semibold">
-                                                        {formatCurrency(
-                                                            plan.price
-                                                        )}
+                                                        {formatCurrency(pkg.price)} 
                                                     </span>
                                                 </div>
                                                 <div className="flex justify-between text-sm">
                                                     <span>PPN (11%)</span>
                                                     <span className="font-semibold">
-                                                        {formatCurrency(tax)}
+                                                        {formatCurrency(taxAmount)} 
                                                     </span>
                                                 </div>
                                                 <div
@@ -318,7 +364,7 @@ export default function PaymentPage({
                                                 >
                                                     <span>Total Tagihan</span>
                                                     <span>
-                                                        {formatCurrency(total)}
+                                                        {formatCurrency(totalAmount)} 
                                                     </span>
                                                 </div>
                                             </div>
@@ -333,7 +379,7 @@ export default function PaymentPage({
                                         </div>
                                     </div>
 
-                                    {/* Kolom Kanan */}
+                                    {/* Kolom Kanan (Metode Pembayaran) */}
                                     <div className="space-y-6 md:col-span-2">
                                         <h3
                                             className={`text-2xl font-bold border-b pb-2 ${ACCENT_CLASS} border-amber-200`}
