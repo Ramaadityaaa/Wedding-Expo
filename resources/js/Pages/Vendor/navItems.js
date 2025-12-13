@@ -5,6 +5,7 @@ import {
     Package,
     Image as ImageIcon,
     MessageSquare,
+    Banknote,  // Import icon Banknote untuk Pengaturan Rekening
 } from "lucide-react";
 
 export const vendorNavItems = [
@@ -26,8 +27,12 @@ export const vendorNavItems = [
         route: "vendor.membership.index",
         icon: CreditCard,
     },
-
-    // Menu-menu ini akan TERKUNCI otomatis jika status != active
+    {
+        name: "bank-settings",  // Tambahkan menu untuk pengaturan rekening
+        label: "Pengaturan Rekening",  // Label untuk menu
+        route: "vendor.bank.edit",  // Route untuk mengarahkan ke halaman pengaturan rekening
+        icon: Banknote,  // Gunakan icon Banknote
+    },
     {
         name: "packages",
         label: "Paket Jasa",
@@ -45,5 +50,5 @@ export const vendorNavItems = [
         label: "Pesan & Chat",
         route: "vendor.chat.index",
         icon: MessageSquare,
-    }, // Pastikan nama route ini 'chat.index' (yang halaman)
+    },
 ];

@@ -28,9 +28,10 @@ use App\Http\Controllers\Vendor\MembershipController;
 use App\Http\Controllers\Vendor\VendorPaymentFlowController;
 use App\Http\Controllers\Vendor\VendorReviewController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Vendor\BankSettingsController; // Add this line for the new controller
 
 // --- MODELS ---
-use App\Models\Vendor; // Atau WeddingOrganizer sesuai model Anda
+use App\Models\Vendor;
 use App\Models\User;
 
 /*
@@ -99,13 +100,9 @@ Route::middleware(['auth'])->group(function () {
         ]);
     })->name('admin.contact');
 
-    // >>> [PERBAIKAN & PENAMBAHAN UNTUK CUSTOMER PAYMENT FLOW] <<<
+    // >>> [PERBAIKAN & PENAMBAHAN UNTUK CUSTOMER PAYMENT FLOW] <<< 
     Route::group(['prefix' => 'customer', 'as' => 'customer.'], function () {
-
         // [RUTE BARU] Menampilkan halaman Pemilihan Metode Pembayaran (PaymentPage.jsx)
-        // Dipanggil setelah Order berhasil disimpan di BookingController@store
-        // File: routes/web.php
-// ... di dalam Route::group(['prefix' => 'customer', 'as' => 'customer.'], function () { ...
         Route::get('/payment/{orderId}', [BookingController::class, 'showPaymentPage'])->name('payment.page');
         Route::get('/payment/{orderId}/invoice', [BookingController::class, 'showPaymentInvoice'])->name('payment.invoice');
     });
@@ -126,6 +123,10 @@ Route::prefix('vendor')
         // PROFILE
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+
+        // BANK SETTINGS (Pengaturan Rekening)
+        Route::get('/bank-settings', [BankSettingsController::class, 'edit'])->name('bank.edit');
+        Route::patch('/bank-settings', [BankSettingsController::class, 'update'])->name('bank.update');
 
         // MEMBERSHIP
         Route::get('/membership', [MembershipController::class, 'index'])->name('membership.index');
@@ -149,7 +150,7 @@ Route::prefix('vendor')
         // --- HALAMAN CHAT VENDOR (INBOX) ---
         Route::get('/chat-page', function () {
             return Inertia::render('Vendor/pages/ChatPage');
-        })->name('chat.index'); // Nama route final: vendor.chat.index
+        })->name('chat.index');
     
         // PAYMENT PROOF
         Route::get('/payment-proofs', [PaymentProofController::class, 'vendorIndex'])->name('paymentproof.index');
@@ -180,7 +181,6 @@ Route::get('/dashboard', function () {
 
     return Inertia::render('Customer/Dashboard', ['isLoggedIn' => true, 'user' => $user]);
 })->middleware(['auth', 'verified'])->name('dashboard');
-
 
 /*
 |--------------------------------------------------------------------------- 
@@ -224,7 +224,7 @@ Route::prefix('admin')
         // --- HALAMAN CHAT ADMIN (SUPPORT) ---
         Route::get('/chat', function () {
             return Inertia::render('Admin/pages/AdminChatPage');
-        })->name('chat.index'); // Nama route final: admin.chat.index
+        })->name('chat.index');
     });
 
 require __DIR__ . '/auth.php';
