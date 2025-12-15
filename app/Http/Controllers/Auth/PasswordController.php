@@ -1,5 +1,7 @@
 <?php
 
+// app/Http/Controllers/Auth/PasswordController.php
+
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
@@ -15,15 +17,20 @@ class PasswordController extends Controller
      */
     public function update(Request $request): RedirectResponse
     {
+        // Kunci Dinamis: Validasi dan update password di database
         $validated = $request->validate([
             'current_password' => ['required', 'current_password'],
-            'password' => ['required', Password::defaults(), 'confirmed'],
+            // Pastikan Anda telah mengimpor dan menggunakan rule Password::defaults() dengan benar
+            'password' => ['required', Password::defaults(), 'confirmed'], 
         ]);
 
         $request->user()->update([
+            // --- DATABASE SAVE (Hashing) ---
             'password' => Hash::make($validated['password']),
         ]);
 
-        return back();
+        // Kunci Dinamis: Mengembalikan kembali ke halaman sebelumnya
+        // back() akan memicu `recentlySuccessful` di frontend dan me-reset field.
+        return back()->with('status', 'password-updated');
     }
 }

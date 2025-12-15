@@ -28,11 +28,13 @@ use App\Http\Controllers\Vendor\MembershipController;
 use App\Http\Controllers\Vendor\VendorPaymentFlowController;
 use App\Http\Controllers\Vendor\VendorReviewController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\Vendor\BankSettingsController; // Add this line for the new controller
+use App\Http\Controllers\Vendor\BankSettingsController; 
+// *** KONTROLER PASSWORD ***
+use App\Http\Controllers\Auth\PasswordController; // Asumsi Anda menggunakan PasswordController untuk password
 
 // --- MODELS ---
-use App\Models\Vendor;
 use App\Models\User;
+use App\Models\WeddingOrganizer; 
 
 /*
 |--------------------------------------------------------------------------- 
@@ -50,8 +52,8 @@ Route::get('/favorites', function () {
 
 // Rute Halaman Vendor Detail untuk Customer
 Route::get('/vendors/{vendor}', function ($vendorId) {
-    // Asumsi: \App\Models\WeddingOrganizer adalah model yang benar untuk vendor
-    $vendor = \App\Models\WeddingOrganizer::with([
+    // Pastikan WeddingOrganizer sudah di-use di atas
+    $vendor = WeddingOrganizer::with([ 
         'packages',
         'portfolios',
         'reviews.user' // Eager load user yang memberi review
@@ -66,8 +68,7 @@ Route::get('/vendors/{vendor}', function ($vendorId) {
 Route::get('/register/vendor', [HomeController::class, 'vendorRegister'])->name('vendor.register');
 Route::post('/register/vendor', [HomeController::class, 'vendorStore'])->name('vendor.store');
 
-// **NEW: Halaman Pemesanan (Order)** // Route::get('/order/{vendorId}', [BookingController::class, 'create'])->name('order.create'); 
-Route::post('/order', [BookingController::class, 'store'])->name('order.store'); // Dipanggil oleh SelectDate.jsx, redirect ke customer.payment.page
+// Halaman Pemesanan (Order)
 Route::get('/select-date/{vendorId}/{packageId}', [BookingController::class, 'selectDate'])->name('order.selectDate');
 
 
@@ -83,6 +84,10 @@ Route::prefix('api')->group(function () {
 |--------------------------------------------------------------------------- 
 */
 Route::middleware(['auth'])->group(function () {
+    
+    // ==========================================================
+    // !!! BLOK RUTE PROFILE LAMA YANG KONFLIK DIHAPUS DARI SINI
+    // ==========================================================
 
     // --- FITUR CHAT REAL-TIME (API) ---
     Route::get('/chat/conversations', [ChatController::class, 'getConversations'])->name('chat.conversations');
@@ -118,11 +123,17 @@ Route::prefix('vendor')
     ->middleware(['auth', 'vendor'])
     ->group(function () {
 
+        // RUTE DASHBOARD VENDOR (Nama: vendor.dashboard)
         Route::get('/dashboard', [VendorDashboard::class, 'index'])->name('dashboard');
 
-        // PROFILE
-        Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+        // >>> RUTE PROFILE & PASSWORD VENDOR (DIPINDAHKAN KE DALAM GRUP INI) <<<
+        // Nama rute lengkap: vendor.profile.edit
+        Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit'); 
+        // Nama rute lengkap: vendor.profile.update
         Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+        // Nama rute lengkap: vendor.password.update
+        Route::put('/password', [PasswordController::class, 'update'])->name('password.update');
+        // >>> AKHIR RUTE PROFILE & PASSWORD VENDOR <<<
 
         // BANK SETTINGS (Pengaturan Rekening)
         Route::get('/bank-settings', [BankSettingsController::class, 'edit'])->name('bank.edit');
