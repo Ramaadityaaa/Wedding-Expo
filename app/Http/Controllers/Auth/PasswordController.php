@@ -8,7 +8,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\Rules\Password; // Pastikan ini di-import
 
 class PasswordController extends Controller
 {
@@ -17,20 +17,29 @@ class PasswordController extends Controller
      */
     public function update(Request $request): RedirectResponse
     {
-        // Kunci Dinamis: Validasi dan update password di database
+        // --- 1. VALIDASI DATA DENGAN CUSTOM MESSAGES ---
         $validated = $request->validate([
+            // Rule 'current_password' memeriksa kecocokan dengan password user saat ini
             'current_password' => ['required', 'current_password'],
-            // Pastikan Anda telah mengimpor dan menggunakan rule Password::defaults() dengan benar
-            'password' => ['required', Password::defaults(), 'confirmed'], 
+            
+            // Rule 'confirmed' memeriksa kesamaan dengan 'password_confirmation'
+            'password' => ['required', 'string', Password::defaults(), 'confirmed'], 
+        ], [
+            // Pesan Kustom untuk Validasi
+            'current_password.required' => 'Password lama wajib diisi.',
+            'current_password.current_password' => 'Password lama yang dimasukkan salah.', // Disesuaikan
+            'password.required' => 'Password baru wajib diisi.',
+            'password.confirmed' => 'Konfirmasi password baru harus sama.', // Disesuaikan
+            'password.min' => 'Password minimal harus :min karakter.', // Contoh default
         ]);
 
+        // --- 2. UPDATE PASSWORD DI DATABASE ---
         $request->user()->update([
-            // --- DATABASE SAVE (Hashing) ---
             'password' => Hash::make($validated['password']),
         ]);
 
-        // Kunci Dinamis: Mengembalikan kembali ke halaman sebelumnya
-        // back() akan memicu `recentlySuccessful` di frontend dan me-reset field.
+        // --- 3. REDIRECT SUKSES ---
+        // back() akan kembali ke /vendor/profile dengan status 'password-updated'
         return back()->with('status', 'password-updated');
     }
 }
