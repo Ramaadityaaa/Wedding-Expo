@@ -18,7 +18,16 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
+        // Fungsi ini merender halaman React 'Profile/Edit'
+        // Catatan: Jika Anda menggunakan halaman yang berbeda untuk Vendor (misalnya 'Vendor/ProfileEdit'),
+        // Anda mungkin perlu menyesuaikan logic di sini berdasarkan role user, atau membuat Controller terpisah.
+        
+        // Memastikan rute render adalah yang benar untuk Vendor.
+        // Jika Anda menggunakan halaman Vendor, pastikan 'Vendor/pages/ProfileEdit' atau sejenisnya.
+        // Asumsi: 'Profile/Edit' adalah komponen yang menangani tampilan Vendor/Customer.
+        
         return Inertia::render('Profile/Edit', [
+            // Memuat props yang dibutuhkan oleh halaman
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => session('status'),
         ]);
@@ -29,15 +38,20 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
+        // 1. Mengisi data yang divalidasi ke user
         $request->user()->fill($request->validated());
 
+        // 2. Jika email diubah, set email_verified_at menjadi null (membutuhkan verifikasi ulang)
         if ($request->user()->isDirty('email')) {
             $request->user()->email_verified_at = null;
         }
 
+        // 3. Menyimpan data ke database
         $request->user()->save();
 
-        return Redirect::route('profile.edit');
+        // 4. Redirect ke rute edit dengan status sukses.
+        // PERBAIKAN: Menggunakan rute Vendor agar tidak terjadi RouteNotFoundException
+        return Redirect::route('vendor.profile.edit')->with('status', 'profile-updated'); 
     }
 
     /**
