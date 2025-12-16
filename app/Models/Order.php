@@ -18,27 +18,25 @@ class Order extends Model
         'status',
         'payment_status',
         'total_price',
-        'amount', // TAMBAHAN PENTING: Controller menggunakan kolom 'amount'
-        'snap_token' // Persiapan jika nanti pakai Midtrans
+        'amount', // TAMBAHAN PENTING
+        'snap_token', // Persiapan jika nanti pakai Midtrans
     ];
 
     // Casting agar tanggal otomatis jadi Carbon Object (enak diformat di frontend)
     protected $casts = [
         'order_date' => 'datetime',
-        'amount' => 'decimal:2',
+        'amount' => 'decimal:2', // Asumsi kolom amount ada di database
     ];
 
     // --- RELASI UTAMA ---
 
     /**
-     * 1. Relasi ke Vendor
-     * PERBAIKAN: Arahkan ke WeddingOrganizer karena tabel 'packages' 
-     * terhubung ke 'wedding_organizers' di database.
+     * 1. Relasi ke Vendor (Crucial Relation)
+     * PERBAIKAN: Arahkan ke WeddingOrganizer
      */
     public function vendor(): BelongsTo
     {
         // Pastikan pakai WeddingOrganizer::class, bukan Vendor::class
-        // Kecuali Anda sudah migrasi total datanya ke tabel 'vendors'
         return $this->belongsTo(WeddingOrganizer::class, 'vendor_id');
     }
 
@@ -57,8 +55,11 @@ class Order extends Model
     {
         return $this->belongsTo(User::class, 'customer_id');
     }
-
-    // Relasi User (Alias dari Customer, kadang dipanggil user())
+    
+    /**
+     * 4. Relasi User (Alias dari Customer)
+     * Ini dipertahankan karena ada kode lain yang mungkin memanggil $order->user.
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'customer_id');
