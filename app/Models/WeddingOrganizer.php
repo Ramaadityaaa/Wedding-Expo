@@ -24,7 +24,6 @@ class WeddingOrganizer extends Authenticatable
 
     /**
      * The attributes that are mass assignable.
-     * SEMUA kolom yang diisi di HomeController harus ada di sini.
      */
     protected $fillable = [
         // RELASI & STATUS
@@ -43,6 +42,13 @@ class WeddingOrganizer extends Authenticatable
         // LEGALITAS
         'permit_number',
         'permit_image_path',
+
+        // --- DATA BANK & PEMBAYARAN ---
+        'bank_name',
+        'account_number',
+        'account_holder_name',
+        'qris_path', // <--- TAMBAHAN: Agar path gambar QRIS bisa disimpan
+        // ------------------------------
 
         // DATA KONTAK
         'contact_name',
@@ -80,8 +86,6 @@ class WeddingOrganizer extends Authenticatable
 
     public function packages(): HasMany
     {
-        // Parameter 2: Foreign Key di tabel packages
-        // Parameter 3: Local Key di tabel wedding_organizers (id)
         return $this->hasMany(Package::class, 'vendor_id');
     }
 

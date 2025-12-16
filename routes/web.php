@@ -8,7 +8,10 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\VendorController;
 use App\Http\Controllers\PaymentProofController;
 use App\Http\Controllers\ChatController;
+
+// --- KONTROLER CUSTOMER (PENTING) ---
 use App\Http\Controllers\Customer\BookingController;
+use App\Http\Controllers\Customer\CustomerPaymentFlowController; // <--- WAJIB IMPORT INI
 
 // --- KONTROLER ADMIN ---
 use App\Http\Controllers\Admin\DashboardController;
@@ -28,7 +31,7 @@ use App\Http\Controllers\Vendor\MembershipController;
 use App\Http\Controllers\Vendor\VendorPaymentFlowController;
 use App\Http\Controllers\Vendor\VendorReviewController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\Vendor\BankSettingsController; // Add this line for the new controller
+use App\Http\Controllers\Vendor\BankSettingsController;
 
 // --- MODELS ---
 use App\Models\Vendor;
@@ -66,11 +69,6 @@ Route::get('/vendors/{vendor}', function ($vendorId) {
 Route::get('/register/vendor', [HomeController::class, 'vendorRegister'])->name('vendor.register');
 Route::post('/register/vendor', [HomeController::class, 'vendorStore'])->name('vendor.store');
 
-// **NEW: Halaman Pemesanan (Order)** // Route::get('/order/{vendorId}', [BookingController::class, 'create'])->name('order.create'); 
-Route::post('/order', [BookingController::class, 'store'])->name('order.store'); // Dipanggil oleh SelectDate.jsx, redirect ke customer.payment.page
-Route::get('/select-date/{vendorId}/{packageId}', [BookingController::class, 'selectDate'])->name('order.selectDate');
-
-
 // API Publik
 Route::prefix('api')->group(function () {
     Route::get('/vendors', [VendorController::class, 'index'])->name('api.vendors.index');
@@ -83,6 +81,11 @@ Route::prefix('api')->group(function () {
 |--------------------------------------------------------------------------- 
 */
 Route::middleware(['auth'])->group(function () {
+
+    // --- FITUR PEMESANAN (BOOKING) ---
+    // Dipanggil oleh SelectDate.jsx
+    Route::post('/order', [BookingController::class, 'store'])->name('order.store');
+    Route::get('/select-date/{vendorId}/{packageId}', [BookingController::class, 'selectDate'])->name('order.selectDate');
 
     // --- FITUR CHAT REAL-TIME (API) ---
     Route::get('/chat/conversations', [ChatController::class, 'getConversations'])->name('chat.conversations');
@@ -100,10 +103,27 @@ Route::middleware(['auth'])->group(function () {
         ]);
     })->name('admin.contact');
 
-    // >>> [PERBAIKAN & PENAMBAHAN UNTUK CUSTOMER PAYMENT FLOW] <<< 
+    // >>> [MODIFIKASI: CUSTOMER PAYMENT FLOW] <<< 
+    // >>> [MODIFIKASI: CUSTOMER PAYMENT FLOW] <<< 
     Route::group(['prefix' => 'customer', 'as' => 'customer.'], function () {
-        // [RUTE BARU] Menampilkan halaman Pemilihan Metode Pembayaran (PaymentPage.jsx)
-        Route::get('/payment/{orderId}', [BookingController::class, 'showPaymentPage'])->name('payment.page');
+
+        // --- 1. RUTE STATIS (TARUH DI ATAS) ---
+        // Halaman Upload Bukti (GET)
+        Route::get('/payment/upload', [CustomerPaymentFlowController::class, 'uploadProofPage'])->name('payment.proof.page');
+
+        // Proses Simpan Bukti Pembayaran (POST)
+        Route::post('/payment/upload', [CustomerPaymentFlowController::class, 'uploadProof'])->name('payment.proof.store');
+
+        // Halaman Loading / Status
+        Route::get('/payment/loading', [CustomerPaymentFlowController::class, 'paymentLoadingPage'])->name('payment.loading');
+
+        // --- 2. RUTE DINAMIS / WILDCARD (TARUH DI BAWAH) ---
+        // Laravel akan membaca ini TERAKHIR, sehingga "upload" atau "loading" tidak dianggap sebagai {orderId}
+
+        // Tampilkan Halaman Rincian Pembayaran (PaymentPage)
+        Route::get('/payment/{orderId}', [CustomerPaymentFlowController::class, 'create'])->name('payment.page');
+
+        // Invoice (Opsional)
         Route::get('/payment/{orderId}/invoice', [BookingController::class, 'showPaymentInvoice'])->name('payment.invoice');
     });
 });
@@ -124,7 +144,7 @@ Route::prefix('vendor')
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
 
-        // BANK SETTINGS (Pengaturan Rekening)
+        // BANK SETTINGS (Pengaturan Rekening Vendor)
         Route::get('/bank-settings', [BankSettingsController::class, 'edit'])->name('bank.edit');
         Route::patch('/bank-settings', [BankSettingsController::class, 'update'])->name('bank.update');
 
@@ -151,11 +171,11 @@ Route::prefix('vendor')
         Route::get('/chat-page', function () {
             return Inertia::render('Vendor/pages/ChatPage');
         })->name('chat.index');
-    
+
         // PAYMENT PROOF
         Route::get('/payment-proofs', [PaymentProofController::class, 'vendorIndex'])->name('paymentproof.index');
 
-        // PAYMENT FLOW
+        // PAYMENT FLOW (Vendor membayar Membership ke Admin)
         Route::group(['prefix' => 'payment', 'as' => 'payment.'], function () {
             Route::get('/upload', [VendorPaymentFlowController::class, 'uploadProofPage'])->name('proof.upload');
             Route::post('/upload', [VendorPaymentFlowController::class, 'uploadProof'])->name('proof.store');

@@ -1,148 +1,154 @@
-import * as React from "react"
-import { useToast } from "./use-toast";
-// Batas maksimum toast yang ditampilkan bersamaan
-const TOAST_LIMIT = 1 
-// Delay removal (digunakan oleh Toaster.jsx untuk menghapus dari DOM setelah animasi selesai)
-const TOAST_REMOVE_DELAY = 1000000 
+// resources/js/Components/ui/use-toast.jsx
+import * as React from "react";
+
+const TOAST_LIMIT = 1;
+const TOAST_REMOVE_DELAY = 1000000;
 
 const actionTypes = {
-  ADD_TOAST: "ADD_TOAST",
-  UPDATE_TOAST: "UPDATE_TOAST",
-  DISMISS_TOAST: "DISMISS_TOAST", // Mengatur 'open: false'
-  REMOVE_TOAST: "REMOVE_TOAST",   // Menghapus dari state
-}
+    ADD_TOAST: "ADD_TOAST",
+    UPDATE_TOAST: "UPDATE_TOAST",
+    DISMISS_TOAST: "DISMISS_TOAST",
+    REMOVE_TOAST: "REMOVE_TOAST",
+};
 
-let count = 0
+let count = 0;
 
 function genId() {
-  count = (count + 1) % 1000000
-  return count.toString()
+    count = (count + 1) % Number.MAX_SAFE_INTEGER;
+    return count.toString();
 }
 
-function toastReducer(state, action) {
-  switch (action.type) {
-    case actionTypes.ADD_TOAST:
-      return {
-        ...state,
-        toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
-      }
+const toastTimeouts = new Map();
 
-    case actionTypes.UPDATE_TOAST:
-      return {
-        ...state,
-        toasts: state.toasts.map((t) =>
-          t.id === action.toast.id ? { ...t, ...action.toast } : t
-        ),
-      }
-
-    case actionTypes.DISMISS_TOAST: {
-      const { toastId } = action
-      // Note: we're only setting "open" to false here.
-      // The remove is handled in the Toast component (yang ada di toaster.jsx).
-      return {
-        ...state,
-        toasts: state.toasts.map((t) =>
-          t.id === toastId ? { ...t, open: false } : t
-        ),
-      }
+const addToRemoveQueue = (toastId) => {
+    if (toastTimeouts.has(toastId)) {
+        return;
     }
-    case actionTypes.REMOVE_TOAST:
-      if (action.toastId === undefined) {
-        return {
-          ...state,
-          toasts: [],
+
+    const timeout = setTimeout(() => {
+        toastTimeouts.delete(toastId);
+        dispatch({
+            type: "REMOVE_TOAST",
+            toastId: toastId,
+        });
+    }, TOAST_REMOVE_DELAY);
+
+    toastTimeouts.set(toastId, timeout);
+};
+
+export const reducer = (state, action) => {
+    switch (action.type) {
+        case "ADD_TOAST":
+            return {
+                ...state,
+                toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
+            };
+
+        case "UPDATE_TOAST":
+            return {
+                ...state,
+                toasts: state.toasts.map((t) =>
+                    t.id === action.toast.id ? { ...t, ...action.toast } : t
+                ),
+            };
+
+        case "DISMISS_TOAST": {
+            const { toastId } = action;
+
+            if (toastId) {
+                addToRemoveQueue(toastId);
+            } else {
+                state.toasts.forEach((toast) => {
+                    addToRemoveQueue(toast.id);
+                });
+            }
+
+            return {
+                ...state,
+                toasts: state.toasts.map((t) =>
+                    t.id === toastId || toastId === undefined
+                        ? {
+                              ...t,
+                              open: false,
+                          }
+                        : t
+                ),
+            };
         }
-      }
-      return {
-        ...state,
-        toasts: state.toasts.filter((t) => t.id !== action.toastId),
-      }
-    default:
-        return state;
-  }
+        case "REMOVE_TOAST":
+            if (action.toastId === undefined) {
+                return {
+                    ...state,
+                    toasts: [],
+                };
+            }
+            return {
+                ...state,
+                toasts: state.toasts.filter((t) => t.id !== action.toastId),
+            };
+    }
+};
+
+const listeners = [];
+
+let memoryState = { toasts: [] };
+
+function dispatch(action) {
+    memoryState = reducer(memoryState, action);
+    listeners.forEach((listener) => {
+        listener(memoryState);
+    });
 }
 
-const ToastContext = React.createContext(undefined)
+// Fungsi toast (bisa dipanggil di mana saja, bahkan di luar komponen React)
+function toast({ ...props }) {
+    const id = genId();
 
-/**
- * Provider yang menampung state semua Toast dan logic reducer.
- * HARUS diletakkan di App.jsx atau Layout utama.
- */
-export function ToasterProvider({ children }) {
-  const [state, dispatch] = React.useReducer(toastReducer, {
-    toasts: [],
-  })
-
-  const [paused, setPaused] = React.useState(false)
-
-  // Fungsi yang dipanggil oleh user (e.g., toast({ title: 'Success' }))
-  function toast({ ...props }) {
-    const id = genId()
-    const update = (props) => dispatch({ type: actionTypes.UPDATE_TOAST, toast: { ...props, id } })
-    const dismiss = () => dispatch({ type: actionTypes.DISMISS_TOAST, toastId: id })
+    const update = (props) =>
+        dispatch({
+            type: "UPDATE_TOAST",
+            toast: { ...props, id },
+        });
+    const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id });
 
     dispatch({
-      type: actionTypes.ADD_TOAST,
-      toast: {
-        ...props,
-        id,
-        open: true,
-        // Ini dipanggil oleh <Toast> component (di toaster.jsx) saat di-dismiss
-        onOpenChange: (open) => { 
-          if (!open) dismiss()
+        type: "ADD_TOAST",
+        toast: {
+            ...props,
+            id,
+            open: true,
+            onOpenChange: (open) => {
+                if (!open) dismiss();
+            },
         },
-      },
-    })
+    });
 
     return {
-      id,
-      dismiss,
-      update,
-    }
-  }
-
-  function dismiss(toastId) {
-    dispatch({ type: actionTypes.DISMISS_TOAST, toastId })
-  }
-
-  function remove(toastId) {
-    dispatch({ type: actionTypes.REMOVE_TOAST, toastId })
-  }
-
-  // Logic untuk mengatur timer otomatis dismiss
-  React.useEffect(() => {
-    let timerRef = 0
-    if (!paused) {
-      if (state.toasts.length > 0) {
-        const t = state.toasts[0]
-        if (t.duration) {
-          timerRef = setTimeout(() => dismiss(t.id), t.duration)
-        }
-      }
-    }
-
-    return () => clearTimeout(timerRef)
-  }, [state.toasts, paused])
-
-
-  return (
-    <ToastContext.Provider value={{ toasts: state.toasts, toast, dismiss, remove, setPaused, paused }}>
-      {children}
-    </ToastContext.Provider>
-  )
+        id: id,
+        dismiss,
+        update,
+    };
 }
 
-/**
- * HOOK UTAMA YANG AKAN DIPANGGIL OLEH KOMPONEN LAIN.
- * Ini adalah function yang dicari oleh BankSettingsPage.jsx Anda.
- */
-export function useToast() {
-  const context = React.useContext(ToastContext)
+// Hook useToast (Dipanggil di dalam komponen React seperti BankSettingsPage)
+function useToast() {
+    const [state, setState] = React.useState(memoryState);
 
-  if (!context) {
-    // Ini error yang Anda dapatkan jika ToasterProvider belum dibungkus di level atas
-    throw new Error("useToast must be used within a ToasterProvider") 
-  }
+    React.useEffect(() => {
+        listeners.push(setState);
+        return () => {
+            const index = listeners.indexOf(setState);
+            if (index > -1) {
+                listeners.splice(index, 1);
+            }
+        };
+    }, [state]);
 
-  return context
+    return {
+        ...state,
+        toast,
+        dismiss: (toastId) => dispatch({ type: "DISMISS_TOAST", toastId }),
+    };
 }
+
+export { useToast, toast };
