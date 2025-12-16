@@ -8,27 +8,43 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\Order;
 use App\Models\OrderPayment;
 use Inertia\Inertia;
+use Inertia\Response; // Perlu untuk tipe return eksplisit
+use Illuminate\Http\RedirectResponse; // Perlu untuk redirect
 
 class VendorOrderController extends Controller
 {
     /**
-     * Menampilkan daftar pesanan masuk untuk Vendor yang login.
+     * Menampilkan daftar pesanan masuk untuk Vendor yang login (dengan paginasi).
      */
-    public function index()
+    public function index(): Response|RedirectResponse
     {
         $vendor = Auth::user()->vendor;
 
-        // Ambil Order yang package-nya milik vendor ini
-        // Eager load: user (customer), package, dan orderPayment (bukti bayar)
+        // =======================================================
+        // 🎯 PERBAIKAN 1: Error Handling Jika Vendor Belum Terdaftar
+        // =======================================================
+        if (!$vendor) {
+            return redirect()->route('dashboard')->with('error', 'Akses ditolak: Akun Anda tidak terdaftar sebagai vendor.');
+        }
+
+        // =======================================================
+        // 🎯 PERBAIKAN 2: Gunakan ->paginate(10) bukan ->get()
+        // =======================================================
         $orders = Order::whereHas('package', function ($query) use ($vendor) {
             $query->where('vendor_id', $vendor->id);
         })
-            ->with(['user', 'package', 'orderPayment']) // Pastikan relasi ini ada di Model Order
+            ->with([
+                // Optimasi Eager Loading (hanya ambil kolom yang perlu)
+                'user:id,name,email', 
+                'package:id,name,price,vendor_id', 
+                'orderPayment:id,order_id,account_name,bank_source,proof_file'
+            ]) 
             ->latest()
-            ->get();
+            ->paginate(10); // Mengembalikan objek Paginator yang dibutuhkan Inertia
 
         return Inertia::render('Vendor/pages/OrderManagementPage', [
-            'orders' => $orders
+            'orders' => $orders,
+            // Anda dapat menambahkan status default di sini jika diperlukan
         ]);
     }
 
@@ -51,25 +67,20 @@ class VendorOrderController extends Controller
         if ($request->action === 'approve') {
             // 1. Update Status Order
             $order->payment_status = 'PAID';
-            $order->status = 'CONFIRMED'; // Atau status lain sesuai alur bisnis
+            $order->status = 'PROCESSED'; // Status yang lebih umum setelah pembayaran
             $order->save();
 
-            // 2. Update Status di Tabel OrderPayment (jika ada)
-            // Menggunakan update() pada relasi atau cari manual
-            OrderPayment::where('order_id', $order->id)
-                ->where('status', 'PENDING')
-                ->update(['status' => 'PAID']);
+            // 2. Update Status di Tabel OrderPayment 
+            $order->orderPayment()->update(['status' => 'VERIFIED']);
 
-            $message = 'Pembayaran berhasil dikonfirmasi. Pesanan diterima.';
+            $message = 'Pembayaran berhasil dikonfirmasi. Pesanan diproses.';
         } else {
             // REJECT
             $order->payment_status = 'REJECTED';
             $order->status = 'CANCELLED';
             $order->save();
 
-            OrderPayment::where('order_id', $order->id)
-                ->where('status', 'PENDING')
-                ->update(['status' => 'REJECTED']);
+            $order->orderPayment()->update(['status' => 'REJECTED']);
 
             $message = 'Pembayaran ditolak. Pesanan dibatalkan.';
         }
