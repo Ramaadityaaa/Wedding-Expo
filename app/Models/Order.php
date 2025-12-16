@@ -5,6 +5,16 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne; // Perlu untuk relasi orderPayment
+
+// ===============================================
+// 🎯 PERBAIKAN Wajib: Import Model Relasi
+// ===============================================
+use App\Models\User;
+use App\Models\Package; 
+use App\Models\WeddingOrganizer; 
+use App\Models\OrderPayment; 
+// ===============================================
 
 class Order extends Model
 {
@@ -18,25 +28,22 @@ class Order extends Model
         'status',
         'payment_status',
         'total_price',
-        'amount', // TAMBAHAN PENTING
-        'snap_token', // Persiapan jika nanti pakai Midtrans
+        'amount',
+        'snap_token',
     ];
 
-    // Casting agar tanggal otomatis jadi Carbon Object (enak diformat di frontend)
     protected $casts = [
         'order_date' => 'datetime',
-        'amount' => 'decimal:2', // Asumsi kolom amount ada di database
+        'amount' => 'decimal:2',
     ];
 
     // --- RELASI UTAMA ---
 
     /**
-     * 1. Relasi ke Vendor (Crucial Relation)
-     * PERBAIKAN: Arahkan ke WeddingOrganizer
+     * 1. Relasi ke Vendor (WeddingOrganizer)
      */
     public function vendor(): BelongsTo
     {
-        // Pastikan pakai WeddingOrganizer::class, bukan Vendor::class
         return $this->belongsTo(WeddingOrganizer::class, 'vendor_id');
     }
 
@@ -58,19 +65,18 @@ class Order extends Model
     
     /**
      * 4. Relasi User (Alias dari Customer)
-     * Ini dipertahankan karena ada kode lain yang mungkin memanggil $order->user.
      */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'customer_id');
     }
-<<<<<<< HEAD
 
-    public function orderPayment()
+    /**
+     * 5. Relasi Pembayaran
+     * Menggunakan HasOne dan memastikan tipe return menggunakan HasOne
+     */
+    public function orderPayment(): HasOne
     {
         return $this->hasOne(OrderPayment::class)->latest();
     }
 }
-=======
-}
->>>>>>> 2a28af8db546988c80be37903c85d1a79d1e1fb0
