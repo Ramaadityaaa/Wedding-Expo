@@ -63,4 +63,9 @@ class Order extends Model
     {
         return $this->belongsTo(User::class, 'customer_id');
     }
+
+    public function orderPayment()
+    {
+        return $this->hasOne(OrderPayment::class)->latest();
+    }
 }

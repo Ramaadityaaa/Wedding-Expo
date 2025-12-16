@@ -32,8 +32,8 @@ use App\Http\Controllers\Vendor\VendorPaymentFlowController;
 use App\Http\Controllers\Vendor\VendorReviewController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Vendor\BankSettingsController;
-// *** KONTROLER PASSWORD ***
-use App\Http\Controllers\Auth\PasswordController; // Asumsi Anda menggunakan PasswordController untuk password
+use App\Http\Controllers\Auth\PasswordController;
+use App\Http\Controllers\Vendor\VendorOrderController;
 
 // --- MODELS ---
 use App\Models\User;
@@ -84,10 +84,6 @@ Route::prefix('api')->group(function () {
 */
 Route::middleware(['auth'])->group(function () {
 
-    // ==========================================================
-    // !!! BLOK RUTE PROFILE LAMA YANG KONFLIK DIHAPUS DARI SINI
-    // ==========================================================
-
     // --- FITUR PEMESANAN (BOOKING) ---
     // Dipanggil oleh SelectDate.jsx
     Route::post('/order', [BookingController::class, 'store'])->name('order.store');
@@ -109,8 +105,7 @@ Route::middleware(['auth'])->group(function () {
         ]);
     })->name('admin.contact');
 
-    // >>> [MODIFIKASI: CUSTOMER PAYMENT FLOW] <<< 
-    // >>> [MODIFIKASI: CUSTOMER PAYMENT FLOW] <<< 
+    // >>> [CUSTOMER PAYMENT FLOW] <<< 
     Route::group(['prefix' => 'customer', 'as' => 'customer.'], function () {
 
         // --- 1. RUTE STATIS (TARUH DI ATAS) ---
@@ -147,14 +142,10 @@ Route::prefix('vendor')
         // RUTE DASHBOARD VENDOR (Nama: vendor.dashboard)
         Route::get('/dashboard', [VendorDashboard::class, 'index'])->name('dashboard');
 
-        // >>> RUTE PROFILE & PASSWORD VENDOR (DIPINDAHKAN KE DALAM GRUP INI) <<<
-        // Nama rute lengkap: vendor.profile.edit
+        // >>> RUTE PROFILE & PASSWORD VENDOR <<<
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-        // Nama rute lengkap: vendor.profile.update
         Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-        // Nama rute lengkap: vendor.password.update
         Route::put('/password', [PasswordController::class, 'update'])->name('password.update');
-        // >>> AKHIR RUTE PROFILE & PASSWORD VENDOR <<<
 
         // BANK SETTINGS (Pengaturan Rekening Vendor)
         Route::get('/bank-settings', [BankSettingsController::class, 'edit'])->name('bank.edit');
@@ -194,11 +185,15 @@ Route::prefix('vendor')
             Route::get('/loading', [VendorPaymentFlowController::class, 'paymentLoadingPage'])->name('loading');
             Route::get('/{invoiceId}', [VendorPaymentFlowController::class, 'create'])->name('create');
         });
+
+        // MANAJEMEN PESANAN (CUSTOMER ORDER)
+        Route::get('/orders', [VendorOrderController::class, 'index'])->name('orders.index');
+        Route::post('/orders/{id}/verify', [VendorOrderController::class, 'verifyPayment'])->name('orders.verify');
     });
 
 /*
 |--------------------------------------------------------------------------- 
-| DASHBOARD REDIRECTOR
+| DASHBOARD REDIRECTOR (MODIFIKASI: Customer ke Home)
 |--------------------------------------------------------------------------- 
 */
 Route::get('/dashboard', function () {
@@ -206,12 +201,17 @@ Route::get('/dashboard', function () {
 
     if (!$user)
         return redirect()->route('home');
+
+    // Admin ke Dashboard Admin
     if ($user->role === 'ADMIN')
         return redirect()->route('admin.dashboard');
+
+    // Vendor ke Dashboard Vendor
     if ($user->role === 'VENDOR')
         return redirect()->route('vendor.dashboard');
 
-    return Inertia::render('Customer/Dashboard', ['isLoggedIn' => true, 'user' => $user]);
+    // Customer (User Biasa) -> Redirect ke Home (8000)
+    return redirect()->route('home');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 /*

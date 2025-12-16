@@ -5,7 +5,8 @@ import {
     Package,
     Image as ImageIcon,
     MessageSquare,
-    Banknote,  // Import icon Banknote untuk Pengaturan Rekening
+    Banknote,
+    ShoppingBag, // <--- Import Icon baru untuk Pesanan
 } from "lucide-react";
 
 export const vendorNavItems = [
@@ -15,24 +16,14 @@ export const vendorNavItems = [
         route: "vendor.dashboard",
         icon: LayoutDashboard,
     },
+    // --- MENU BARU: MANAJEMEN PESANAN ---
     {
-        name: "profile",
-        label: "Profil Bisnis",
-        route: "vendor.profile.edit",
-        icon: User,
+        name: "orders",
+        label: "Pesanan Masuk",
+        route: "vendor.orders.index", // Pastikan route ini sesuai web.php
+        icon: ShoppingBag,
     },
-    {
-        name: "membership",
-        label: "Langganan",
-        route: "vendor.membership.index",
-        icon: CreditCard,
-    },
-    {
-        name: "bank-settings",  // Tambahkan menu untuk pengaturan rekening
-        label: "Pengaturan Rekening",  // Label untuk menu
-        route: "vendor.bank.edit",  // Route untuk mengarahkan ke halaman pengaturan rekening
-        icon: Banknote,  // Gunakan icon Banknote
-    },
+    // ------------------------------------
     {
         name: "packages",
         label: "Paket Jasa",
@@ -44,6 +35,24 @@ export const vendorNavItems = [
         label: "Galeri Portofolio",
         route: "vendor.portfolio.index",
         icon: ImageIcon,
+    },
+    {
+        name: "profile",
+        label: "Profil Bisnis",
+        route: "vendor.profile.edit",
+        icon: User,
+    },
+    {
+        name: "bank-settings",
+        label: "Pengaturan Rekening",
+        route: "vendor.bank.edit",
+        icon: Banknote,
+    },
+    {
+        name: "membership",
+        label: "Langganan",
+        route: "vendor.membership.index",
+        icon: CreditCard,
     },
     {
         name: "chat",

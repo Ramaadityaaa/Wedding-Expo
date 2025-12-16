@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Customer;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
-use App\Models\OrderPayment; // <--- PASTIKAN MODEL BARU INI DI-IMPORT
+use App\Models\OrderPayment;
 use App\Models\PackagePlan;
 use App\Models\PaymentSetting;
 use Illuminate\Http\Request;
@@ -22,12 +22,9 @@ class CustomerPaymentFlowController extends Controller
      */
     public function create(Request $request, $orderId): Response
     {
-        // 1. Ambil Order BESERTA relasi Package dan Vendor-nya (Eager Loading)
-        // Ini penting agar di frontend tidak error saat akses order.package.vendor.name
         $order = Order::with(['package.vendor'])->findOrFail($orderId);
 
-        // 2. Ambil detail paket (opsional, untuk memastikan data nama/fitur)
-        // Kita fallback ke data yang ada di relasi jika PackagePlan tidak ditemukan
+        // Fallback untuk data paket jika PackagePlan sudah dihapus/ubah
         $planData = PackagePlan::where('slug', $order->package_id)
             ->orWhere('id', $order->package_id)
             ->first();
@@ -38,29 +35,19 @@ class CustomerPaymentFlowController extends Controller
             'features' => $planData->features ?? $order->package->features ?? [],
         ];
 
-        // 3. Hitung PPN & Total (Estimasi 11%)
-        $price = $order->amount / 1.11;
-        $tax = $order->amount - $price;
-        $total = $order->amount;
-
-        // 4. Ambil Rekening Admin (Tujuan Transfer)
-        $paymentSettings = PaymentSetting::first();
-
-        $rekening = [
-            'bankName' => $paymentSettings?->bank_name ?? 'Bank Transfer',
-            'accountNumber' => $paymentSettings?->account_number ?? '-',
-            'accountHolder' => $paymentSettings?->account_holder ?? 'Admin',
-            'qrisUrl' => ($paymentSettings && $paymentSettings->qris_path)
-                ? asset('storage/' . $paymentSettings->qris_path)
-                : null,
-        ];
+        // Hitung PPN & Total
+        // (Asumsi: amount di order sudah termasuk pajak, atau sesuaikan logika bisnis kamu)
+        $total = $order->amount ?? $order->total_price ?? $order->price ?? 0;
+        $price = $total / 1.11;
+        $tax = $total - $price;
 
         return Inertia::render('Customer/Payment/PaymentPage', [
             'plan' => $plan,
             'tax' => $tax,
             'total' => $total,
-            'order' => $order, // Kirim objek order lengkap
-            'paymentSettings' => $rekening,
+            'order' => $order,
+            // Catatan: Halaman ini biasanya hanya review. 
+            // Data rekening Vendor sebenarnya lebih penting di halaman Upload.
         ]);
     }
 
@@ -70,18 +57,30 @@ class CustomerPaymentFlowController extends Controller
      */
     public function uploadProofPage(Request $request): Response
     {
-        // Validasi query params yang dikirim dari PaymentPage.jsx
         $data = $request->validate([
             'order_id' => 'required',
             'amount' => 'required',
-            'account_name' => 'required|string',
         ]);
+
+        // 1. Ambil Order & Vendor
+        $order = Order::with(['package.vendor'])->findOrFail($data['order_id']);
+        $vendor = $order->package->vendor;
+
+        // 2. Siapkan Data Bank VENDOR (PENTING: Ini agar dinamis)
+        $vendorBank = [
+            'bank_name' => $vendor->bank_name ?? 'Bank Belum Diatur',
+            'account_number' => $vendor->account_number ?? '-',
+            'account_holder_name' => $vendor->account_holder_name ?? $vendor->name,
+            'qris_url' => $vendor->qris_path ? asset('storage/' . $vendor->qris_path) : null,
+        ];
 
         return Inertia::render('Customer/Payment/UploadPaymentProofPage', [
             'orderId' => $data['order_id'],
             'amount' => (float) $data['amount'],
-            'accountName' => $data['account_name'],
+            'accountName' => '',
             'total' => (float) $data['amount'],
+            // Kirim data bank vendor ke view
+            'vendorBank' => $vendorBank,
         ]);
     }
 
@@ -99,36 +98,37 @@ class CustomerPaymentFlowController extends Controller
 
         $order = Order::findOrFail($request->order_id);
 
-        // --- PERBAIKAN PENTING DI SINI ---
-        // Cek apakah pakai kolom 'amount', 'total_price', atau 'price'
-        // Jika semuanya null, set ke 0 agar tidak error SQL
+        // FIX: Penanganan harga agar tidak Error / NaN
         $amount = $order->amount ?? $order->total_price ?? $order->price ?? 0;
 
         DB::beginTransaction();
         try {
             $path = $request->file('payment_proof')->store('order_payments', 'public');
 
-            OrderPayment::create([
-                'order_id' => $order->id,
-                'account_name' => $request->account_name,
-                'amount' => $amount, // Gunakan variabel yang sudah diamankan
-                'proof_file' => $path,
-                'status' => 'PENDING',
-            ]);
+            // Gunakan updateOrCreate: Jika user upload ulang (revisi), data lama ditimpa
+            OrderPayment::updateOrCreate(
+                ['order_id' => $order->id], // Kunci pencarian
+                [
+                    'account_name' => $request->account_name,
+                    'amount' => $amount,
+                    'proof_file' => $path,
+                    'status' => 'PENDING',
+                    'bank_source' => 'Manual Transfer', // Default value
+                ]
+            );
 
+            // Update status Order
             $order->payment_status = 'PENDING';
             $order->save();
 
             DB::commit();
 
+            // Redirect ke Halaman Loading milikmu
             return redirect()->route('customer.payment.loading', ['order_id' => $order->id])
                 ->with('success', 'Bukti pembayaran berhasil dikirim.');
         } catch (\Exception $e) {
             DB::rollBack();
-
-            if (isset($path)) {
-                Storage::disk('public')->delete($path);
-            }
+            if (isset($path)) Storage::disk('public')->delete($path);
 
             return redirect()->back()->withErrors(['payment_proof' => 'Gagal menyimpan: ' . $e->getMessage()]);
         }
@@ -140,31 +140,34 @@ class CustomerPaymentFlowController extends Controller
      */
     public function paymentLoadingPage(Request $request): Response
     {
-        // Cari order berdasarkan ID di URL, atau ambil order terakhir user
+        // Cari order berdasarkan ID di URL
         if ($request->has('order_id')) {
-            $lastOrder = Order::find($request->order_id);
+            $order = Order::with('package.vendor')->find($request->order_id);
         } else {
-            $lastOrder = Order::where('customer_id', Auth::id())
+            // Fallback: ambil order terakhir user
+            $order = Order::where('user_id', Auth::id()) // Pastikan kolomnya user_id atau customer_id sesuai tabelmu
                 ->latest()
                 ->first();
         }
 
-        $currentStatus = 'pending';
+        if (!$order) {
+            return redirect()->route('customer.dashboard')->with('error', 'Pesanan tidak ditemukan');
+        }
 
-        if ($lastOrder) {
-            // Mapping status database ke status frontend
-            if ($lastOrder->payment_status === 'PAID') {
-                $currentStatus = 'success'; // atau 'PAID'
-            } elseif (in_array($lastOrder->payment_status, ['CANCELLED', 'EXPIRED', 'REJECTED'])) {
-                $currentStatus = 'failed'; // atau 'REJECTED'
-            } elseif ($lastOrder->payment_status === 'PENDING') {
-                $currentStatus = 'pending';
-            }
+        // Tentukan status untuk UI
+        $uiStatus = 'pending';
+        $statusUpper = strtoupper($order->payment_status);
+
+        if ($statusUpper === 'PAID' || $statusUpper === 'CONFIRMED') {
+            $uiStatus = 'success';
+        } elseif (in_array($statusUpper, ['CANCELLED', 'EXPIRED', 'REJECTED'])) {
+            $uiStatus = 'failed';
         }
 
         return Inertia::render('Customer/Payment/LoadingPage', [
-            'status' => $currentStatus, // Status ini yang akan dibaca oleh Polling di React
-            'orderId' => $lastOrder ? $lastOrder->id : null,
+            'status' => $uiStatus,     // String simple untuk UI ('pending', 'success', 'failed')
+            'orderId' => $order->id,
+            'order' => $order,         // PENTING: Kirim full object order untuk kebutuhan Polling data di React
         ]);
     }
 }
