@@ -4,42 +4,42 @@ namespace App\Http\Controllers;
 
 use App\Models\PaymentProof;
 use App\Models\Invoice;
-use App\Models\Vendor; // Pastikan ini mengarah ke Model Vendor Anda (bisa juga WeddingOrganizer jika belum direname)
+use App\Models\Vendor;
 use App\Models\PackagePlan;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 
 class PaymentProofController extends Controller
 {
+    /**
+     * Menampilkan daftar semua permintaan konfirmasi pembayaran di dashboard Admin.
+     */
     public function index()
     {
         $paymentRequests = PaymentProof::with(['vendor', 'invoice'])
             ->latest()
             ->get()
             ->map(function ($proof) {
-                // Default Value
+                // Default Value jika data plan tidak ditemukan
                 $planName = 'Paket Membership';
 
-                // Cek Invoice
+                // Logika pencarian nama paket berdasarkan Invoice
                 if ($proof->invoice) {
-                    // OPSI 1: Snapshot nama paket di invoice
+                    // Cek jika ada snapshot nama paket di tabel invoice
                     if (!empty($proof->invoice->package_name)) {
                         $planName = $proof->invoice->package_name;
-                    }
-                    // OPSI 2: Cari Live Data dari PackagePlan
+                    } 
+                    // Jika tidak ada, cari berdasarkan plan_id ke tabel PackagePlan
                     elseif (!empty($proof->invoice->plan_id)) {
                         $planId = $proof->invoice->plan_id;
                         $plan = PackagePlan::where('id', $planId)
                             ->orWhere('slug', $planId)
                             ->first();
 
-                        if ($plan) {
-                            $planName = $plan->name;
-                        } else {
-                            $planName = "Paket Tidak Dikenal (ID: $planId)";
-                        }
+                        $planName = $plan ? $plan->name : "Paket ID: $planId (Terhapus)";
                     }
                 }
 
@@ -52,62 +52,88 @@ class PaymentProofController extends Controller
         ]);
     }
 
+    /**
+     * Update status pembayaran (Approved/Rejected) dan upgrade role Vendor.
+     */
     public function updateStatus(Request $request, $id)
     {
+        $request->validate([
+            'status' => 'required|in:Approved,Rejected,Pending'
+        ]);
+
         try {
-            $request->validate([
-                'status' => 'required|in:Approved,Rejected,Pending'
-            ]);
+            // Gunakan Database Transaction agar jika satu gagal, semua dibatalkan (aman)
+            DB::beginTransaction();
 
             $payment = PaymentProof::findOrFail($id);
-
-            // 1. Update Status Bukti Pembayaran
+            
+            // 1. Update Status di tabel payment_proofs
             $payment->update(['status' => $request->status]);
 
-            // 2. Jika APPROVED, Update Invoice & Vendor
             if ($payment->invoice_id) {
                 $invoice = Invoice::find($payment->invoice_id);
 
                 if ($invoice) {
                     if ($request->status === 'Approved') {
-                        // A. Invoice Lunas
+                        // A. Tandai Invoice sebagai Lunas
                         $invoice->update(['status' => 'PAID']);
 
-                        // B. UPDATE VENDOR (STATUS & ROLE)
+                        // B. Logika Upgrade Vendor
                         if ($payment->vendor_id) {
                             $vendor = Vendor::find($payment->vendor_id);
 
                             if ($vendor) {
-                                // Update kolom-kolom penting agar fitur terbuka
+                                // MENGAKTIFKAN FITUR VENDOR
                                 $vendor->update([
-                                    'status' => 'active',       // Agar badge menjadi "TERVERIFIKASI" (Hijau)
-                                    'isApproved' => 'APPROVED', // Kompatibilitas kolom lama
-                                    'role' => 'Membership'      // <--- KUNCI UTAMA: Membuka gembok menu Chat, Paket, dll
+                                    'status'     => 'active',       // Badge jadi Hijau/Terverifikasi
+                                    'isApproved' => 'APPROVED',     // Status approval admin
+                                    'role'       => 'Membership'    // MEMBUKA SEMUA AKSES MENU (Chat, Portfolio, dll)
                                 ]);
+                                
+                                Log::info("Vendor ID {$vendor->id} telah diupgrade ke Membership.");
                             }
                         }
-                    } elseif ($request->status === 'Rejected') {
+                    } 
+                    elseif ($request->status === 'Rejected') {
+                        // Jika ditolak, kembalikan status invoice
                         $invoice->update(['status' => 'REJECTED']);
                     }
                 }
             }
-            return redirect()->back()->with('success', 'Status pembayaran diperbarui. Role vendor telah diupgrade menjadi Membership.');
+
+            DB::commit();
+
+            $message = $request->status === 'Approved' 
+                ? 'Pembayaran disetujui. Vendor sekarang memiliki akses Membership.' 
+                : 'Pembayaran telah ditolak.';
+
+            return redirect()->back()->with('success', $message);
+
         } catch (\Exception $e) {
-            Log::error("Error updating payment status: " . $e->getMessage());
-            return redirect()->back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+            DB::rollBack();
+            Log::error("Error pada PaymentProofController@updateStatus: " . $e->getMessage());
+            return redirect()->back()->with('error', 'Gagal memperbarui status: ' . $e->getMessage());
         }
     }
 
+    /**
+     * Menghapus data bukti pembayaran beserta filenya dari storage.
+     */
     public function destroy($id)
     {
         try {
             $payment = PaymentProof::findOrFail($id);
+
+            // Hapus file fisik dari folder storage/app/public
             if ($payment->file_path && Storage::disk('public')->exists($payment->file_path)) {
                 Storage::disk('public')->delete($payment->file_path);
             }
+
             $payment->delete();
-            return redirect()->back()->with('success', 'Data pembayaran berhasil dihapus.');
+
+            return redirect()->back()->with('success', 'Data bukti pembayaran berhasil dihapus.');
         } catch (\Exception $e) {
+            Log::error("Error pada PaymentProofController@destroy: " . $e->getMessage());
             return redirect()->back()->with('error', 'Gagal menghapus data.');
         }
     }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Illuminate\Http\RedirectResponse; // Tambahan untuk mendukung redirect
 use Illuminate\Support\Facades\Auth;
 use App\Models\Order; 
 use App\Models\Review;
@@ -15,7 +16,39 @@ use App\Models\User;
 class DashboardController extends Controller
 {
     /**
-     * Menampilkan dashboard Vendor atau halaman verifikasi (LoadingPage).
+     * METHOD BARU: Menampilkan halaman verifikasi (LoadingPage) tanpa mengganggu index.
+     * Menggunakan tipe data Response|RedirectResponse agar tidak error PHP0408.
+     */
+    public function verificationStatus(): Response|RedirectResponse
+    {
+        $user = Auth::user();
+        $vendor = $user->weddingOrganizer;
+
+        if (!$vendor) {
+            return Inertia::render('Vendor/Payment/LoadingPage', [
+                'status' => 'error',
+                'message' => 'Profil Vendor Anda tidak ditemukan. Silakan hubungi admin.'
+            ]);
+        }
+
+        // Jika ternyata sudah APPROVED (misal user refresh halaman ini)
+        if ($vendor->isApproved === 'APPROVED') {
+            return redirect()->route('vendor.dashboard');
+        }
+
+        $status = strtolower($vendor->isApproved);
+        $message = $status === 'pending'
+            ? 'Akun Anda sedang dalam proses verifikasi oleh Administrator. Mohon tunggu.'
+            : 'Pendaftaran Anda ditolak. Silakan hubungi admin untuk detail lebih lanjut.';
+
+        return Inertia::render('Vendor/Payment/LoadingPage', [
+            'status' => $status,
+            'message' => $message
+        ]);
+    }
+
+    /**
+     * Menampilkan dashboard Vendor (Kode Asli Anda 100% Utuh).
      */
     public function index(): Response
     {
@@ -32,7 +65,7 @@ class DashboardController extends Controller
         
         $vendorId = $vendor->id;
         
-        // 2. Cek Status Verifikasi dan Redirect
+        // 2. Cek Status Verifikasi dan Redirect (Logika Asli Anda)
         if ($vendor->isApproved === 'PENDING' || $vendor->isApproved === 'REJECTED') {
             
             $status = strtolower($vendor->isApproved);

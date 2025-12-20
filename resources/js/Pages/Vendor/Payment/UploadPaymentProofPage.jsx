@@ -1,404 +1,174 @@
-import React, {
-    useState,
-    useCallback,
-    useMemo,
-    useRef,
-    useEffect,
-} from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useForm, Head } from "@inertiajs/react";
 
-// --- KONFIGURASI TEMA ---
-const PRIMARY_COLOR = "#D97706";
-const SECONDARY_COLOR = "#FCD34D";
-const ACCENT_CLASS = "text-amber-700";
-
-// --- IKON COMPONENTS ---
-const UploadCloudIcon = ({
-    className = "w-10 h-10",
-    color = PRIMARY_COLOR,
-}) => (
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        className={className}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-    >
-        <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.5" />
-        <path d="M12 12v9" />
-        <path d="m8 17 4 4 4-4" />
+// --- Ikon Components (Tetap) ---
+const UploadCloudIcon = ({ className = "w-10 h-10", color = "#D97706" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.5" /><path d="M12 12v9" /><path d="m8 17 4 4 4-4" />
     </svg>
 );
 
-const FileTextIcon = ({ className = "w-5 h-5", color = PRIMARY_COLOR }) => (
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        className={className}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-    >
-        <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" />
-        <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-        <path d="M10 9H8" />
-        <path d="M16 13H8" />
-        <path d="M16 17H8" />
+const CopyIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
     </svg>
 );
 
-const LargeCheckIcon = ({ color = "white" }) => (
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="40"
-        height="40"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-    >
-        <path d="M22 11.08V12a10 10 0 1 1-5.93-8.98" />
-        <path d="M22 4L12 14.01l-3-3" />
-    </svg>
-);
-
-// --- HELPER FUNCTIONS ---
-const formatCurrency = (number) => {
-    return new Intl.NumberFormat("id-ID", {
-        style: "currency",
-        currency: "IDR",
-        minimumFractionDigits: 0,
-    }).format(number);
-};
-
-// --- SUB-COMPONENTS ---
-const PaymentHeaderCard = ({ title }) => (
-    <div className="p-8 md:p-10 rounded-t-2xl text-white shadow-lg flex items-center justify-between bg-gradient-to-r from-amber-600 to-amber-400">
-        <h2 className="font-extrabold text-2xl sm:text-3xl md:text-4xl tracking-wide">
-            {title}
-        </h2>
-        <LargeCheckIcon color="white" />
-    </div>
-);
-
-const DetailItem = ({ label, value, highlight = false, valueStyle = {} }) => (
-    <div className="flex justify-between border-b border-gray-100 py-3">
-        <span className="text-gray-600 font-medium">{label}</span>
-        <span
-            className={`text-right ${
-                highlight
-                    ? "font-mono text-gray-900 font-extrabold"
-                    : "text-gray-800"
-            }`}
-            style={valueStyle}
-        >
-            {value}
-        </span>
-    </div>
-);
-
-// --- MAIN COMPONENT ---
-export default function UploadPaymentProofPage({
-    auth,
-    amount,
-    accountName,
-    invoiceId,
-    total,
-}) {
-    // Inisialisasi Form dengan Data dari Controller (Dinamis)
-    const { data, setData, post, processing, errors, setError, clearErrors } =
-        useForm({
-            invoiceId: invoiceId, // ID Invoice dari Controller
-            amount: amount || total || 0, // Jumlah Tagihan
-            account_name: accountName || "", // Nama Pengirim (dari input user sebelumnya)
-            payment_proof: null, // File Bukti (kosong di awal)
-        });
+export default function UploadPaymentProofPage({ invoiceId, amount, vendorBank }) {
+    // 1. Inisialisasi Form - KUNCI: Gunakan invoice_id (snake_case)
+    const { data, setData, post, processing, errors, setError, clearErrors } = useForm({
+        invoice_id: invoiceId || "", 
+        account_name: "", 
+        payment_proof: null,
+    });
 
     const [selectedFile, setSelectedFile] = useState(null);
+    const [previewUrl, setPreviewUrl] = useState(null);
     const fileInputRef = useRef(null);
 
-    // Handler: Saat user memilih file
-    const handleFileChange = useCallback(
-        (file) => {
-            if (file) {
-                // Validasi Ukuran (Max 5MB)
-                if (file.size > 5 * 1024 * 1024) {
-                    setError("payment_proof", "Ukuran file melebihi 5MB.");
-                    setSelectedFile(null);
-                    setData("payment_proof", null);
-                    return;
-                }
-                // Validasi Tipe File
-                if (
-                    !["image/jpeg", "image/png", "application/pdf"].includes(
-                        file.type
-                    )
-                ) {
-                    setError(
-                        "payment_proof",
-                        "Hanya format JPG, PNG, atau PDF yang diizinkan."
-                    );
-                    setSelectedFile(null);
-                    setData("payment_proof", null);
-                    return;
-                }
+    // Sinkronisasi jika props berubah
+    useEffect(() => {
+        if (invoiceId) setData("invoice_id", invoiceId);
+    }, [invoiceId]);
 
-                clearErrors("payment_proof");
-                setSelectedFile(file);
-                setData("payment_proof", file);
-            }
-        },
-        [setData, setError, clearErrors]
-    );
+    // Cleanup preview URL
+    useEffect(() => {
+        return () => { if (previewUrl) URL.revokeObjectURL(previewUrl); };
+    }, [previewUrl]);
 
-    // Handler: Drag & Drop
-    const handleDrop = useCallback(
-        (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const files = e.dataTransfer.files;
-            if (files && files.length > 0) {
-                handleFileChange(files[0]);
-            }
-        },
-        [handleFileChange]
-    );
+    const handleFileChange = useCallback((file) => {
+        if (!file) return;
 
-    const handleDragOver = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-    };
-
-    // Handler: Submit Form
-    const submit = (e) => {
-        e.preventDefault();
-
-        if (!data.payment_proof) {
-            setError("payment_proof", "Bukti pembayaran wajib diunggah.");
+        if (file.size > 5 * 1024 * 1024) {
+            setError("payment_proof", "Ukuran file terlalu besar (Maks 5MB).");
             return;
         }
 
-        // Post ke Route 'proof.store'
+        const allowedTypes = ["image/jpeg", "image/png", "image/jpg", "application/pdf"];
+        if (!allowedTypes.includes(file.type)) {
+            setError("payment_proof", "Format file harus JPG, PNG, atau PDF.");
+            return;
+        }
+
+        clearErrors("payment_proof");
+        setSelectedFile(file);
+        setData("payment_proof", file);
+
+        if (file.type.startsWith('image/')) {
+            const objectUrl = URL.createObjectURL(file);
+            setPreviewUrl(objectUrl);
+        } else {
+            setPreviewUrl(null); 
+        }
+    }, [setData, setError, clearErrors]);
+
+    const submit = (e) => {
+        e.preventDefault();
+        if (processing) return;
+
         post(route("vendor.payment.proof.store"), {
-            forceFormData: true, // PENTING: Agar file terkirim sebagai binary
-            onSuccess: () => {
-                // Redirect ditangani oleh Controller (ke loading page)
-            },
-            onError: (err) => {
-                console.error("Gagal upload:", err);
-            },
+            forceFormData: true, 
+            preserveScroll: true,
+            onSuccess: () => alert("Bukti pembayaran berhasil diunggah! Menunggu verifikasi admin."),
         });
     };
 
-    const isFileSelected = useMemo(() => !!selectedFile, [selectedFile]);
+    const copyToClipboard = (text) => {
+        if (!text) return;
+        navigator.clipboard.writeText(text);
+        alert("Nomor rekening berhasil disalin.");
+    };
 
     return (
-        <div className="font-sans min-h-screen bg-gray-50 flex justify-center items-start pt-16 pb-20">
-            <Head title="Upload Bukti Pembayaran" />
+        <div className="min-h-screen bg-gray-50 font-sans">
+            <Head title="Konfirmasi Pembayaran" />
+            
+            <div className="max-w-4xl mx-auto px-4 py-10">
+                <header className="mb-8 text-center md:text-left">
+                    <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tight">
+                        Konfirmasi Pembayaran
+                    </h1>
+                    <p className="text-gray-500">Silakan selesaikan pembayaran dan unggah bukti transfer.</p>
+                </header>
 
-            <div className="max-w-5xl w-full mx-4 sm:mx-8 lg:mx-12">
-                <div className="bg-white overflow-hidden shadow-2xl rounded-2xl border-b-8 border-amber-500">
-                    <PaymentHeaderCard title="UNGGAH BUKTI PEMBAYARAN" />
-
-                    <form onSubmit={submit}>
-                        <div className="p-8 md:p-12 text-gray-800 grid grid-cols-1 md:grid-cols-3 gap-10">
-                            {/* KOLOM KIRI: Detail Tagihan */}
-                            <div className="space-y-8 md:col-span-1">
+                <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    
+                    {/* INFO REKENING */}
+                    <div className="space-y-6">
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                            <h3 className="text-xs font-bold text-amber-600 uppercase mb-4">Rekening Tujuan</h3>
+                            <div className="space-y-4">
                                 <div>
-                                    <h3
-                                        className={`text-2xl font-bold border-b pb-3 mb-4 ${ACCENT_CLASS} border-amber-200`}
-                                    >
-                                        Detail Tagihan
-                                    </h3>
-                                    <div className="space-y-4 text-base">
-                                        <DetailItem
-                                            label="Nama Pengirim"
-                                            value={data.account_name}
-                                            highlight={true}
-                                        />
-                                        <DetailItem
-                                            label="Nomor Invoice"
-                                            value={`#${invoiceId}`}
-                                        />
-                                        <DetailItem
-                                            label="Total Tagihan"
-                                            value={formatCurrency(data.amount)}
-                                            valueStyle={{
-                                                color: PRIMARY_COLOR,
-                                                fontWeight: "bold",
-                                                fontSize: "1.25rem",
-                                            }}
-                                        />
-                                    </div>
-                                    <div className="mt-6 p-5 rounded-xl text-base shadow-md bg-amber-50 border border-amber-200">
-                                        <p className="font-extrabold text-amber-700">
-                                            PENTING:
-                                        </p>
-                                        <p className="text-sm mt-2 text-gray-700">
-                                            Bukti transfer harus mencantumkan
-                                            tanggal, jumlah, dan tujuan rekening
-                                            yang sesuai agar verifikasi
-                                            berhasil.
-                                        </p>
+                                    <p className="text-xs text-gray-400 uppercase font-semibold">Bank</p>
+                                    <p className="text-lg font-bold text-gray-800">{vendorBank?.bank_name || "BCA"}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-400 uppercase font-semibold">Nomor Rekening</p>
+                                    <div className="flex items-center justify-between bg-gray-50 p-3 rounded-xl border border-dashed border-gray-300">
+                                        <span className="font-mono text-lg font-bold text-gray-900">{vendorBank?.account_number || "123-456-7890"}</span>
+                                        <button type="button" onClick={() => copyToClipboard(vendorBank?.account_number)} className="text-amber-600"><CopyIcon /></button>
                                     </div>
                                 </div>
-                            </div>
-
-                            {/* KOLOM KANAN: Upload Area */}
-                            <div className="space-y-8 md:col-span-2">
                                 <div>
-                                    <h3
-                                        className={`text-2xl font-bold border-b pb-3 mb-4 ${ACCENT_CLASS} border-amber-200`}
-                                    >
-                                        Formulir Upload
-                                    </h3>
-
-                                    {/* Dropzone Area */}
-                                    <div
-                                        onDragOver={handleDragOver}
-                                        onDragEnter={handleDragOver}
-                                        onDrop={handleDrop}
-                                        onClick={() =>
-                                            fileInputRef.current.click()
-                                        }
-                                        className={`relative p-12 h-64 rounded-2xl border-4 border-dashed transition-all cursor-pointer hover:bg-gray-50 flex items-center justify-center
-                                            ${
-                                                errors.payment_proof
-                                                    ? "border-red-500 bg-red-50"
-                                                    : isFileSelected
-                                                    ? "border-green-500 bg-green-50"
-                                                    : "border-gray-300"
-                                            }`}
-                                    >
-                                        <input
-                                            type="file"
-                                            ref={fileInputRef}
-                                            accept=".jpg,.jpeg,.png,.pdf"
-                                            onChange={(e) =>
-                                                handleFileChange(
-                                                    e.target.files[0]
-                                                )
-                                            }
-                                            className="hidden"
-                                        />
-
-                                        <div className="text-center space-y-3">
-                                            <UploadCloudIcon
-                                                className="w-20 h-20 mx-auto"
-                                                color={
-                                                    errors.payment_proof
-                                                        ? "#EF4444"
-                                                        : isFileSelected
-                                                        ? "#10B981"
-                                                        : PRIMARY_COLOR
-                                                }
-                                            />
-                                            <p className="font-extrabold text-xl text-gray-700">
-                                                Seret File Bukti Pembayaran ke
-                                                Sini
-                                            </p>
-                                            <p className="text-base text-gray-500">
-                                                atau{" "}
-                                                <span className="font-semibold text-amber-500">
-                                                    klik di mana saja
-                                                </span>{" "}
-                                                untuk memilih file
-                                            </p>
-                                            <p className="text-sm text-gray-400">
-                                                Format: JPG, PNG, atau PDF. Maks
-                                                5 MB.
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    {/* File Preview Status */}
-                                    {isFileSelected &&
-                                        !errors.payment_proof && (
-                                            <div className="mt-4 flex items-center p-4 rounded-xl border bg-white shadow-lg border-green-500">
-                                                <FileTextIcon
-                                                    color="#10B981"
-                                                    className="w-6 h-6 flex-shrink-0"
-                                                />
-                                                <span className="ml-4 text-base font-semibold text-gray-700 truncate">
-                                                    {selectedFile.name}
-                                                </span>
-                                                <span className="ml-auto text-sm text-gray-500 font-mono">
-                                                    (
-                                                    {(
-                                                        selectedFile.size /
-                                                        1024 /
-                                                        1024
-                                                    ).toFixed(2)}{" "}
-                                                    MB)
-                                                </span>
-                                            </div>
-                                        )}
-
-                                    {/* Error Message */}
-                                    {errors.payment_proof && (
-                                        <div className="mt-4 text-base text-red-700 p-4 rounded-xl bg-red-100 border border-red-400 font-medium">
-                                            <p className="font-bold">
-                                                Gagal Mengunggah:
-                                            </p>
-                                            <p>{errors.payment_proof}</p>
-                                        </div>
-                                    )}
-
-                                    {/* Submit Button */}
-                                    <button
-                                        type="submit"
-                                        disabled={processing || !isFileSelected}
-                                        className="w-full mt-6 text-white font-extrabold py-5 px-6 rounded-xl text-xl shadow-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.01] active:scale-95"
-                                        style={{
-                                            backgroundColor: PRIMARY_COLOR,
-                                            backgroundImage: `linear-gradient(90deg, ${PRIMARY_COLOR} 0%, ${SECONDARY_COLOR} 100%)`,
-                                        }}
-                                    >
-                                        {processing ? (
-                                            <span className="flex items-center justify-center">
-                                                <svg
-                                                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                    fill="none"
-                                                    viewBox="0 0 24 24"
-                                                >
-                                                    <circle
-                                                        className="opacity-25"
-                                                        cx="12"
-                                                        cy="12"
-                                                        r="10"
-                                                        stroke="currentColor"
-                                                        strokeWidth="4"
-                                                    ></circle>
-                                                    <path
-                                                        className="opacity-75"
-                                                        fill="currentColor"
-                                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                                    ></path>
-                                                </svg>
-                                                Mengunggah...
-                                            </span>
-                                        ) : (
-                                            "Kirim Bukti Pembayaran"
-                                        )}
-                                    </button>
-
-                                    <p className="text-sm text-gray-500 pt-4 text-center">
-                                        Setelah dikirim, verifikasi memakan
-                                        waktu 1–2 jam kerja.
-                                    </p>
+                                    <p className="text-xs text-gray-400 uppercase font-semibold">Atas Nama</p>
+                                    <p className="font-bold text-gray-800 uppercase">{vendorBank?.account_holder_name || "WEDDING EXPO ADMIN"}</p>
                                 </div>
                             </div>
                         </div>
-                    </form>
-                </div>
+
+                        <div className="bg-amber-600 p-6 rounded-2xl shadow-lg text-white">
+                            <p className="text-sm opacity-80 mb-1">Total Transfer:</p>
+                            <p className="text-3xl font-black">Rp {new Intl.NumberFormat("id-ID").format(amount)}</p> 
+                        </div>
+                    </div>
+
+                    {/* FORM UPLOAD */}
+                    <div className="space-y-6">
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                            <h3 className="text-xs font-bold text-blue-600 uppercase mb-6">Detail Pengirim</h3>
+
+                            <div className="mb-6">
+                                <label className="block text-xs font-bold text-gray-700 uppercase mb-2">Nama Pemilik Rekening (Anda)</label>
+                                <input 
+                                    type="text"
+                                    value={data.account_name}
+                                    onChange={(e) => setData("account_name", e.target.value)}
+                                    className={`w-full bg-gray-50 border-gray-200 rounded-xl focus:ring-amber-500 ${errors.account_name ? 'border-red-500' : ''}`}
+                                    placeholder="Nama sesuai di struk/m-banking"
+                                />
+                                {errors.account_name && <p className="text-red-500 text-xs mt-1">{errors.account_name}</p>}
+                            </div>
+
+                            <div className="mb-6">
+                                <label className="block text-xs font-bold text-gray-700 uppercase mb-2">Unggah Bukti</label>
+                                <div 
+                                    onClick={() => fileInputRef.current.click()}
+                                    className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all ${selectedFile ? 'border-green-400 bg-green-50' : 'border-gray-200 bg-gray-50'} ${errors.payment_proof ? 'border-red-400 bg-red-50' : ''}`}
+                                >
+                                    <input type="file" ref={fileInputRef} className="hidden" onChange={(e) => handleFileChange(e.target.files[0])} accept="image/*,application/pdf" />
+                                    
+                                    {previewUrl ? (
+                                        <img src={previewUrl} className="h-32 mx-auto rounded-lg object-contain" />
+                                    ) : (
+                                        <div className="flex flex-col items-center">
+                                            <UploadCloudIcon className="mb-2" />
+                                            <p className="text-sm font-bold">{selectedFile ? selectedFile.name : "Pilih Gambar / PDF"}</p>
+                                        </div>
+                                    )}
+                                </div>
+                                {errors.payment_proof && <p className="text-red-500 text-xs mt-1">{errors.payment_proof}</p>}
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={processing}
+                                className="w-full py-4 rounded-xl text-white font-black bg-amber-600 hover:bg-amber-700 disabled:bg-gray-400 transition-all uppercase tracking-widest"
+                            >
+                                {processing ? "Mengirim..." : "Konfirmasi Pembayaran"}
+                            </button>
+                        </div>
+                    </div>
+                </form>
             </div>
         </div>
     );

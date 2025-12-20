@@ -55,11 +55,11 @@ class Kernel extends HttpKernel
      * @var array<string, class-string|string>
      */
     protected $routeMiddleware = [
-        // Middleware individual (HANYA class, bukan alias)
         'auth' => \App\Http\Middleware\Authenticate::class,
         'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
         'can' => \Illuminate\Auth\Middleware\Authorize::class,
-        // Baris yang dipilih telah dihapus karena ini adalah array $routeMiddleware.
+        // Tambahkan juga disini untuk konsistensi
+        'vendor_approved' => \App\Http\Middleware\EnsureVendorApproved::class,
     ];
 
     /**
@@ -81,7 +81,10 @@ class Kernel extends HttpKernel
         'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
-        // Menggunakan alias 'vendor' yang sudah ada di Kernel Anda untuk IsVendor.php
         'vendor' => \App\Http\Middleware\IsVendor::class,
+        
+        // --- PERBAIKAN DI SINI ---
+        // Menghubungkan alias 'vendor_approved' dengan file EnsureVendorApproved.php
+        'vendor_approved' => \App\Http\Middleware\EnsureVendorApproved::class,
     ];
 }

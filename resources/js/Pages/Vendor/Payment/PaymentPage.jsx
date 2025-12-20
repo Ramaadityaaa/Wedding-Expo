@@ -1,460 +1,295 @@
-import React, { useState, useCallback, useMemo, useRef } from "react";
+import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useForm, Head } from "@inertiajs/react";
 import { useToast } from "@/Components/ui/use-toast";
 
+// --- KONSTANTA ---
 const PRIMARY_COLOR = "#D97706";
 const SECONDARY_COLOR = "#FCD34D";
 const ACCENT_CLASS = "text-amber-700";
 
 // --- IKON SVG ---
-const UploadCloudIcon = ({
-    className = "w-10 h-10",
-    color = PRIMARY_COLOR,
-}) => (
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        className={className}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-    >
-        <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.5" />
-        <path d="M12 12v9" />
-        <path d="m8 17 4 4 4-4" />
-    </svg>
-);
+const Icons = {
+    Upload: ({ className, color = PRIMARY_COLOR }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.5" /><path d="M12 12v9" /><path d="m8 17 4 4 4-4" />
+        </svg>
+    ),
+    File: ({ className, color = PRIMARY_COLOR }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M10 9H8" /><path d="M16 13H8" /><path d="M16 17H8" />
+        </svg>
+    ),
+    Check: ({ color = "white" }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-8.98" /><path d="M22 4L12 14.01l-3-3" />
+        </svg>
+    ),
+    Copy: ({ className }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+            <rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+        </svg>
+    ),
+    Loader: ({ className }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+        </svg>
+    )
+};
 
-const FileTextIcon = ({ className = "w-5 h-5", color = PRIMARY_COLOR }) => (
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        className={className}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-    >
-        <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" />
-        <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-        <path d="M10 9H8" />
-        <path d="M16 13H8" />
-        <path d="M16 17H8" />
-    </svg>
-);
-
-const LargeCheckIcon = ({ color = "white" }) => (
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="40"
-        height="40"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-    >
-        <path d="M22 11.08V12a10 10 0 1 1-5.93-8.98" />
-        <path d="M22 4L12 14.01l-3-3" />
-    </svg>
-);
-
-const Loader2 = ({ className }) => (
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={className}
-    >
-        <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-        <path d="M16.999 16.999 12 12" opacity="0.5" />
-    </svg>
-);
-
-const CopyIcon = ({ className }) => (
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={className}
-    >
-        <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
-        <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
-    </svg>
-);
-
-// Helper Format Rupiah
 const formatCurrency = (number) => {
     return new Intl.NumberFormat("id-ID", {
         style: "currency",
         currency: "IDR",
         minimumFractionDigits: 0,
-    }).format(number);
+    }).format(number || 0);
 };
 
-const PaymentHeaderCard = ({ title }) => (
+const HeaderCard = ({ title }) => (
     <div className="p-8 md:p-10 rounded-t-2xl text-white shadow-lg flex items-center justify-between bg-gradient-to-r from-amber-600 to-amber-400">
-        <h2 className="font-extrabold text-2xl sm:text-3xl md:text-4xl tracking-wide">
+        <h2 className="font-extrabold text-2xl sm:text-3xl md:text-4xl tracking-wide uppercase">
             {title}
         </h2>
-        <LargeCheckIcon color="white" />
+        <Icons.Check color="white" />
     </div>
 );
 
-// --- KOMPONEN UTAMA ---
 export default function UploadPaymentProofPage({
-    auth,
-    amount,
-    orderId,
-    total,
-    // FIX: Berikan nilai default objek kosong agar tidak error undefined
+    amount = 0,
+    orderId, // Pastikan dari Controller dikirim dengan nama 'orderId'
+    total = 0,
     vendorBank = {},
 }) {
-    // FIX: Buat fallback data jika vendorBank masih kosong
+    const { data, setData, post, processing, errors, setError, clearErrors } = useForm({
+        order_id: orderId || "", // Inisialisasi awal
+        amount: amount || total,
+        account_name: "",
+        payment_proof: null,
+    });
+
+    const [previewUrl, setPreviewUrl] = useState(null);
+    const { toast } = useToast();
+    const fileInputRef = useRef(null);
+
+    // FIX: Sinkronisasi order_id jika prop orderId berubah
+    useEffect(() => {
+        if (orderId) {
+            setData("order_id", orderId);
+        }
+    }, [orderId]);
+
     const safeBank = {
-        bank_name: vendorBank?.bank_name || "Memuat...",
+        bank_name: vendorBank?.bank_name || "Bank Transfer",
         account_number: vendorBank?.account_number || "-",
         account_holder_name: vendorBank?.account_holder_name || "-",
         qris_url: vendorBank?.qris_url || null,
     };
 
-    // Inisialisasi form
-    const { data, setData, post, processing, errors, setError, clearErrors } =
-        useForm({
-            order_id: orderId,
-            amount: amount || total || 0,
-            account_name: "",
-            payment_proof: null,
-        });
+    useEffect(() => {
+        return () => {
+            if (previewUrl) URL.revokeObjectURL(previewUrl);
+        };
+    }, [previewUrl]);
 
-    const [selectedFile, setSelectedFile] = useState(null);
-    const fileInputRef = useRef(null);
-    const { toast } = useToast();
-
-    // Fungsi Copy to Clipboard
     const copyToClipboard = (text) => {
-        if (text === "-" || !text) return;
+        if (!text || text === "-") return;
         navigator.clipboard.writeText(text);
         toast({
-            title: "Disalin!",
-            description: "Nomor rekening berhasil disalin.",
+            title: "Berhasil disalin",
+            description: "Nomor rekening telah disalin ke clipboard.",
             className: "bg-green-600 text-white border-none",
         });
     };
 
-    // Validasi File
-    const handleFileChange = useCallback(
-        (file) => {
-            if (file) {
-                if (file.size > 5 * 1024 * 1024) {
-                    setError("payment_proof", "Ukuran file melebihi 5MB.");
-                    setSelectedFile(null);
-                    setData("payment_proof", null);
-                    return;
-                }
-                if (
-                    !["image/jpeg", "image/png", "application/pdf"].includes(
-                        file.type
-                    )
-                ) {
-                    setError(
-                        "payment_proof",
-                        "Hanya format JPG, PNG, atau PDF yang diizinkan."
-                    );
-                    setSelectedFile(null);
-                    setData("payment_proof", null);
-                    return;
-                }
+    const handleFileChange = useCallback((file) => {
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) {
+            setError("payment_proof", "Ukuran file maksimal adalah 5MB.");
+            return;
+        }
+        const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
+        if (!allowedTypes.includes(file.type)) {
+            setError("payment_proof", "Format file harus JPG, PNG, atau PDF.");
+            return;
+        }
+        clearErrors("payment_proof");
+        setData("payment_proof", file);
 
-                clearErrors("payment_proof");
-                setSelectedFile(file);
-                setData("payment_proof", file);
-            }
-        },
-        [setData, setError, clearErrors]
-    );
+        if (file.type.startsWith("image/")) {
+            const url = URL.createObjectURL(file);
+            setPreviewUrl(url);
+        } else {
+            setPreviewUrl(null);
+        }
+    }, [setData, setError, clearErrors]);
 
-    // Drag & Drop
-    const handleDrop = useCallback(
-        (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const files = e.dataTransfer.files;
-            if (files && files.length > 0) {
-                handleFileChange(files[0]);
-            }
-        },
-        [handleFileChange]
-    );
-
-    const handleDragOver = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-    };
-
-    // --- FUNGSI SUBMIT ---
     const submit = (e) => {
         e.preventDefault();
-
-        if (!data.account_name) {
-            setError("account_name", "Nama rekening pengirim wajib diisi.");
-            return;
-        }
-
-        if (!data.payment_proof) {
-            setError("payment_proof", "Bukti pembayaran wajib diunggah.");
-            return;
-        }
+        
+        // DEBUG: Cek konsol browser untuk memastikan data ada sebelum dikirim
+        console.log("Data yang akan dikirim:", data);
 
         post(route("customer.payment.proof.store"), {
             forceFormData: true,
-            onError: (errors) => {
-                console.error("Server errors:", errors);
+            preserveScroll: true,
+            onSuccess: () => {
+                toast({ title: "Berhasil!", description: "Bukti pembayaran telah dikirim." });
             },
+            onError: (err) => {
+                console.error("Server Errors:", err); //
+                toast({ 
+                    variant: "destructive", 
+                    title: "Gagal Mengirim", 
+                    description: err.order_id || "Terjadi kesalahan validasi." 
+                });
+            }
         });
     };
 
-    const isFileSelected = useMemo(() => !!selectedFile, [selectedFile]);
-
     return (
-        <div className="font-sans min-h-screen bg-gray-50 flex justify-center items-start pt-16 pb-20">
-            <Head title="Upload Bukti Pembayaran" />
-            <div className="max-w-5xl w-full mx-4 sm:mx-8 lg:mx-12">
+        <div className="font-sans min-h-screen bg-gray-50 flex justify-center items-start pt-10 pb-20 px-4">
+            <Head title="Konfirmasi Pembayaran" />
+
+            <div className="max-w-5xl w-full">
                 <div className="bg-white overflow-hidden shadow-2xl rounded-2xl border-b-8 border-amber-500">
-                    <PaymentHeaderCard title="KONFIRMASI PEMBAYARAN" />
+                    <HeaderCard title="Konfirmasi Pembayaran" />
 
-                    <form onSubmit={submit}>
-                        <div className="p-8 md:p-12 text-gray-800 grid grid-cols-1 md:grid-cols-3 gap-10">
-                            {/* --- KOLOM KIRI: INFO TRANSFER (DINAMIS) --- */}
-                            <div className="space-y-6 md:col-span-1 border-r md:border-r-gray-100 md:pr-6">
-                                <h3
-                                    className={`text-2xl font-bold border-b pb-3 mb-4 ${ACCENT_CLASS} border-amber-200`}
-                                >
-                                    Transfer Ke Vendor
+                    <form onSubmit={submit} className="p-6 md:p-12">
+                        {/* Hidden Input untuk keamanan tambahan */}
+                        <input type="hidden" value={data.order_id} name="order_id" />
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+                            <div className="md:col-span-1 space-y-6">
+                                <h3 className={`text-xl font-bold border-b-2 pb-2 ${ACCENT_CLASS} border-amber-100`}>
+                                    Informasi Rekening
                                 </h3>
-
-                                {/* Info Bank Vendor */}
-                                <div className="bg-amber-50 p-5 rounded-xl border border-amber-200 shadow-sm">
-                                    <p className="text-sm text-gray-500 mb-1">
-                                        Bank Tujuan
-                                    </p>
-                                    <p className="font-bold text-lg text-gray-900">
-                                        {safeBank.bank_name}
-                                    </p>
-
-                                    <div className="my-3 border-t border-amber-200/50"></div>
-
-                                    <p className="text-sm text-gray-500 mb-1">
-                                        Nomor Rekening
-                                    </p>
-                                    <div className="flex items-center justify-between">
-                                        <p className="font-mono font-bold text-xl text-amber-700 tracking-wide">
-                                            {safeBank.account_number}
-                                        </p>
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                copyToClipboard(
-                                                    safeBank.account_number
-                                                )
-                                            }
-                                            className="p-1.5 hover:bg-amber-200 rounded-md transition text-amber-600"
-                                            title="Salin Nomor Rekening"
-                                        >
-                                            <CopyIcon className="w-5 h-5" />
-                                        </button>
+                                <div className="bg-amber-50 p-6 rounded-2xl border border-amber-200 space-y-4 shadow-sm">
+                                    <div>
+                                        <p className="text-xs text-amber-600 font-bold uppercase tracking-wider mb-1">Bank Tujuan</p>
+                                        <p className="font-bold text-gray-900 text-lg">{safeBank.bank_name}</p>
                                     </div>
-
-                                    <div className="my-3 border-t border-amber-200/50"></div>
-
-                                    <p className="text-sm text-gray-500 mb-1">
-                                        Atas Nama
-                                    </p>
-                                    <p className="font-medium text-gray-800">
-                                        {safeBank.account_holder_name}
-                                    </p>
+                                    <div className="pt-3 border-t border-amber-200">
+                                        <p className="text-xs text-amber-600 font-bold uppercase tracking-wider mb-1">Nomor Rekening</p>
+                                        <div className="flex items-center justify-between bg-white p-2 rounded-lg border border-amber-100">
+                                            <span className="font-mono font-bold text-xl text-amber-800 tracking-tighter">
+                                                {safeBank.account_number}
+                                            </span>
+                                            <button 
+                                                type="button"
+                                                onClick={() => copyToClipboard(safeBank.account_number)}
+                                                className="p-2 hover:bg-amber-50 rounded-full transition-colors text-amber-600"
+                                            >
+                                                <Icons.Copy />
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="pt-3 border-t border-amber-200">
+                                        <p className="text-xs text-amber-600 font-bold uppercase tracking-wider mb-1">Atas Nama</p>
+                                        <p className="font-semibold text-gray-800">{safeBank.account_holder_name}</p>
+                                    </div>
                                 </div>
 
-                                {/* QRIS Display (Jika Ada) */}
                                 {safeBank.qris_url && (
-                                    <div className="mt-6 text-center">
-                                        <p className="text-sm font-semibold text-gray-600 mb-3">
-                                            Atau Scan QRIS:
-                                        </p>
-                                        <div className="inline-block p-3 bg-white border border-gray-200 rounded-xl shadow-sm">
-                                            <img
-                                                src={safeBank.qris_url}
-                                                alt="QRIS Vendor"
-                                                className="w-48 h-48 object-contain"
-                                            />
-                                        </div>
+                                    <div className="text-center p-4 bg-white border rounded-2xl shadow-sm">
+                                        <p className="text-sm font-bold text-gray-600 mb-3">Atau Scan QRIS:</p>
+                                        <img src={safeBank.qris_url} alt="QRIS" className="w-full max-w-[180px] mx-auto rounded-lg" />
                                     </div>
                                 )}
 
-                                <div className="mt-8">
-                                    <p className="text-sm text-gray-500">
-                                        Total Tagihan:
-                                    </p>
-                                    <p className="text-3xl font-extrabold text-amber-600">
+                                <div className="p-6 bg-gray-900 rounded-2xl text-white">
+                                    <p className="text-gray-400 text-sm mb-1">Total Tagihan:</p>
+                                    <p className="text-3xl font-black text-amber-400">
                                         {formatCurrency(data.amount)}
                                     </p>
+                                    {/* Tampilkan error order_id jika ada */}
+                                    {errors.order_id && <p className="text-red-400 text-[10px] mt-2 uppercase tracking-widest">{errors.order_id}</p>}
                                 </div>
                             </div>
 
-                            {/* --- KOLOM KANAN: FORM INPUT & UPLOAD --- */}
-                            <div className="space-y-8 md:col-span-2">
-                                <h3
-                                    className={`text-2xl font-bold border-b pb-3 mb-4 ${ACCENT_CLASS} border-amber-200`}
-                                >
-                                    Formulir Konfirmasi
+                            <div className="md:col-span-2 space-y-8">
+                                <h3 className={`text-xl font-bold border-b-2 pb-2 ${ACCENT_CLASS} border-amber-100`}>
+                                    Detail Pengirim
                                 </h3>
 
-                                {/* Input Nama Pengirim (Manual) */}
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                        Nama Rekening Pengirim (Anda)
+                                <div className="space-y-2">
+                                    <label htmlFor="account_name" className="text-sm font-bold text-gray-700 ml-1">
+                                        Nama Rekening Pengirim <span className="text-red-500">*</span>
                                     </label>
                                     <input
+                                        id="account_name"
                                         type="text"
+                                        required
                                         value={data.account_name}
-                                        onChange={(e) =>
-                                            setData(
-                                                "account_name",
-                                                e.target.value
-                                            )
-                                        }
-                                        className={`w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-amber-500 transition-colors
-                                            ${
-                                                errors.account_name
-                                                    ? "border-red-500 bg-red-50"
-                                                    : "border-gray-300"
-                                            }`}
-                                        placeholder="Contoh: Budi Santoso"
+                                        onChange={(e) => setData("account_name", e.target.value)}
+                                        className={`w-full px-4 py-4 rounded-xl border-2 transition-all focus:ring-4 focus:ring-amber-500/10 outline-none
+                                            ${errors.account_name ? "border-red-500 bg-red-50" : "border-gray-200 focus:border-amber-500"}`}
+                                        placeholder="Masukkan nama lengkap sesuai di ATM/M-Banking"
                                     />
-                                    {errors.account_name && (
-                                        <p className="text-red-500 text-xs mt-1">
-                                            {errors.account_name}
-                                        </p>
-                                    )}
+                                    {errors.account_name && <p className="text-red-500 text-xs mt-1 font-medium">{errors.account_name}</p>}
                                 </div>
 
-                                {/* Area Upload */}
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                        Bukti Transfer
+                                <div className="space-y-2">
+                                    <label className="text-sm font-bold text-gray-700 ml-1">
+                                        Bukti Transfer (Gambar/PDF) <span className="text-red-500">*</span>
                                     </label>
-                                    <div
-                                        onDragOver={handleDragOver}
-                                        onDragEnter={handleDragOver}
-                                        onDrop={handleDrop}
-                                        className={`relative p-12 h-64 rounded-2xl border-4 border-dashed transition-all cursor-pointer hover:bg-gray-50 flex items-center justify-center
-                                            ${
-                                                errors.payment_proof
-                                                    ? "border-red-500 bg-red-50"
-                                                    : isFileSelected
-                                                    ? "border-green-500 bg-green-50"
-                                                    : "border-gray-300"
-                                            }
-                                        `}
+                                    
+                                    <div 
+                                        onClick={() => fileInputRef.current.click()}
+                                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                        onDrop={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            if (e.dataTransfer.files?.[0]) handleFileChange(e.dataTransfer.files[0]);
+                                        }}
+                                        className={`group relative border-4 border-dashed rounded-3xl p-8 transition-all cursor-pointer text-center
+                                            ${data.payment_proof ? 'border-green-400 bg-green-50' : 'border-gray-200 hover:border-amber-400 hover:bg-amber-50/30'}`}
                                     >
-                                        <input
-                                            type="file"
-                                            name="payment_proof"
-                                            accept=".jpg,.jpeg,.png,.pdf"
-                                            onChange={(e) =>
-                                                handleFileChange(
-                                                    e.target.files[0]
-                                                )
-                                            }
-                                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                        <input 
+                                            type="file" 
                                             ref={fileInputRef}
+                                            className="hidden" 
+                                            accept=".jpg,.jpeg,.png,.pdf"
+                                            onChange={(e) => handleFileChange(e.target.files[0])}
                                         />
 
-                                        <div className="text-center space-y-3 pointer-events-none">
-                                            <UploadCloudIcon
-                                                className="w-20 h-20 mx-auto"
-                                                color={
-                                                    errors.payment_proof
-                                                        ? "#EF4444"
-                                                        : isFileSelected
-                                                        ? "#10B981"
-                                                        : PRIMARY_COLOR
-                                                }
-                                            />
-                                            <p className="font-extrabold text-xl text-gray-700">
-                                                Seret File Bukti ke Sini
-                                            </p>
-                                            <p className="text-base text-gray-500">
-                                                atau{" "}
-                                                <span className="font-semibold text-amber-500">
-                                                    klik area ini
-                                                </span>
-                                            </p>
-                                            <p className="text-sm text-gray-400">
-                                                JPG, PNG, PDF (Maks 5 MB)
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    {isFileSelected &&
-                                        !errors.payment_proof && (
-                                            <div className="flex items-center p-4 mt-4 rounded-xl border bg-white shadow-sm border-green-500">
-                                                <FileTextIcon
-                                                    color="#10B981"
-                                                    className="w-6 h-6 flex-shrink-0"
-                                                />
-                                                <span className="ml-4 text-base font-semibold text-gray-700 truncate">
-                                                    {selectedFile.name}
-                                                </span>
-                                                <span className="ml-auto text-sm text-gray-500 font-mono">
-                                                    (
-                                                    {(
-                                                        selectedFile.size /
-                                                        1024 /
-                                                        1024
-                                                    ).toFixed(2)}{" "}
-                                                    MB)
-                                                </span>
+                                        {previewUrl ? (
+                                            <div className="space-y-4">
+                                                <img src={previewUrl} alt="Preview" className="h-48 mx-auto rounded-lg shadow-md object-cover" />
+                                                <p className="text-green-600 font-bold text-sm flex items-center justify-center">
+                                                    <Icons.File className="w-4 h-4 mr-2" color="#16a34a" /> File siap diunggah
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-4 py-4">
+                                                <Icons.Upload className="w-16 h-16 mx-auto mb-2 group-hover:scale-110 transition-transform" />
+                                                <div>
+                                                    <p className="text-lg font-bold text-gray-700">Klik untuk unggah atau seret file</p>
+                                                    <p className="text-sm text-gray-500">JPG, PNG, atau PDF (Maks. 5MB)</p>
+                                                </div>
                                             </div>
                                         )}
-                                    {errors.payment_proof && (
-                                        <p className="text-red-500 text-sm mt-2">
-                                            {errors.payment_proof}
-                                        </p>
-                                    )}
+                                    </div>
+                                    {errors.payment_proof && <p className="text-red-500 text-xs mt-1 font-medium">{errors.payment_proof}</p>}
                                 </div>
 
                                 <button
                                     type="submit"
-                                    disabled={processing || !isFileSelected}
-                                    className="w-full text-white font-extrabold py-5 px-6 rounded-xl text-xl shadow-xl transition-all disabled:opacity-50 mt-2 transform hover:scale-[1.01]"
-                                    style={{
-                                        backgroundColor: PRIMARY_COLOR,
-                                        backgroundImage: `linear-gradient(90deg, ${PRIMARY_COLOR} 0%, ${SECONDARY_COLOR} 100%)`,
-                                    }}
+                                    disabled={processing || !data.payment_proof || !data.account_name}
+                                    className="w-full relative overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {processing ? (
-                                        <span className="flex items-center justify-center">
-                                            <Loader2 className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" />
-                                            Memproses...
-                                        </span>
-                                    ) : (
-                                        "Kirim Bukti Pembayaran"
-                                    )}
+                                    <div 
+                                        className="absolute inset-0 w-full h-full transition-all duration-300 group-hover:scale-105"
+                                        style={{ background: `linear-gradient(135deg, ${PRIMARY_COLOR} 0%, ${SECONDARY_COLOR} 100%)` }}
+                                    ></div>
+                                    <div className="relative py-5 px-6 flex items-center justify-center text-white font-black text-xl tracking-wide">
+                                        {processing ? (
+                                            <>
+                                                <Icons.Loader className="animate-spin h-6 w-6 mr-3" />
+                                                Sedang Mengirim...
+                                            </>
+                                        ) : (
+                                            "KIRIM KONFIRMASI"
+                                        )}
+                                    </div>
                                 </button>
                             </div>
                         </div>

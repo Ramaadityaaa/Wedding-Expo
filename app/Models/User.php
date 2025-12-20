@@ -12,11 +12,6 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
     protected $fillable = [
         'name',
         'email',
@@ -26,21 +21,11 @@ class User extends Authenticatable
         'status',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
@@ -49,25 +34,18 @@ class User extends Authenticatable
         ];
     }
 
-    /**
-     * Nilai default untuk atribut model.
-     */
     protected $attributes = [
         'status' => 'Active',
         'role' => 'USER',
     ];
 
-    // --- RELASI ---
-
-    /**
-     * Relasi ke Vendor (SISTEM BARU)
-     * Ini WAJIB ADA agar Controller Portfolio bisa membaca: $user->vendor
-     */
+    // Relasi utama untuk mengecek profil vendor
     public function vendor(): HasOne
     {
         return $this->hasOne(WeddingOrganizer::class, 'user_id');
     }
 
+    // Alias jika ada bagian kode lain yang memanggil nama ini
     public function weddingOrganizer(): HasOne
     {
         return $this->hasOne(WeddingOrganizer::class, 'user_id');

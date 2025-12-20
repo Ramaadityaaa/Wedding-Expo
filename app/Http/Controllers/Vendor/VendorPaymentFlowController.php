@@ -7,226 +7,188 @@ use App\Models\Invoice;
 use App\Models\PackagePlan;
 use App\Models\PaymentProof;
 use App\Models\PaymentSetting;
-use App\Models\Vendor;
 use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class VendorPaymentFlowController extends Controller
 {
     /**
-     * 1. Halaman Checkout / Rincian Pembayaran
-     * Route: GET /vendor/payment/{invoiceId}
+     * 1. Halaman Checkout (Ringkasan Invoice & Instruksi Bayar)
      */
     public function create(Request $request, $invoiceId): Response
     {
+        // Pastikan invoice ada dan ambil data terkait
         $invoice = Invoice::findOrFail($invoiceId);
 
-        // Ambil data paket (berdasarkan slug atau id)
-        $planData = PackagePlan::where('slug', $invoice->plan_id)
-            ->orWhere('id', $invoice->plan_id)
+        // Cari data plan berdasarkan plan_id atau slug yang tersimpan di invoice
+        $planData = PackagePlan::where('id', $invoice->plan_id)
+            ->orWhere('slug', $invoice->plan_id)
             ->first();
 
         $plan = [
-            'name' => $planData->name ?? 'Paket Membership',
-            'price' => $planData->price ?? $invoice->amount,
+            'name' => $planData->name ?? ($invoice->package_name ?? 'Paket Membership'),
+            'price' => (float) ($planData->price ?? $invoice->amount),
             'features' => $planData->features ?? [],
         ];
 
-        // Hitung display pajak (estimasi 11%)
-        $price = $invoice->amount / 1.11;
-        $tax = $invoice->amount - $price;
-        $total = $invoice->amount;
+        // Perhitungan Pajak (Contoh 11%)
+        $subtotal = $invoice->amount / 1.11;
+        $tax = $invoice->amount - $subtotal;
 
-        // --- PERBAIKAN DI SINI ---
         $paymentSettings = PaymentSetting::first();
-
-        $rekening = [
-            // Gunakan '?->' agar jika $paymentSettings null, dia langsung lari ke '??' (default value)
-            'bankName' => $paymentSettings?->bank_name ?? 'Bank Transfer',
-            'accountNumber' => $paymentSettings?->account_number ?? '-', // Pastikan nama kolom di DB benar (account_number atau bank_number)
-            'accountHolder' => $paymentSettings?->account_holder ?? 'Admin',
-
-            // Logika QRIS Aman: Cek apakah objectnya ada DAN pathnya ada
-            'qrisUrl' => ($paymentSettings && $paymentSettings->qris_path)
-                ? asset('storage/' . $paymentSettings->qris_path)
-                : null,
-        ];
 
         return Inertia::render('Vendor/Payment/PaymentPage', [
             'plan' => $plan,
             'tax' => $tax,
-            'total' => $total,
+            'total' => (float) $invoice->amount,
             'invoiceId' => $invoice->id,
-            'paymentSettings' => $rekening,
+            'vendorBank' => [
+                'bank_name' => $paymentSettings->bank_name ?? 'Bank Transfer',
+                'account_number' => $paymentSettings->bank_number ?? '-',
+                'account_holder_name' => $paymentSettings->account_holder ?? 'Admin',
+                'qris_url' => $paymentSettings?->qris_path ? asset('storage/' . $paymentSettings->qris_path) : null,
+            ],
         ]);
     }
 
     /**
-     * 2. Halaman Upload Bukti (Form)
-     * Route: GET /vendor/payment/upload
+     * 2. Halaman Form Upload Bukti (GET)
      */
-    public function uploadProofPage(Request $request): Response
+    public function uploadProofPage(Request $request): Response|RedirectResponse
     {
-        $data = $request->validate([
-            'invoiceId' => 'required',
-            'amount' => 'required',
-            'account_name' => 'required|string',
-        ]);
+        // Ambil invoiceId dari query parameter ?invoiceId=...
+        $invoiceId = $request->query('invoiceId');
+
+        if (!$invoiceId) {
+            return redirect()->route('vendor.membership.index')
+                ->with('error', 'Invoice ID diperlukan untuk melakukan konfirmasi.');
+        }
+
+        $invoice = Invoice::findOrFail($invoiceId);
+        $paymentSettings = PaymentSetting::first();
 
         return Inertia::render('Vendor/Payment/UploadPaymentProofPage', [
-            'invoiceId' => $data['invoiceId'],
-            'amount' => (float) $data['amount'],
-            'accountName' => $data['account_name'],
-            'total' => (float) $data['amount'],
+            'invoiceId' => $invoice->id, // Dikirim ke React sebagai props
+            'amount' => (float) $invoice->amount,
+            'vendorBank' => [
+                'bank_name' => $paymentSettings->bank_name ?? '-',
+                'account_number' => $paymentSettings->bank_number ?? '-',
+                'account_holder_name' => $paymentSettings->account_holder ?? '-',
+                'qris_url' => $paymentSettings?->qris_path ? asset('storage/' . $paymentSettings->qris_path) : null,
+            ],
         ]);
     }
 
     /**
-     * 3. Proses Simpan Bukti Pembayaran (FINAL FIX: LINK INVOICE & ANTI-DUPLICATE)
-     * Route: POST /vendor/payment/upload
+     * 3. Proses Simpan Bukti ke Database (POST)
      */
-    public function uploadProof(Request $request)
+    public function uploadProof(Request $request): RedirectResponse
     {
         $user = Auth::user();
-
+        
+        // SINKRONISASI: Menggunakan 'invoice_id' sesuai data yang dikirim dari useForm React
         $request->validate([
-            'invoiceId' => 'required|exists:invoices,id',
+            'invoice_id'    => 'required|exists:invoices,id',
             'payment_proof' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
-            'account_name' => 'required|string',
+            'account_name'  => 'required|string|max:255',
+        ], [
+            'payment_proof.required' => 'Bukti transfer wajib diunggah.',
+            'account_name.required'  => 'Nama pemilik rekening wajib diisi.',
         ]);
 
-        $invoice = Invoice::findOrFail($request->invoiceId);
+        $vendorId = $user->vendor?->id;
+        if (!$vendorId) {
+            return back()->with('error', 'Profil Vendor tidak ditemukan.');
+        }
 
         DB::beginTransaction();
         try {
-            // A. Upload File
-            $path = $request->file('payment_proof')->store('payment_proofs', 'public');
+            // Ambil data invoice
+            $invoice = Invoice::findOrFail($request->invoice_id);
 
-            // B. Cek Vendor (Find or Create Logic)
-            // Cari vendor yang sudah ada (berdasarkan User ID atau Email) untuk mencegah duplikat
-            $vendor = Vendor::where('user_id', $user->id)
-                ->orWhere('email', $user->email)
-                ->first();
-
-            // Jika benar-benar tidak ada, baru buat baru
-            if (!$vendor) {
-                // Ambil data legacy dari tabel wedding_organizers jika ada (migrasi data)
-                $oldData = $user->weddingOrganizer;
-
-                // Pastikan data tidak NULL dengan fallback values
-                $vendorName = ($oldData && !empty($oldData->brand_name)) ? $oldData->brand_name : ($user->name ?? 'Vendor #' . $user->id);
-                $vendorPhone = ($oldData && !empty($oldData->phone)) ? $oldData->phone : ($user->phone ?? '-');
-                $vendorAddress = ($oldData && !empty($oldData->address)) ? $oldData->address : ($user->address ?? '-');
-                $vendorDesc = ($oldData && !empty($oldData->description)) ? $oldData->description : 'Vendor baru terdaftar via pembayaran.';
-
-                $vendor = Vendor::create([
-                    'user_id'     => $user->id,
-                    'email'       => $user->email,
-                    'name'        => $vendorName,
-                    'slug'        => Str::slug($vendorName . '-' . uniqid()),
-                    'phone'       => $vendorPhone,
-                    'address'     => $vendorAddress,
-                    'description' => $vendorDesc,
-                ]);
-            } else {
-                // Jika vendor ditemukan tapi user_id belum sinkron, update user_id-nya
-                if ($vendor->user_id !== $user->id) {
-                    $vendor->update(['user_id' => $user->id]);
-                }
+            // Cek apakah vendor ini berhak mengupload untuk invoice ini
+            if ($invoice->vendor_id && $invoice->vendor_id != $vendorId) {
+                return back()->with('error', 'Anda tidak memiliki akses ke invoice ini.');
             }
 
-            // C. Simpan Bukti Pembayaran
-            PaymentProof::create([
-                'vendor_id'    => $vendor->id,
-                'invoice_id'   => $invoice->id,
-                'account_name' => $request->account_name,
-                'amount'       => $invoice->amount,
-                'file_path'    => $path,
-                'status'       => 'Pending', // Menggunakan 'Pending' (Title Case) agar sesuai filter Frontend
-            ]);
+            // Simpan File ke folder storage/app/public/payment_proofs
+            $path = $request->file('payment_proof')->store('payment_proofs', 'public');
 
-            // D. Update Invoice (CRITICAL UPDATE)
-            $invoice->status = 'PENDING';
-            $invoice->vendor_id = $vendor->id; // <--- PENTING: Menghubungkan invoice ke vendor agar terdeteksi di halaman Loading
-            $invoice->save();
+            // Simpan atau Update data bukti pembayaran
+            // UpdateOrCreate digunakan jika user mengupload ulang karena sebelumnya ditolak
+            PaymentProof::updateOrCreate(
+                ['invoice_id' => $invoice->id],
+                [
+                    'vendor_id'    => $vendorId,
+                    'account_name' => $request->account_name,
+                    'amount'       => $invoice->amount,
+                    'file_path'    => $path,
+                    'status'       => 'Pending',
+                ]
+            );
+
+            // Update status invoice menjadi PENDING (menunggu verifikasi admin)
+            $invoice->update([
+                'status'    => 'PENDING',
+                'vendor_id' => $vendorId
+            ]);
 
             DB::commit();
 
             return redirect()->route('vendor.payment.loading', ['invoice_id' => $invoice->id])
-                ->with('success', 'Bukti pembayaran berhasil dikirim.');
+                ->with('success', 'Bukti pembayaran berhasil dikirim. Harap tunggu verifikasi.');
+
         } catch (\Exception $e) {
             DB::rollBack();
-
-            // Bersihkan file jika database gagal agar storage tidak penuh sampah
-            if (isset($path)) {
-                Storage::disk('public')->delete($path);
-            }
-
-            return redirect()->back()->withErrors(['payment_proof' => 'Gagal menyimpan: ' . $e->getMessage()]);
+            Log::error("Gagal Upload Bukti Vendor: " . $e->getMessage());
+            return back()->with('error', 'Terjadi kesalahan sistem saat menyimpan data.');
         }
     }
 
     /**
-     * 4. Halaman Loading / Status Real-time (FIXED)
-     * Route: GET /vendor/payment/loading
+     * 4. Halaman Status Loading / Menunggu Verifikasi (GET)
      */
     public function paymentLoadingPage(Request $request): Response
     {
-        // 1. PRIORITAS UTAMA: Cek Invoice ID dari URL (dikirim dari uploadProof)
-        // Ini menjamin kita mengecek invoice yang BENAR-BENAR baru saja diproses
-        if ($request->has('invoice_id')) {
-            $lastInvoice = Invoice::find($request->invoice_id);
-        } else {
-            // 2. FALLBACK: Jika user refresh manual tanpa parameter, cari invoice terakhir vendor
-            $user = Auth::user();
-            $vendorId = null;
-            if ($user->vendor) {
-                $vendorId = $user->vendor->id;
-            } elseif ($user->weddingOrganizer) {
-                $vendorId = $user->weddingOrganizer->id;
-            }
+        $invoiceId = $request->query('invoice_id');
+        $user = Auth::user();
+        $vendorId = $user->vendor?->id;
 
-            $lastInvoice = Invoice::where('vendor_id', $vendorId)
-                ->latest()
-                ->first();
+        // Cari invoice berdasarkan ID atau ambil yang terbaru dari vendor ini
+        $invoice = Invoice::where('vendor_id', $vendorId)
+            ->when($invoiceId, function($query) use ($invoiceId) {
+                return $query->where('id', $invoiceId);
+            })
+            ->latest()
+            ->first();
+
+        if (!$invoice) {
+            return Inertia::render('Vendor/Payment/LoadingPage', [
+                'status' => 'failed',
+                'message' => 'Data invoice tidak ditemukan.'
+            ]);
         }
 
-        // 3. Tentukan Status
-        $currentStatus = 'pending';
-        $planName = 'Paket Membership';
-
-        if ($lastInvoice) {
-            // Cek nama paket (snapshot atau relasi)
-            if (!empty($lastInvoice->package_name)) {
-                $planName = $lastInvoice->package_name;
-            } elseif ($lastInvoice->packagePlan) {
-                $planName = $lastInvoice->packagePlan->name;
-            }
-
-            // Logika Status
-            if ($lastInvoice->status === 'PAID') {
-                $currentStatus = 'success';
-            } elseif (in_array($lastInvoice->status, ['CANCELLED', 'EXPIRED', 'REJECTED'])) {
-                $currentStatus = 'failed';
-            } elseif ($lastInvoice->status === 'PENDING') {
-                $currentStatus = 'pending';
-            }
-        }
-
-        if ($request->has('qrisUrl') && $currentStatus !== 'success') {
-            $currentStatus = 'qris';
-        }
+        // Map status DB ke status UI React agar tampilan konsisten
+        $statusRaw = strtoupper($invoice->status);
+        $statusMap = [
+            'PAID'      => 'success',
+            'REJECTED'  => 'failed',
+            'CANCELLED' => 'failed',
+            'EXPIRED'   => 'failed',
+            'PENDING'   => 'pending',
+        ];
 
         return Inertia::render('Vendor/Payment/LoadingPage', [
-            'status' => $currentStatus,
-            'invoiceId' => $lastInvoice ? $lastInvoice->id : null,
-            'planName' => $planName,
-            'qrisUrl' => $request->get('qrisUrl'),
+            'status'    => $statusMap[$statusRaw] ?? 'pending',
+            'invoiceId' => $invoice->id,
+            'planName'  => $invoice->package_name ?? 'Paket Membership',
         ]);
     }
 }

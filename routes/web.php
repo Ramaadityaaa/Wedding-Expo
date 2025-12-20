@@ -9,7 +9,7 @@ use App\Http\Controllers\VendorController;
 use App\Http\Controllers\PaymentProofController;
 use App\Http\Controllers\ChatController;
 
-// --- KONTROLER CUSTOMER (PENTING) ---
+// --- KONTROLER CUSTOMER ---
 use App\Http\Controllers\Customer\BookingController;
 use App\Http\Controllers\Customer\CustomerPaymentFlowController;
 
@@ -55,7 +55,6 @@ Route::get('/favorites', function () {
 
 // Rute Halaman Vendor Detail untuk Customer
 Route::get('/vendors/{vendor}', function ($vendorId) {
-    // Pastikan WeddingOrganizer sudah di-use di atas
     $vendor = WeddingOrganizer::with([
         'packages',
         'portfolios',
@@ -67,7 +66,7 @@ Route::get('/vendors/{vendor}', function ($vendorId) {
     ]);
 })->name('vendors.details');
 
-// Rute pendaftaran vendor
+// Rute pendaftaran vendor (Guest)
 Route::get('/register/vendor', [HomeController::class, 'vendorRegister'])->name('vendor.register');
 Route::post('/register/vendor', [HomeController::class, 'vendorStore'])->name('vendor.store');
 
@@ -85,10 +84,8 @@ Route::prefix('api')->group(function () {
 Route::middleware(['auth'])->group(function () {
 
     // --- FITUR PEMESANAN (BOOKING) ---
-    // Dipanggil oleh SelectDate.jsx
     Route::post('/order', [BookingController::class, 'store'])->name('order.store');
     Route::get('/select-date/{vendorId}/{packageId}', [BookingController::class, 'selectDate'])->name('order.selectDate');
-
 
     // --- FITUR CHAT REAL-TIME (API) ---
     Route::get('/chat/conversations', [ChatController::class, 'getConversations'])->name('chat.conversations');
@@ -98,7 +95,6 @@ Route::middleware(['auth'])->group(function () {
     // --- HELPER: CARI KONTAK ADMIN ---
     Route::get('/admin/contact', function () {
         $admin = User::where('role', 'ADMIN')->first();
-
         return response()->json([
             'id' => $admin ? $admin->id : null,
             'name' => 'Admin Support',
@@ -106,52 +102,53 @@ Route::middleware(['auth'])->group(function () {
         ]);
     })->name('admin.contact');
 
-    // >>> [CUSTOMER PAYMENT FLOW] <<< 
-    // >>> CUSTOMER PAYMENT FLOW (KONSOLIDASI & PERBAIKAN SINTAKS) <<<
+    // --- CUSTOMER PAYMENT FLOW ---
     Route::group(['prefix' => 'customer', 'as' => 'customer.'], function () {
-
-        // --- RUTE STATIS ---
         Route::get('/payment/upload', [CustomerPaymentFlowController::class, 'uploadProofPage'])->name('payment.proof.page');
         Route::post('/payment/upload', [CustomerPaymentFlowController::class, 'uploadProof'])->name('payment.proof.store');
         Route::get('/payment/loading', [CustomerPaymentFlowController::class, 'paymentLoadingPage'])->name('payment.loading');
-
-        // --- RUTE DINAMIS / WILDCARD ---
-        // KONSOLIDASI DUA DEFINISI RUTE PAYMENT PAGE DI SINI:
-        // Pilihan 1: CustomerPaymentFlowController::class, 'create'
-        // Pilihan 2: BookingController::class, 'showPaymentPage' (Saya ambil ini untuk konsistensi Booking/Invoice)
-
         Route::get('/payment/{orderId}', [BookingController::class, 'showPaymentPage'])->name('payment.page');
-
-        // Rute Invoice (Opsional)
         Route::get('/payment/{orderId}/invoice', [BookingController::class, 'showPaymentInvoice'])->name('payment.invoice');
-    }); // <-- Penutup blok Customer Group
+    });
 
-}); // <-- Penutup blok Authenticated Group
+});
 
 /*
 |-------------------------------------------------------------------------- 
 | VENDOR ROUTES
 |-------------------------------------------------------------------------- 
 */
+
+// --- HALAMAN TUNGGU VERIFIKASI AKUN (Aksesible untuk Vendor PENDING/REJECTED) ---
+Route::middleware(['auth'])->group(function () {
+    Route::get('/vendor/verification-status', function () {
+        $vendor = auth()->user()->vendor;
+        return Inertia::render('Auth/Vendor/VerificationStatus', [
+            'status' => $vendor ? $vendor->isApproved : 'PENDING',
+            'rejectionReason' => $vendor ? $vendor->rejection_reason : null,
+        ]);
+    })->name('vendor.verification');
+});
+
+// --- RUTE VENDOR YANG SUDAH DISAPROVE (MEMBERSHIP & MANAJEMEN) ---
 Route::prefix('vendor')
     ->name('vendor.')
-    ->middleware(['auth', 'vendor'])
+    ->middleware(['auth', 'vendor_approved'])
     ->group(function () {
 
-        // RUTE DASHBOARD VENDOR
+        // DASHBOARD
         Route::get('/dashboard', [VendorDashboard::class, 'index'])->name('dashboard');
 
-        // >>> RUTE PROFILE & PASSWORD VENDOR <<<
-        // >>> RUTE PROFILE & PASSWORD VENDOR (KONSOLIDASI DUPLIKASI) <<<
+        // PROFILE & PASSWORD
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
         Route::put('/password', [PasswordController::class, 'update'])->name('password.update');
 
-        // BANK SETTINGS (Pengaturan Rekening Vendor)
+        // BANK SETTINGS
         Route::get('/bank-settings', [BankSettingsController::class, 'edit'])->name('bank.edit');
         Route::patch('/bank-settings', [BankSettingsController::class, 'update'])->name('bank.update');
 
-        // MEMBERSHIP
+        // MEMBERSHIP (Pilih Paket)
         Route::get('/membership', [MembershipController::class, 'index'])->name('membership.index');
         Route::post('/membership/subscribe', [MembershipController::class, 'subscribe'])->name('membership.subscribe');
 
@@ -170,44 +167,43 @@ Route::prefix('vendor')
         Route::get('/reviews', [VendorReviewController::class, 'index'])->name('reviews.index');
         Route::post('/reviews/{id}/reply', [VendorReviewController::class, 'reply'])->name('reviews.reply');
 
-        // --- HALAMAN CHAT VENDOR (INBOX) ---
+        // CHAT VENDOR
         Route::get('/chat-page', function () {
             return Inertia::render('Vendor/pages/ChatPage');
         })->name('chat.index');
 
-        // PAYMENT PROOF
+        // PAYMENT PROOF & FLOW (MEMBERSHIP)
         Route::get('/payment-proofs', [PaymentProofController::class, 'vendorIndex'])->name('paymentproof.index');
 
-        // PAYMENT FLOW (Vendor membayar Membership ke Admin)
-        // KONSOLIDASI BLOK GROUP LAMA DAN BARU DI SINI:
-        Route::group(['prefix' => 'payments', 'as' => 'payments.'], function () {
+        // Asumsi ini berada di dalam prefix 'vendor'
+        Route::group(['prefix' => 'payments', 'as' => 'payment.'], function () {
 
-            // RUTE BARU YANG DICARI (vendor.payments.index)
+            // 1. Halaman Index Utama
             Route::get('/', function () {
                 return Inertia::render('Vendor/Payment/PaymentIndexPage');
             })->name('index');
 
-            // Rute Payment Flow yang sudah ada:
-            Route::get('/upload', [VendorPaymentFlowController::class, 'uploadProofPage'])->name('proof.upload');
-            Route::post('/upload', [VendorPaymentFlowController::class, 'uploadProof'])->name('proof.store');
+            // 2. Route Loading
             Route::get('/loading', [VendorPaymentFlowController::class, 'paymentLoadingPage'])->name('loading');
+
+            // 3. Route Form Upload Bukti
+            Route::get('/upload', [VendorPaymentFlowController::class, 'uploadProofPage'])->name('proof.upload');
+
+            // 4. Route Proses Simpan Bukti
+            Route::post('/upload', [VendorPaymentFlowController::class, 'uploadProof'])->name('proof.store');
+
+            // 5. Route Rincian Invoice (Wildcard)
             Route::get('/{invoiceId}', [VendorPaymentFlowController::class, 'create'])->name('create');
         });
 
-        // MANAJEMEN PESANAN (CUSTOMER ORDER)
+        // MANAJEMEN PESANAN (DARI CUSTOMER)
         Route::get('/orders', [VendorOrderController::class, 'index'])->name('orders.index');
         Route::post('/orders/{id}/verify', [VendorOrderController::class, 'verifyPayment'])->name('orders.verify');
     });
 
 /*
-|--------------------------------------------------------------------------- 
-| DASHBOARD REDIRECTOR (MODIFIKASI: Customer ke Home)
-|--------------------------------------------------------------------------- 
-    }); // <-- Penutup blok Vendor Group
-
-/*
 |-------------------------------------------------------------------------- 
-| DASHBOARD REDIRECTOR
+| DASHBOARD REDIRECTOR (LOGIKA PENYALURAN LOGIN)
 |-------------------------------------------------------------------------- 
 */
 Route::get('/dashboard', function () {
@@ -216,15 +212,18 @@ Route::get('/dashboard', function () {
     if (!$user)
         return redirect()->route('home');
 
-    // Admin ke Dashboard Admin
-    if ($user->role === 'ADMIN')
+    if ($user->role === 'ADMIN') {
         return redirect()->route('admin.dashboard');
+    }
 
-    // Vendor ke Dashboard Vendor
-    if ($user->role === 'VENDOR')
+    if ($user->role === 'VENDOR') {
+        $vendor = $user->vendor;
+        if (!$vendor || $vendor->isApproved !== 'APPROVED') {
+            return redirect()->route('vendor.verification');
+        }
         return redirect()->route('vendor.dashboard');
+    }
 
-    // Customer (User Biasa) -> Redirect ke Home (8000)
     return redirect()->route('home');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
@@ -244,9 +243,11 @@ Route::prefix('admin')
         Route::patch('/vendors/{vendor}/status', [AdminVendorController::class, 'updateStatus'])->name('vendors.update-status');
         Route::delete('/vendors/{vendor}', [AdminVendorController::class, 'destroy'])->name('vendors.destroy');
 
-        // PAYMENT MANAGEMENT
+        // PAYMENT MANAGEMENT (ADMIN VERIFIKASI BUKTI)
         Route::get('/payment-proofs', [PaymentProofController::class, 'index'])->name('paymentproof.index');
         Route::post('/payment-proof/{id}/status', [PaymentProofController::class, 'updateStatus'])->name('paymentproof.status');
+        Route::delete('/payment-proof/{id}', [PaymentProofController::class, 'destroy'])->name('paymentproof.destroy');
+
         Route::get('/payment-settings', [PaymentSettingsController::class, 'index'])->name('payment-settings.index');
         Route::post('/payment-settings', [PaymentSettingsController::class, 'update'])->name('payment-settings.update');
 
@@ -267,10 +268,10 @@ Route::prefix('admin')
         Route::get('/static-content', [StaticContentController::class, 'index'])->name('static-content.index');
         Route::post('/static-content', [StaticContentController::class, 'update'])->name('static-content.update');
 
-        // --- HALAMAN CHAT ADMIN (SUPPORT) ---
+        // CHAT ADMIN
         Route::get('/chat', function () {
             return Inertia::render('Admin/pages/AdminChatPage');
         })->name('chat.index');
-    }); // <-- Penutup blok Admin Group
+    });
 
 require __DIR__ . '/auth.php';
