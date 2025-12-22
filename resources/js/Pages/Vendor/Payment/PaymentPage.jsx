@@ -1,301 +1,445 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
-import { useForm, Head } from "@inertiajs/react";
-import { useToast } from "@/Components/ui/use-toast";
+import React, { useState } from "react";
+import { router, useForm, Head } from "@inertiajs/react";
+import moment from "moment";
+import "moment/locale/id";
 
-// --- KONSTANTA ---
+// --- KONFIGURASI TEMA ---
 const PRIMARY_COLOR = "#D97706";
-const SECONDARY_COLOR = "#FCD34D";
 const ACCENT_CLASS = "text-amber-700";
 
 // --- IKON SVG ---
-const Icons = {
-    Upload: ({ className, color = PRIMARY_COLOR }) => (
-        <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.5" /><path d="M12 12v9" /><path d="m8 17 4 4 4-4" />
-        </svg>
-    ),
-    File: ({ className, color = PRIMARY_COLOR }) => (
-        <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M10 9H8" /><path d="M16 13H8" /><path d="M16 17H8" />
-        </svg>
-    ),
-    Check: ({ color = "white" }) => (
-        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-8.98" /><path d="M22 4L12 14.01l-3-3" />
-        </svg>
-    ),
-    Copy: ({ className }) => (
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-            <rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
-        </svg>
-    ),
-    Loader: ({ className }) => (
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-        </svg>
-    )
-};
+const BankTransferIcon = () => (
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={`${ACCENT_CLASS} flex-shrink-0`}
+    >
+        <rect width="20" height="14" x="2" y="5" rx="2" />
+        <path d="M7 15h0M12 15h0M17 15h0" />
+        <path d="M12 2v3" />
+        <path d="M6 2v3" />
+        <path d="M18 2v3" />
+    </svg>
+);
+const QrisIcon = () => (
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={`${ACCENT_CLASS} flex-shrink-0`}
+    >
+        <rect width="5" height="5" x="3" y="3" rx="1" />
+        <rect width="5" height="5" x="16" y="3" rx="1" />
+        <rect width="5" height="5" x="3" y="16" rx="1" />
+        <path d="M21 16h-5v5M10 10h4v4h-4zM10 3v1M3 10h1M10 20v1M20 10h1" />
+    </svg>
+);
+const CheckIcon = () => (
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={`mr-2 flex-shrink-0 ${ACCENT_CLASS}`}
+    >
+        <path d="M20 6 9 17l-5-5" />
+    </svg>
+);
+const LargeCheckIcon = ({ color = "white" }) => (
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="40"
+        height="40"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="flex-shrink-0"
+    >
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-8.98" />
+        <path d="M22 4L12 14.01l-3-3" />
+    </svg>
+);
 
+// Komponen Toast Notification
+const ToastNotification = ({ isVisible, message }) => (
+    <div
+        className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 transition-all duration-500 ease-out ${
+            isVisible
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 translate-y-8 pointer-events-none"
+        }`}
+    >
+        <div className="flex items-center p-4 rounded-xl shadow-2xl text-white font-semibold min-w-[200px] bg-amber-600">
+            <CheckIcon />
+            {message}
+        </div>
+    </div>
+);
+
+// Helper Format Rupiah
 const formatCurrency = (number) => {
     return new Intl.NumberFormat("id-ID", {
         style: "currency",
         currency: "IDR",
         minimumFractionDigits: 0,
-    }).format(number || 0);
+    }).format(number);
 };
 
-const HeaderCard = ({ title }) => (
-    <div className="p-8 md:p-10 rounded-t-2xl text-white shadow-lg flex items-center justify-between bg-gradient-to-r from-amber-600 to-amber-400">
-        <h2 className="font-extrabold text-2xl sm:text-3xl md:text-4xl tracking-wide uppercase">
-            {title}
-        </h2>
-        <Icons.Check color="white" />
-    </div>
-);
-
-export default function UploadPaymentProofPage({
-    amount = 0,
-    orderId, // Pastikan dari Controller dikirim dengan nama 'orderId'
-    total = 0,
-    vendorBank = {},
-}) {
-    const { data, setData, post, processing, errors, setError, clearErrors } = useForm({
-        order_id: orderId || "", // Inisialisasi awal
-        amount: amount || total,
-        account_name: "",
-        payment_proof: null,
-    });
-
-    const [previewUrl, setPreviewUrl] = useState(null);
-    const { toast } = useToast();
-    const fileInputRef = useRef(null);
-
-    // FIX: Sinkronisasi order_id jika prop orderId berubah
-    useEffect(() => {
-        if (orderId) {
-            setData("order_id", orderId);
-        }
-    }, [orderId]);
-
-    const safeBank = {
-        bank_name: vendorBank?.bank_name || "Bank Transfer",
-        account_number: vendorBank?.account_number || "-",
-        account_holder_name: vendorBank?.account_holder_name || "-",
-        qris_url: vendorBank?.qris_url || null,
-    };
-
-    useEffect(() => {
-        return () => {
-            if (previewUrl) URL.revokeObjectURL(previewUrl);
-        };
-    }, [previewUrl]);
-
+// Komponen Detail Transfer
+const TransferDetail = ({ label, value, showToast }) => {
     const copyToClipboard = (text) => {
         if (!text || text === "-") return;
         navigator.clipboard.writeText(text);
-        toast({
-            title: "Berhasil disalin",
-            description: "Nomor rekening telah disalin ke clipboard.",
-            className: "bg-green-600 text-white border-none",
-        });
+        showToast(label + " berhasil disalin!");
     };
 
-    const handleFileChange = useCallback((file) => {
-        if (!file) return;
-        if (file.size > 5 * 1024 * 1024) {
-            setError("payment_proof", "Ukuran file maksimal adalah 5MB.");
-            return;
-        }
-        const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
-        if (!allowedTypes.includes(file.type)) {
-            setError("payment_proof", "Format file harus JPG, PNG, atau PDF.");
-            return;
-        }
-        clearErrors("payment_proof");
-        setData("payment_proof", file);
+    return (
+        <div className="flex justify-between text-sm text-gray-700 items-center">
+            <span className="font-medium text-gray-600">{label}</span>
+            <div className="flex items-center">
+                <span className="font-mono text-right font-bold text-gray-800">
+                    {value}
+                </span>
+                {label === "Nomor Rekening" && value !== "-" && (
+                    <button
+                        type="button"
+                        onClick={() => copyToClipboard(value)}
+                        className="ml-2 text-xs font-semibold px-2 py-1 bg-amber-100 text-amber-700 rounded hover:bg-amber-200 transition"
+                    >
+                        Salin
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+};
 
-        if (file.type.startsWith("image/")) {
-            const url = URL.createObjectURL(file);
-            setPreviewUrl(url);
-        } else {
-            setPreviewUrl(null);
-        }
-    }, [setData, setError, clearErrors]);
+// --- KOMPONEN UTAMA ---
+export default function PaymentPage({
+    auth,
+    plan,
+    tax,
+    total,
+    invoiceId,
+    vendorBank,
+}) {
+    // FORM STATE: Gunakan invoice_id sesuai controller
+    const { data, setData, processing, errors, setError, clearErrors } =
+        useForm({
+            invoice_id: invoiceId, // <-- PENTING: Ambil dari props controller create()
+            amount: total,
+        });
 
+    const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
+    const [toast, setToast] = useState({ visible: false, message: "" });
+
+    const showToast = (message) => {
+        setToast({ visible: true, message });
+        setTimeout(() => setToast({ visible: false, message: "" }), 2200);
+    };
+
+    // Fungsi Submit: Mengarahkan ke halaman Upload Bukti
     const submit = (e) => {
         e.preventDefault();
-        
-        // DEBUG: Cek konsol browser untuk memastikan data ada sebelum dikirim
-        console.log("Data yang akan dikirim:", data);
 
-        post(route("customer.payment.proof.store"), {
-            forceFormData: true,
-            preserveScroll: true,
-            onSuccess: () => {
-                toast({ title: "Berhasil!", description: "Bukti pembayaran telah dikirim." });
-            },
-            onError: (err) => {
-                console.error("Server Errors:", err); //
-                toast({ 
-                    variant: "destructive", 
-                    title: "Gagal Mengirim", 
-                    description: err.order_id || "Terjadi kesalahan validasi." 
-                });
-            }
+        // Redirect ke halaman upload proof dengan query parameter invoiceId
+        // Route ini harus sesuai dengan yang ada di web.php untuk VendorPaymentFlowController
+        router.get(route("vendor.payment.proof.upload"), {
+            invoiceId: invoiceId,
         });
     };
 
     return (
-        <div className="font-sans min-h-screen bg-gray-50 flex justify-center items-start pt-10 pb-20 px-4">
-            <Head title="Konfirmasi Pembayaran" />
+        <div className="font-sans min-h-screen bg-gray-50">
+            <Head title="Pembayaran Membership" />
 
-            <div className="max-w-5xl w-full">
-                <div className="bg-white overflow-hidden shadow-2xl rounded-2xl border-b-8 border-amber-500">
-                    <HeaderCard title="Konfirmasi Pembayaran" />
-
-                    <form onSubmit={submit} className="p-6 md:p-12">
-                        {/* Hidden Input untuk keamanan tambahan */}
-                        <input type="hidden" value={data.order_id} name="order_id" />
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-                            <div className="md:col-span-1 space-y-6">
-                                <h3 className={`text-xl font-bold border-b-2 pb-2 ${ACCENT_CLASS} border-amber-100`}>
-                                    Informasi Rekening
-                                </h3>
-                                <div className="bg-amber-50 p-6 rounded-2xl border border-amber-200 space-y-4 shadow-sm">
-                                    <div>
-                                        <p className="text-xs text-amber-600 font-bold uppercase tracking-wider mb-1">Bank Tujuan</p>
-                                        <p className="font-bold text-gray-900 text-lg">{safeBank.bank_name}</p>
-                                    </div>
-                                    <div className="pt-3 border-t border-amber-200">
-                                        <p className="text-xs text-amber-600 font-bold uppercase tracking-wider mb-1">Nomor Rekening</p>
-                                        <div className="flex items-center justify-between bg-white p-2 rounded-lg border border-amber-100">
-                                            <span className="font-mono font-bold text-xl text-amber-800 tracking-tighter">
-                                                {safeBank.account_number}
-                                            </span>
-                                            <button 
-                                                type="button"
-                                                onClick={() => copyToClipboard(safeBank.account_number)}
-                                                className="p-2 hover:bg-amber-50 rounded-full transition-colors text-amber-600"
-                                            >
-                                                <Icons.Copy />
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div className="pt-3 border-t border-amber-200">
-                                        <p className="text-xs text-amber-600 font-bold uppercase tracking-wider mb-1">Atas Nama</p>
-                                        <p className="font-semibold text-gray-800">{safeBank.account_holder_name}</p>
-                                    </div>
-                                </div>
-
-                                {safeBank.qris_url && (
-                                    <div className="text-center p-4 bg-white border rounded-2xl shadow-sm">
-                                        <p className="text-sm font-bold text-gray-600 mb-3">Atau Scan QRIS:</p>
-                                        <img src={safeBank.qris_url} alt="QRIS" className="w-full max-w-[180px] mx-auto rounded-lg" />
-                                    </div>
-                                )}
-
-                                <div className="p-6 bg-gray-900 rounded-2xl text-white">
-                                    <p className="text-gray-400 text-sm mb-1">Total Tagihan:</p>
-                                    <p className="text-3xl font-black text-amber-400">
-                                        {formatCurrency(data.amount)}
-                                    </p>
-                                    {/* Tampilkan error order_id jika ada */}
-                                    {errors.order_id && <p className="text-red-400 text-[10px] mt-2 uppercase tracking-widest">{errors.order_id}</p>}
-                                </div>
+            <main>
+                <div className="py-12 bg-white/50">
+                    <div className="max-w-5xl mx-auto sm:px-6 lg:px-8">
+                        <div className="bg-white overflow-hidden shadow-2xl sm:rounded-xl border-b-8 border-amber-500">
+                            {/* Header Card */}
+                            <div className="p-6 md:p-8 rounded-t-xl text-white shadow-lg flex items-center justify-between bg-gradient-to-r from-amber-600 to-amber-400">
+                                <h2 className="font-bold text-3xl sm:text-4xl">
+                                    TAGIHAN MEMBERSHIP
+                                </h2>
+                                <LargeCheckIcon color="white" />
                             </div>
 
-                            <div className="md:col-span-2 space-y-8">
-                                <h3 className={`text-xl font-bold border-b-2 pb-2 ${ACCENT_CLASS} border-amber-100`}>
-                                    Detail Pengirim
-                                </h3>
+                            <form onSubmit={submit}>
+                                <div className="p-6 md:p-10 text-gray-800 grid grid-cols-1 md:grid-cols-5 gap-10">
+                                    {/* --- KOLOM KIRI: Detail Tagihan --- */}
+                                    <div className="space-y-6 md:col-span-3">
+                                        <h3
+                                            className={`text-2xl font-bold border-b pb-2 ${ACCENT_CLASS} border-amber-200`}
+                                        >
+                                            Rincian Paket
+                                        </h3>
 
-                                <div className="space-y-2">
-                                    <label htmlFor="account_name" className="text-sm font-bold text-gray-700 ml-1">
-                                        Nama Rekening Pengirim <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                        id="account_name"
-                                        type="text"
-                                        required
-                                        value={data.account_name}
-                                        onChange={(e) => setData("account_name", e.target.value)}
-                                        className={`w-full px-4 py-4 rounded-xl border-2 transition-all focus:ring-4 focus:ring-amber-500/10 outline-none
-                                            ${errors.account_name ? "border-red-500 bg-red-50" : "border-gray-200 focus:border-amber-500"}`}
-                                        placeholder="Masukkan nama lengkap sesuai di ATM/M-Banking"
-                                    />
-                                    {errors.account_name && <p className="text-red-500 text-xs mt-1 font-medium">{errors.account_name}</p>}
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-sm font-bold text-gray-700 ml-1">
-                                        Bukti Transfer (Gambar/PDF) <span className="text-red-500">*</span>
-                                    </label>
-                                    
-                                    <div 
-                                        onClick={() => fileInputRef.current.click()}
-                                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                                        onDrop={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            if (e.dataTransfer.files?.[0]) handleFileChange(e.dataTransfer.files[0]);
-                                        }}
-                                        className={`group relative border-4 border-dashed rounded-3xl p-8 transition-all cursor-pointer text-center
-                                            ${data.payment_proof ? 'border-green-400 bg-green-50' : 'border-gray-200 hover:border-amber-400 hover:bg-amber-50/30'}`}
-                                    >
-                                        <input 
-                                            type="file" 
-                                            ref={fileInputRef}
-                                            className="hidden" 
-                                            accept=".jpg,.jpeg,.png,.pdf"
-                                            onChange={(e) => handleFileChange(e.target.files[0])}
-                                        />
-
-                                        {previewUrl ? (
-                                            <div className="space-y-4">
-                                                <img src={previewUrl} alt="Preview" className="h-48 mx-auto rounded-lg shadow-md object-cover" />
-                                                <p className="text-green-600 font-bold text-sm flex items-center justify-center">
-                                                    <Icons.File className="w-4 h-4 mr-2" color="#16a34a" /> File siap diunggah
-                                                </p>
-                                            </div>
-                                        ) : (
-                                            <div className="space-y-4 py-4">
-                                                <Icons.Upload className="w-16 h-16 mx-auto mb-2 group-hover:scale-110 transition-transform" />
-                                                <div>
-                                                    <p className="text-lg font-bold text-gray-700">Klik untuk unggah atau seret file</p>
-                                                    <p className="text-sm text-gray-500">JPG, PNG, atau PDF (Maks. 5MB)</p>
+                                        <div className="bg-white p-6 rounded-lg border border-gray-200 space-y-4 shadow-sm relative">
+                                            <div className="border-b border-gray-100 pb-4">
+                                                <div className="flex justify-between font-semibold text-lg text-gray-700 mt-2">
+                                                    <span>{plan.name}</span>
+                                                    <span
+                                                        className={ACCENT_CLASS}
+                                                    >
+                                                        {formatCurrency(
+                                                            plan.price
+                                                        )}
+                                                    </span>
                                                 </div>
                                             </div>
-                                        )}
+
+                                            <div className="space-y-2 text-sm text-gray-600">
+                                                <div className="mt-3 grid grid-cols-1 gap-1">
+                                                    {Array.isArray(
+                                                        plan.features
+                                                    ) &&
+                                                        plan.features.map(
+                                                            (
+                                                                feature,
+                                                                index
+                                                            ) => (
+                                                                <div
+                                                                    key={index}
+                                                                    className="flex items-start list-none text-sm text-gray-600"
+                                                                >
+                                                                    <CheckIcon />{" "}
+                                                                    {feature}
+                                                                </div>
+                                                            )
+                                                        )}
+                                                </div>
+                                            </div>
+
+                                            <div className="border-t pt-4 space-y-2 border-amber-200">
+                                                <div className="flex justify-between text-sm">
+                                                    <span>Harga Paket</span>
+                                                    <span className="font-semibold">
+                                                        {formatCurrency(
+                                                            plan.price
+                                                        )}
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between text-sm">
+                                                    <span>Pajak (11%)</span>
+                                                    <span className="font-semibold">
+                                                        {formatCurrency(tax)}
+                                                    </span>
+                                                </div>
+                                                <div
+                                                    className={`flex justify-between text-xl font-extrabold ${ACCENT_CLASS} pt-2`}
+                                                >
+                                                    <span>Total Bayar</span>
+                                                    <span>
+                                                        {formatCurrency(total)}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    {errors.payment_proof && <p className="text-red-500 text-xs mt-1 font-medium">{errors.payment_proof}</p>}
+
+                                    {/* --- KOLOM KANAN: Metode Pembayaran --- */}
+                                    <div className="space-y-6 md:col-span-2">
+                                        <h3
+                                            className={`text-2xl font-bold border-b pb-2 ${ACCENT_CLASS} border-amber-200`}
+                                        >
+                                            Instruksi Pembayaran
+                                        </h3>
+
+                                        {/* Pilihan Metode (Visual Saja) */}
+                                        <div className="grid grid-cols-1 gap-4">
+                                            <div
+                                                onClick={() =>
+                                                    setPaymentMethod(
+                                                        "bank_transfer"
+                                                    )
+                                                }
+                                                className={`cursor-pointer flex items-center p-4 rounded-xl border-2 transition-all shadow-sm ${
+                                                    paymentMethod ===
+                                                    "bank_transfer"
+                                                        ? "border-amber-500 bg-amber-50"
+                                                        : "border-gray-200"
+                                                }`}
+                                            >
+                                                <div
+                                                    className={`p-2 rounded-full ${
+                                                        paymentMethod ===
+                                                        "bank_transfer"
+                                                            ? "bg-amber-200"
+                                                            : "bg-gray-100"
+                                                    }`}
+                                                >
+                                                    <BankTransferIcon />
+                                                </div>
+                                                <div className="ml-3">
+                                                    <span className="block font-bold text-gray-800">
+                                                        Transfer Bank
+                                                    </span>
+                                                    <span className="text-xs text-gray-500">
+                                                        Manual Check (Admin)
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div
+                                                onClick={() =>
+                                                    setPaymentMethod("qris")
+                                                }
+                                                className={`cursor-pointer flex items-center p-4 rounded-xl border-2 transition-all shadow-sm ${
+                                                    paymentMethod === "qris"
+                                                        ? "border-amber-500 bg-amber-50"
+                                                        : "border-gray-200"
+                                                }`}
+                                            >
+                                                <div
+                                                    className={`p-2 rounded-full ${
+                                                        paymentMethod === "qris"
+                                                            ? "bg-amber-200"
+                                                            : "bg-gray-100"
+                                                    }`}
+                                                >
+                                                    <QrisIcon />
+                                                </div>
+                                                <div className="ml-3">
+                                                    <span className="block font-bold text-gray-800">
+                                                        QRIS
+                                                    </span>
+                                                    <span className="text-xs text-gray-500">
+                                                        Scan & Upload
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Detail Rekening Admin */}
+                                        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-4 relative">
+                                            <div className="absolute top-0 left-0 w-1 h-full bg-amber-500 rounded-l-xl"></div>
+
+                                            {paymentMethod ===
+                                            "bank_transfer" ? (
+                                                <>
+                                                    <h4 className="font-bold text-gray-800 border-b pb-2">
+                                                        Rekening Admin
+                                                    </h4>
+                                                    <TransferDetail
+                                                        label="Bank"
+                                                        value={
+                                                            vendorBank.bank_name
+                                                        }
+                                                        showToast={showToast}
+                                                    />
+                                                    <TransferDetail
+                                                        label="No. Rekening"
+                                                        value={
+                                                            vendorBank.account_number
+                                                        }
+                                                        showToast={showToast}
+                                                    />
+                                                    <TransferDetail
+                                                        label="A.N"
+                                                        value={
+                                                            vendorBank.account_holder_name
+                                                        }
+                                                        showToast={showToast}
+                                                    />
+
+                                                    <div className="bg-blue-50 p-3 rounded text-xs text-blue-700 mt-2">
+                                                        Silakan transfer sesuai
+                                                        nominal total. Simpan
+                                                        bukti transfer untuk
+                                                        diupload di langkah
+                                                        selanjutnya.
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <h4 className="font-bold text-gray-800 border-b pb-2">
+                                                        QRIS Admin
+                                                    </h4>
+                                                    {vendorBank.qris_url ? (
+                                                        <div className="text-center">
+                                                            <img
+                                                                src={
+                                                                    vendorBank.qris_url
+                                                                }
+                                                                alt="QRIS"
+                                                                className="w-40 h-40 object-contain mx-auto border rounded mb-2"
+                                                            />
+                                                            <p className="text-xs text-gray-500">
+                                                                Scan kode di
+                                                                atas untuk
+                                                                membayar.
+                                                            </p>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="text-center py-4 text-gray-400">
+                                                            <p>
+                                                                QRIS Admin belum
+                                                                tersedia.
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <button
-                                    type="submit"
-                                    disabled={processing || !data.payment_proof || !data.account_name}
-                                    className="w-full relative overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <div 
-                                        className="absolute inset-0 w-full h-full transition-all duration-300 group-hover:scale-105"
-                                        style={{ background: `linear-gradient(135deg, ${PRIMARY_COLOR} 0%, ${SECONDARY_COLOR} 100%)` }}
-                                    ></div>
-                                    <div className="relative py-5 px-6 flex items-center justify-center text-white font-black text-xl tracking-wide">
-                                        {processing ? (
-                                            <>
-                                                <Icons.Loader className="animate-spin h-6 w-6 mr-3" />
-                                                Sedang Mengirim...
-                                            </>
-                                        ) : (
-                                            "KIRIM KONFIRMASI"
-                                        )}
-                                    </div>
-                                </button>
-                            </div>
+                                {/* Tombol Lanjut */}
+                                <div className="px-6 md:px-10 pb-10">
+                                    <button
+                                        type="submit"
+                                        disabled={processing}
+                                        className="w-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white font-bold text-lg py-4 rounded-xl shadow-lg transition transform hover:scale-[1.01] disabled:opacity-50 flex justify-center items-center"
+                                    >
+                                        <span>
+                                            Saya Sudah Bayar, Lanjut Upload
+                                            Bukti
+                                        </span>
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            className="h-5 w-5 ml-2"
+                                            viewBox="0 0 20 20"
+                                            fill="currentColor"
+                                        >
+                                            <path
+                                                fillRule="evenodd"
+                                                d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
+                                                clipRule="evenodd"
+                                            />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </form>
                         </div>
-                    </form>
+                    </div>
                 </div>
-            </div>
+            </main>
+            <ToastNotification
+                isVisible={toast.visible}
+                message={toast.message}
+            />
         </div>
     );
 }
