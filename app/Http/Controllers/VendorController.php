@@ -1,15 +1,14 @@
 <?php
 
-// 🟢 KOREKSI KRITIS: Namespace diubah ke App\Http\Controllers karena file berada di folder root
-namespace App\Http\Controllers; 
+namespace App\Http\Controllers;
 
 use App\Models\WeddingOrganizer;
-use App\Models\Review; 
+use App\Models\Review;
+use App\Models\Package;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
-// Nama class tetap VendorController
-class VendorController extends Controller 
+class VendorController extends Controller
 {
     /**
      * Mengambil daftar vendor yang sudah diverifikasi (APPROVED) untuk tampilan publik (GET /api/vendors).
@@ -18,7 +17,7 @@ class VendorController extends Controller
     {
         try {
             // Menggunakan nilai ENUM 'APPROVED' sesuai struktur DB Anda
-            $vendors = WeddingOrganizer::where('isApproved', 'APPROVED') 
+            $vendors = WeddingOrganizer::where('isApproved', 'APPROVED')
                                         ->orderByDesc('created_at')
                                         ->paginate(10);
             
@@ -47,15 +46,15 @@ class VendorController extends Controller
         try {
             // Pastikan vendor memiliki isApproved = 'APPROVED'
             if ($vendor->isApproved !== 'APPROVED') {
-                // Menggunakan abort(404) atau respons 404 eksplisit
                 return response()->json(['message' => 'Vendor tidak ditemukan atau belum diverifikasi.'], 404);
             }
-            
-            // Eager load relasi reviews yang juga sudah di-approve
-            $vendor->load(['reviews' => function ($query) {
+
+            // Eager load relasi packages dan reviews yang juga sudah di-approve
+            $vendor->load(['packages', 'reviews' => function ($query) {
                 $query->where('status_verifikasi', 'APPROVED'); 
             }]);
 
+            // Response detail vendor
             return response()->json([
                 'message' => 'Detail Vendor berhasil diambil',
                 'data' => $vendor
@@ -63,6 +62,31 @@ class VendorController extends Controller
         } catch (\Exception $e) {
             Log::error('Error fetching public vendor details:', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Internal server error. Gagal memuat detail vendor.'], 500);
+        }
+    }
+
+    /**
+     * Menampilkan detail paket tertentu untuk vendor tertentu
+     */
+    public function showPackageDetail($vendorId, $packageId)
+    {
+        try {
+            // Mengambil vendor beserta paket-paketnya
+            $vendor = WeddingOrganizer::with('packages')->findOrFail($vendorId);
+            $package = $vendor->packages->find($packageId);
+
+            if (!$package) {
+                return response()->json(['message' => 'Package not found'], 404);
+            }
+
+            // Response detail paket
+            return response()->json([
+                'message' => 'Detail Paket berhasil diambil',
+                'data' => $package
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Error fetching package details:', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Internal server error. Gagal memuat detail paket.'], 500);
         }
     }
 }

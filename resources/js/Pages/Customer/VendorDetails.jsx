@@ -222,41 +222,33 @@ export default function VendorDetails({ auth, vendor }) {
                                                                         idx
                                                                     ) => (
                                                                         <li
-                                                                            key={
-                                                                                idx
-                                                                            }
+                                                                            key={idx}
                                                                             className="flex items-start text-sm text-gray-600"
                                                                         >
                                                                             <CheckCircle className="w-4 h-4 text-green-500 mr-2 mt-0.5 shrink-0" />
                                                                             <span>
-                                                                                {
-                                                                                    feature
-                                                                                }
+                                                                                {feature}
                                                                             </span>
                                                                         </li>
                                                                     )
                                                                 )}
                                                         {pkg.features &&
-                                                            pkg.features
-                                                                .length > 4 && (
+                                                            pkg.features.length > 4 && (
                                                                 <li className="text-xs text-gray-400 italic ml-6">
                                                                     +{" "}
-                                                                    {pkg
-                                                                        .features
-                                                                        .length -
-                                                                        4}{" "}
-                                                                    fitur
-                                                                    lainnya
+                                                                    {pkg.features.length - 4} fitur lainnya
                                                                 </li>
                                                             )}
                                                     </ul>
                                                 </div>
 
                                                 <button className="w-full mt-auto py-3 px-6 bg-white border-2 border-amber-500 text-amber-600 font-bold rounded-lg hover:bg-amber-50 transition-all ease-in-out transform hover:scale-105">
-                                                    <Link href={`/select-date/${vendor.id}/${pkg.id}`} className="">
+                                                    <Link
+                                                        href={`/vendors/${vendor.id}/package/${pkg.id}`}
+                                                        className=""
+                                                    >
                                                         Pilih Paket Ini
                                                     </Link>
-
                                                 </button>
                                             </div>
                                         ))
@@ -264,8 +256,7 @@ export default function VendorDetails({ auth, vendor }) {
                                         <div className="col-span-full py-16 text-center bg-white rounded-xl border border-dashed border-gray-300">
                                             <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                                             <p className="text-gray-500">
-                                                Belum ada paket harga yang
-                                                tersedia.
+                                                Belum ada paket harga yang tersedia.
                                             </p>
                                         </div>
                                     )}
@@ -308,141 +299,6 @@ export default function VendorDetails({ auth, vendor }) {
                                             </p>
                                         </div>
                                     )}
-                                </div>
-                            )}
-
-                            {/* === TAB: ULASAN === */}
-                            {activeTab === "reviews" && (
-                                <div className="space-y-6 animate-fade-in-up">
-                                    {vendor.reviews.length > 0 ? (
-                                        vendor.reviews.map((review) => (
-                                            <div
-                                                key={review.id}
-                                                className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm"
-                                            >
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center font-bold text-gray-500">
-                                                            {review.user?.name.charAt(
-                                                                0
-                                                            )}
-                                                        </div>
-                                                        <div>
-                                                            <h4 className="font-bold text-gray-900">
-                                                                {
-                                                                    review.user
-                                                                        ?.name
-                                                                }
-                                                            </h4>
-                                                            <div className="flex text-yellow-400 text-xs mt-0.5">
-                                                                {[
-                                                                    ...Array(5),
-                                                                ].map(
-                                                                    (_, i) => (
-                                                                        <Star
-                                                                            key={
-                                                                                i
-                                                                            }
-                                                                            size={
-                                                                                12
-                                                                            }
-                                                                            fill={
-                                                                                i <
-                                                                                    review.rating
-                                                                                    ? "currentColor"
-                                                                                    : "none"
-                                                                            }
-                                                                            className={
-                                                                                i >=
-                                                                                    review.rating
-                                                                                    ? "text-gray-300"
-                                                                                    : ""
-                                                                            }
-                                                                        />
-                                                                    )
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <span className="text-xs text-gray-400">
-                                                        {new Date(
-                                                            review.created_at
-                                                        ).toLocaleDateString(
-                                                            "id-ID"
-                                                        )}
-                                                    </span>
-                                                </div>
-                                                <p className="text-gray-600 text-sm pl-13 mt-2">
-                                                    "{review.comment}"
-                                                </p>
-
-                                                {/* Balasan Vendor */}
-                                                {review.reply && (
-                                                    <div className="mt-4 ml-4 pl-4 border-l-4 border-amber-200 bg-amber-50 p-3 rounded-r-lg">
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <span className="text-xs font-bold text-amber-800">
-                                                                {vendor.name}
-                                                            </span>
-                                                            <span className="text-[10px] px-1.5 py-0.5 bg-amber-200 text-amber-800 rounded">
-                                                                Penjual
-                                                            </span>
-                                                        </div>
-                                                        <p className="text-xs text-gray-600">
-                                                            {review.reply}
-                                                        </p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="py-16 text-center bg-white rounded-xl border border-dashed border-gray-300">
-                                            <Star className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                                            <p className="text-gray-500">
-                                                Belum ada ulasan untuk vendor
-                                                ini.
-                                            </p>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* === TAB: TENTANG === */}
-                            {activeTab === "about" && (
-                                <div className="bg-white p-8 rounded-xl border border-gray-100 shadow-sm animate-fade-in-up">
-                                    <h3 className="text-xl font-bold text-gray-900 mb-4">
-                                        Tentang {vendor.name}
-                                    </h3>
-                                    <p className="text-gray-600 leading-relaxed whitespace-pre-line">
-                                        {vendor.description ||
-                                            "Deskripsi vendor belum tersedia."}
-                                    </p>
-
-                                    <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-gray-100 pt-6">
-                                        <div>
-                                            <p className="text-sm text-gray-500 mb-1">
-                                                Lokasi
-                                            </p>
-                                            <p className="font-medium text-gray-900 flex items-center">
-                                                <MapPin
-                                                    size={16}
-                                                    className="mr-2 text-gray-400"
-                                                />
-                                                {vendor.address || "-"}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <p className="text-sm text-gray-500 mb-1">
-                                                Kontak
-                                            </p>
-                                            <p className="font-medium text-gray-900 flex items-center">
-                                                <MessageSquare
-                                                    size={16}
-                                                    className="mr-2 text-gray-400"
-                                                />
-                                                {vendor.phone || "-"}
-                                            </p>
-                                        </div>
-                                    </div>
                                 </div>
                             )}
                         </div>

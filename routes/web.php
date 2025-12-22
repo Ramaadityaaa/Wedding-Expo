@@ -66,6 +66,32 @@ Route::get('/vendors/{vendor}', function ($vendorId) {
     ]);
 })->name('vendors.details');
 
+// Rute untuk halaman detail paket
+Route::get('/vendors/{vendor}/package/{package}', function ($vendorId, $packageId) {
+    $vendor = WeddingOrganizer::with([
+        'packages',
+        'portfolios',
+        'reviews.user'
+    ])->findOrFail($vendorId);
+
+    $package = $vendor->packages->find($packageId);
+
+    if (!$package) {
+        abort(404, 'Package not found');
+    }
+
+    return Inertia::render('Customer/PackageDetail', [
+        'pkg' => $package,
+        'vendor' => $vendor,
+    ]);
+})->name('package.detail');
+
+// Rute untuk memilih tanggal pemesanan paket
+Route::get('/order/select-date/{vendorId}/{packageId}', [BookingController::class, 'selectDate'])->name('order.selectDate');
+
+// Rute untuk halaman pembayaran
+Route::get('/payment/{orderId}', [BookingController::class, 'showPaymentPage'])->name('payment.page');
+
 // Rute pendaftaran vendor (Guest)
 Route::get('/register/vendor', [HomeController::class, 'vendorRegister'])->name('vendor.register');
 Route::post('/register/vendor', [HomeController::class, 'vendorStore'])->name('vendor.store');
