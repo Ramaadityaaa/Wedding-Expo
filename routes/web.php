@@ -12,6 +12,7 @@ use App\Http\Controllers\ChatController;
 // --- KONTROLER CUSTOMER ---
 use App\Http\Controllers\Customer\BookingController;
 use App\Http\Controllers\Customer\CustomerPaymentFlowController;
+use App\Http\Controllers\Customer\CustomerOrderController; // Import CustomerOrderController
 
 // --- KONTROLER ADMIN ---
 use App\Http\Controllers\Admin\DashboardController;
@@ -128,7 +129,7 @@ Route::middleware(['auth'])->group(function () {
         ]);
     })->name('admin.contact');
 
-    // --- CUSTOMER PAYMENT FLOW ---
+    // --- CUSTOMER PAYMENT FLOW --- 
     Route::group(['prefix' => 'customer', 'as' => 'customer.'], function () {
         Route::get('/payment/upload', [CustomerPaymentFlowController::class, 'uploadProofPage'])->name('payment.proof.page');
         Route::post('/payment/upload', [CustomerPaymentFlowController::class, 'uploadProof'])->name('payment.proof.store');
@@ -137,7 +138,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/payment/{orderId}/invoice', [BookingController::class, 'showPaymentInvoice'])->name('payment.invoice');
     });
 
+    // --- HALAMAN PESANAN SAYA (CUSTOMER ORDER) --- 
+    Route::get('/customer/orders', [CustomerOrderController::class, 'index'])->name('customer.orders.index');// Pesanan Saya
 });
+
 
 /*
 |-------------------------------------------------------------------------- 
@@ -250,7 +254,8 @@ Route::get('/dashboard', function () {
         return redirect()->route('vendor.dashboard');
     }
 
-    return redirect()->route('home');
+    // Untuk customer diarahkan ke halaman pesanan
+    return redirect()->route('orders.index'); // Pesanan Saya
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 /*

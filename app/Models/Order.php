@@ -30,6 +30,7 @@ class Order extends Model
         'total_price',
         'amount',
         'snap_token',
+        'user_id',
     ];
 
     protected $casts = [

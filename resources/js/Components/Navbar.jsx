@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X, User as UserIcon } from "lucide-react";
 import { Link, usePage } from "@inertiajs/react";
-import CustomerGlobalChat from "@/Components/CustomerGlobalChat"; // <--- Import Component Chat
+import CustomerGlobalChat from "@/Components/CustomerGlobalChat"; // Import Component Chat
 
 export default function Navbar() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -24,13 +24,13 @@ export default function Navbar() {
         <>
             <nav
                 className="
-            fixed top-0 left-0 right-0 w-full z-50
-            backdrop-blur-2xl 
-            bg-white/35 
-            shadow-[0_4px_25px_rgba(255,200,80,0.35)]
-            border-b border-yellow-400/40
-            gold-glow
-          "
+                    fixed top-0 left-0 right-0 w-full z-50
+                    backdrop-blur-2xl 
+                    bg-white/35 
+                    shadow-[0_4px_25px_rgba(255,200,80,0.35)]
+                    border-b border-yellow-400/40
+                    gold-glow
+                "
             >
                 <div className="max-w-7xl mx-auto px-4">
                     <div className="flex items-center justify-between h-16">
@@ -52,10 +52,10 @@ export default function Navbar() {
                             <Link href="/" className="flex items-center group">
                                 <div
                                     className="
-                      px-4 py-2 rounded-xl shadow-lg relative overflow-hidden
-                      transition-all duration-300
-                      group-hover:shadow-[0_0_35px_rgba(255,210,100,1)]
-                    "
+                                        px-4 py-2 rounded-xl shadow-lg relative overflow-hidden
+                                        transition-all duration-300
+                                        group-hover:shadow-[0_0_35px_rgba(255,210,100,1)]
+                                    "
                                     style={{
                                         background:
                                             "linear-gradient(135deg,#f4c95d,#ffb300,#ff8f00,#f4c95d,#ffb300)",
@@ -134,12 +134,12 @@ export default function Navbar() {
                                             setIsProfileOpen(!isProfileOpen)
                                         }
                                         className="
-                        w-9 h-9 rounded-full 
-                        bg-gradient-to-tr from-yellow-400 to-yellow-600
-                        flex items-center justify-center
-                        shadow-md border border-white/80
-                        hover:scale-105 transition-transform
-                      "
+                                        w-9 h-9 rounded-full 
+                                        bg-gradient-to-tr from-yellow-400 to-yellow-600
+                                        flex items-center justify-center
+                                        shadow-md border border-white/80
+                                        hover:scale-105 transition-transform
+                                    "
                                     >
                                         <UserIcon className="w-5 h-5 text-white" />
                                     </button>
@@ -202,6 +202,17 @@ export default function Navbar() {
                                                 }
                                             >
                                                 Lihat & Ubah Profil
+                                            </Link>
+
+                                            {/* PESANAN SAYA */}
+                                            <Link
+                                                href="/customer/orders"
+                                                className="mt-2 block text-xs font-semibold text-yellow-700 hover:text-yellow-800"
+                                                onClick={() =>
+                                                    setIsProfileOpen(false)
+                                                }
+                                            >
+                                                Pesanan Saya
                                             </Link>
 
                                             {/* LOGOUT DALAM DROPDOWN */}
@@ -340,6 +351,15 @@ export default function Navbar() {
                                             Lihat & Ubah Profil
                                         </Link>
 
+                                        {/* PESANAN SAYA */}
+                                        <Link
+                                            href="/orders"
+                                            onClick={handleNavClick}
+                                            className="block text-xs font-semibold text-yellow-700 hover:text-yellow-800 mt-2"
+                                        >
+                                            Pesanan Saya
+                                        </Link>
+
                                         <Link
                                             href="/logout"
                                             method="post"
@@ -356,100 +376,6 @@ export default function Navbar() {
                         </div>
                     )}
                 </div>
-
-                {/* CSS Animation (Tetap Sama) */}
-                <style>{`
-            @keyframes goldPulse {
-              0% { background-position: 0% 0%; }
-              50% { background-position: 100% 100%; }
-              100% { background-position: 0% 0%; }
-            }
-            .shineSweep {
-              background: linear-gradient(
-                120deg,
-                transparent 0%,
-                rgba(255,255,255,0.9) 50%,
-                transparent 100%
-              );
-              transform: skewX(-20deg);
-              animation: shineSweepMove 3s infinite linear;
-            }
-            @keyframes shineSweepMove {
-              0% { transform: translateX(-150%) skewX(-20deg); }
-              100% { transform: translateX(150%) skewX(-20deg); }
-            }
-            .btn-login {
-              position: relative;
-              background: linear-gradient(135deg,#d4af37,#f8d778,#b8860b);
-              border: none;
-              color: white;
-              font-weight: 600;
-              padding: 10px 22px;
-              border-radius: 10px;
-              overflow: hidden;
-              box-shadow: 0 0 15px rgba(255,200,80,0.5);
-              transition: 0.3s;
-            }
-            .btn-login::after {
-              content: "";
-              position: absolute;
-              top: 0;
-              left: -120%;
-              width: 70%;
-              height: 100%;
-              background: linear-gradient(
-                120deg,
-                transparent,
-                rgba(255,255,255,0.8),
-                transparent
-              );
-              transform: skewX(-25deg);
-              animation: shineLogin 2.6s infinite;
-            }
-            @keyframes shineLogin {
-              0% { left: -120%; }
-              60% { left: 130%; }
-              100% { left: 130%; }
-            }
-            .btn-login:hover {
-              transform: scale(1.05);
-              box-shadow: 0 0 22px rgba(255,210,100,0.85);
-            }
-            .navLink {
-              font-weight: 600;
-              color: #000;
-              position: relative;
-              transition: all 0.25s ease-in-out;
-            }
-            .navLink:hover {
-              color: #c48000;
-              text-shadow: 0 0 4px rgba(255,200,100,0.7);
-            }
-            .navLink::after {
-              content: "";
-              position: absolute;
-              left: 0;
-              bottom: -3px;
-              width: 0%;
-              height: 2px;
-              background: linear-gradient(to right,#facc15,#fb923c,#fbbf24);
-              transition: 0.25s;
-              border-radius: 8px;
-            }
-            .navLink:hover::after {
-              width: 100%;
-            }
-            .mobileLink {
-              padding: 10px 0;
-              font-weight: 600;
-              color: #000;
-              border-bottom: 1px solid #f4d68a;
-            }
-            @keyframes fadeIn {
-              from { opacity: 0; transform: translateY(-5px); }
-              to { opacity: 1; transform: translateY(0); }
-            }
-          `}</style>
             </nav>
 
             {/* --- GLOBAL CHAT WIDGET (Di Luar Nav Agar Posisi Fixed Benar) --- */}
