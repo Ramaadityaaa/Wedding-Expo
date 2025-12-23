@@ -26,10 +26,10 @@ class VendorOrderController extends Controller
             $query->where('vendor_id', $vendor->id);
         })
             ->with([
-                'user:id,name,email',
+                'customer:id,name,email',  // Ganti user menjadi customer karena di Order model relasinya customer
                 'package:id,name,price,vendor_id',
                 // TAMBAHKAN 'status' DI SINI AGAR FRONTEND TIDAK BINGUNG
-                'orderPayment:id,order_id,account_name,bank_source,proof_file,status,amount'
+                'orderPayment:id,order_id,account_name,bank_source,proof_file,status,amount'  // Pastikan menggunakan orderPayment dengan status
             ])
             ->latest()
             ->paginate(10);
@@ -52,21 +52,22 @@ class VendorOrderController extends Controller
         }
 
         if ($request->action === 'approve') {
-            // SETELAH APPROVE -> JADI PAID
+            // Set status menjadi PAID jika disetujui
             $order->payment_status = 'PAID';
             $order->status = 'PROCESSED';
             $order->save();
 
-            // Update status pembayaran juga
+            // Update status pembayaran
             $order->orderPayment()->update(['status' => 'VERIFIED']);
 
             $message = 'Pembayaran diterima. Pesanan diproses.';
         } else {
-            // REJECT
+            // Jika ditolak
             $order->payment_status = 'REJECTED';
             $order->status = 'CANCELLED';
             $order->save();
 
+            // Update status pembayaran menjadi REJECTED
             $order->orderPayment()->update(['status' => 'REJECTED']);
 
             $message = 'Pembayaran ditolak. Pesanan dibatalkan.';

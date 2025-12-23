@@ -5,15 +5,15 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne; // Perlu untuk relasi orderPayment
+use Illuminate\Database\Eloquent\Relations\HasOne; // Untuk relasi orderPayment
 
 // ===============================================
-// 🎯 PERBAIKAN Wajib: Import Model Relasi
+// 🎯 Pastikan Import Model Relasi
 // ===============================================
 use App\Models\User;
-use App\Models\Package; 
-use App\Models\WeddingOrganizer; 
-use App\Models\OrderPayment; 
+use App\Models\Package;
+use App\Models\WeddingOrganizer;
+use App\Models\OrderPayment;
 // ===============================================
 
 class Order extends Model
@@ -21,7 +21,7 @@ class Order extends Model
     use HasFactory;
 
     protected $fillable = [
-        'customer_id',
+        'customer_id', // Menggunakan customer_id sebagai penghubung dengan model User
         'vendor_id',
         'package_id',
         'order_date',
@@ -29,13 +29,12 @@ class Order extends Model
         'payment_status',
         'total_price',
         'amount',
-        'snap_token',
-        'user_id',
+        'snap_token',  // Kolom ini tetap dipertahankan
     ];
 
     protected $casts = [
-        'order_date' => 'datetime',
-        'amount' => 'decimal:2',
+        'order_date' => 'datetime',  // Mengubah kolom order_date ke datetime
+        'amount' => 'decimal:2',     // Mengatur amount agar menggunakan dua tempat desimal
     ];
 
     // --- RELASI UTAMA ---
@@ -58,6 +57,7 @@ class Order extends Model
 
     /**
      * 3. Relasi ke Customer (User)
+     * Gunakan customer_id untuk relasi dengan User
      */
     public function customer(): BelongsTo
     {
@@ -65,15 +65,15 @@ class Order extends Model
     }
 
     /**
-     * 4. Relasi Pembayaran
-     * Menggunakan HasOne dan memastikan tipe return menggunakan HasOne
+     * 4. Relasi Pembayaran (OrderPayment)
+     * Menggunakan HasOne untuk mendapatkan pembayaran terakhir
      */
     public function orderPayment(): HasOne
     {
-        return $this->hasOne(OrderPayment::class)->latest();  // Jika hanya ingin 1 pembayaran terakhir
+        return $this->hasOne(OrderPayment::class)->latest();  // Ambil pembayaran terakhir
     }
 
-    // Jika ingin mengambil lebih dari satu pembayaran
+    // Jika Anda membutuhkan relasi pembayaran lebih dari satu, gunakan hasMany
     // public function orderPayments(): HasMany
     // {
     //     return $this->hasMany(OrderPayment::class);
