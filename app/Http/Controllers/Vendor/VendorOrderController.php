@@ -3,17 +3,18 @@
 namespace App\Http\Controllers\Vendor;
 
 use App\Http\Controllers\Controller;
-use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Order;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class VendorOrderController extends Controller
 {
     /**
-     * Menampilkan pesanan berdasarkan status tertentu.
+     * Menampilkan daftar pesanan dengan filter Tab & Summary Count.
      */
-    public function index(Request $request)
+    public function index(Request $request): Response
     {
         $vendor = Auth::user()->vendor;
 
@@ -21,131 +22,122 @@ class VendorOrderController extends Controller
             return redirect()->route('dashboard')->with('error', 'Akses ditolak.');
         }
 
-        // Ambil status dari query string atau default 'PENDING'
-        $status = $request->query('status', 'PENDING'); // Default status adalah 'PENDING'
+        // 1. Ambil Parameter "status" dari Tab (default: waiting)
+        $tabStatus = $request->query('status', 'waiting');
 
-        // Ambil pesanan berdasarkan vendor yang sedang login dan filter berdasarkan status jika ada
-        $orders = Order::whereHas('package', function ($query) use ($vendor) {
-            $query->where('vendor_id', $vendor->id); // Filter berdasarkan vendor yang login
-        })
-        ->where('status', strtoupper($status))  // Filter berdasarkan status pesanan
-        ->with([
-            'customer:id,name,email',
-            'package:id,name,price,vendor_id',
-            'orderPayment:id,order_id,account_name,bank_source,proof_file,status,amount'
-        ])
-        ->latest()
-        ->paginate(10);
+        // 2. Query Dasar
+        $baseQuery = Order::whereHas('package', function ($q) use ($vendor) {
+            $q->where('vendor_id', $vendor->id);
+        });
 
-        return Inertia::render('Vendor/pages/OrderManagementPage', [
-            'orders' => $orders,
-        ]);
-    }
+        // 3. Filter Data Utama Berdasarkan Tab
+        $ordersQuery = clone $baseQuery;
 
-    /**
-     * Menampilkan pesanan yang sedang diproses.
-     */
-    public function processedOrders()
-    {
-        return $this->getOrdersByStatus('PROCESSING');
-    }
+        switch ($tabStatus) {
+            case 'waiting':
+                // Tab Menunggu: Status pembayarannya masih PENDING
+                $ordersQuery->where('payment_status', 'PENDING');
+                break;
 
-    /**
-     * Menampilkan pesanan yang sudah selesai.
-     */
-    public function completedOrders()
-    {
-        return $this->getOrdersByStatus('COMPLETED');
-    }
+            case 'processed':
+                // Tab Diproses: Sudah bayar (PAID) atau sedang dikerjakan (PROCESSED)
+                // Kecualikan yang sudah selesai/batal
+                $ordersQuery->where(function ($q) {
+                    $q->where('payment_status', 'PAID')
+                        ->orWhere('status', 'PROCESSED'); // <--- Status database 'PROCESSED'
+                })->whereNotIn('status', ['COMPLETED', 'CANCELLED']);
+                break;
 
-    /**
-     * Mendapatkan pesanan berdasarkan status.
-     */
-    private function getOrdersByStatus($status)
-    {
-        $vendor = Auth::user()->vendor;
-
-        if (!$vendor) {
-            return redirect()->route('dashboard')->with('error', 'Akses ditolak.');
+            case 'completed':
+                // Tab Selesai: COMPLETED, CANCELLED, atau Payment REJECTED
+                $ordersQuery->where(function ($q) {
+                    $q->whereIn('status', ['COMPLETED', 'CANCELLED'])
+                        ->orWhere('payment_status', 'REJECTED');
+                });
+                break;
         }
 
-        // Filter pesanan berdasarkan status yang diberikan
-        $orders = Order::whereHas('package', function ($query) use ($vendor) {
-            $query->where('vendor_id', $vendor->id);
-        })
-        ->where('status', $status)  // Filter berdasarkan status pesanan
-        ->with([
-            'customer:id,name,email',
+        // 4. Load Relasi (FIX: GANTI 'user' JADI 'customer')
+        $orders = $ordersQuery->with([
+            'customer:id,name,email', // <--- PENTING: Sesuai nama fungsi di Model Order
             'package:id,name,price,vendor_id',
             'orderPayment:id,order_id,account_name,bank_source,proof_file,status,amount'
         ])
-        ->latest()
-        ->paginate(10);
+            ->latest()
+            ->paginate(10)
+            ->withQueryString();
+
+        // 5. Hitung Summary Data (Real Count)
+        $summaryData = [
+            'waiting' => (clone $baseQuery)->where('payment_status', 'PENDING')->count(),
+
+            'processed' => (clone $baseQuery)->where(function ($q) {
+                $q->where('payment_status', 'PAID')
+                    ->orWhere('status', 'PROCESSED');
+            })->whereNotIn('status', ['COMPLETED', 'CANCELLED'])->count(),
+
+            'completed' => (clone $baseQuery)->where(function ($q) {
+                $q->whereIn('status', ['COMPLETED', 'CANCELLED'])
+                    ->orWhere('payment_status', 'REJECTED');
+            })->count(),
+        ];
 
         return Inertia::render('Vendor/pages/OrderManagementPage', [
             'orders' => $orders,
+            'currentStatus' => $tabStatus,
+            'summaryData' => $summaryData
         ]);
     }
 
     /**
-     * Verifikasi pembayaran oleh vendor.
+     * Verifikasi Pembayaran
      */
     public function verifyPayment(Request $request, $orderId)
     {
-        // Validasi aksi (approve atau reject)
-        $request->validate([
-            'action' => 'required|in:approve,reject',
-        ]);
-
-        // Cari pesanan berdasarkan ID
+        $request->validate(['action' => 'required|in:approve,reject']);
         $order = Order::findOrFail($orderId);
 
-        // Pastikan pesanan milik vendor yang sedang login
-        if ($order->package->vendor_id !== Auth::user()->vendor->id) {
-            abort(403, 'Akses ditolak.');
-        }
+        if ($order->package->vendor_id !== Auth::user()->vendor->id) abort(403);
 
-        // Proses approve pembayaran
         if ($request->action === 'approve') {
-            $order->payment_status = 'PAID';
-            $order->status = 'PROCESSING';  // Status pesanan diproses
-            $order->save();
-            $order->orderPayment()->update(['status' => 'VERIFIED']);
-            $message = 'Pembayaran diterima. Pesanan diproses.';
+            // TERIMA: Ubah status jadi PROCESSED agar masuk tab 'Diproses'
+            $order->update([
+                'payment_status' => 'PAID',
+                'status' => 'PROCESSED'
+            ]);
+            if ($order->orderPayment) $order->orderPayment()->update(['status' => 'VERIFIED']);
+
+            $msg = 'Pembayaran diterima. Pesanan dipindahkan ke tab Diproses.';
         } else {
-            // Proses reject pembayaran
-            $order->payment_status = 'REJECTED';
-            $order->status = 'CANCELLED';  // Status pesanan dibatalkan
-            $order->save();
-            $order->orderPayment()->update(['status' => 'REJECTED']);
-            $message = 'Pembayaran ditolak. Pesanan dibatalkan.';
+            // TOLAK
+            $order->update([
+                'payment_status' => 'REJECTED',
+                'status' => 'CANCELLED'
+            ]);
+            if ($order->orderPayment) $order->orderPayment()->update(['status' => 'REJECTED']);
+
+            $msg = 'Pembayaran ditolak.';
         }
 
-        // Redirect ke halaman pesanan yang sedang diproses setelah verifikasi
-        return redirect()->route('vendor.orders.processed')->with('success', $message);
+        return back()->with('success', $msg);
     }
 
     /**
-     * Menandai pesanan sebagai selesai.
+     * Tandai Selesai (Method ini yang dipanggil tombol biru)
      */
     public function completeOrder($orderId)
     {
-        // Cari pesanan berdasarkan ID
         $order = Order::findOrFail($orderId);
 
-        // Pastikan pesanan milik vendor yang sedang login
-        if ($order->package->vendor_id !== Auth::user()->vendor->id) {
-            abort(403, 'Akses ditolak.');
+        if ($order->package->vendor_id !== Auth::user()->vendor->id) abort(403);
+
+        // Ubah status jadi COMPLETED agar pindah ke tab 'Selesai'
+        $order->update(['status' => 'COMPLETED']);
+
+        if ($order->orderPayment) {
+            $order->orderPayment()->update(['status' => 'COMPLETED']);
         }
 
-        // Ubah status pesanan menjadi selesai
-        $order->status = 'COMPLETED';
-        $order->save();
-
-        // Update status pembayaran jika diperlukan
-        $order->orderPayment()->update(['status' => 'COMPLETED']);
-
-        // Redirect kembali ke halaman pesanan selesai setelah berhasil
-        return redirect()->route('vendor.orders.completed')->with('success', 'Pesanan telah selesai.');
+        return back()->with('success', 'Pesanan selesai dan dipindahkan ke riwayat.');
     }
 }
