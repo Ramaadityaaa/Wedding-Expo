@@ -139,7 +139,8 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // --- HALAMAN PESANAN SAYA (CUSTOMER ORDER) --- 
-    Route::get('/customer/orders', [CustomerOrderController::class, 'index'])->name('customer.orders.index');// Pesanan Saya
+    Route::get('/customer/orders', [CustomerOrderController::class, 'index'])->name('customer.orders.index');
+    Route::get('/customer/orders/{orders}', [CustomerOrderController::class, 'show'])->name('customer.orders.show');
 });
 
 
@@ -255,7 +256,7 @@ Route::get('/dashboard', function () {
     }
 
     // Untuk customer diarahkan ke halaman pesanan
-    return redirect()->route('orders.index'); // Pesanan Saya
+    return redirect()->route('customer.orders.index'); // Pesanan Saya
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 /*

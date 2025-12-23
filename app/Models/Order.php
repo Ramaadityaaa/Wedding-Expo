@@ -63,21 +63,19 @@ class Order extends Model
     {
         return $this->belongsTo(User::class, 'customer_id');
     }
-    
-    /**
-     * 4. Relasi User (Alias dari Customer)
-     */
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'customer_id');
-    }
 
     /**
-     * 5. Relasi Pembayaran
+     * 4. Relasi Pembayaran
      * Menggunakan HasOne dan memastikan tipe return menggunakan HasOne
      */
     public function orderPayment(): HasOne
     {
-        return $this->hasOne(OrderPayment::class)->latest();
+        return $this->hasOne(OrderPayment::class)->latest();  // Jika hanya ingin 1 pembayaran terakhir
     }
+
+    // Jika ingin mengambil lebih dari satu pembayaran
+    // public function orderPayments(): HasMany
+    // {
+    //     return $this->hasMany(OrderPayment::class);
+    // }
 }

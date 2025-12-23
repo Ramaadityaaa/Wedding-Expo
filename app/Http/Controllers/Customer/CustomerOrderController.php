@@ -8,6 +8,7 @@ use Inertia\Inertia;
 
 class CustomerOrderController extends Controller
 {
+    // Menampilkan daftar pesanan
     public function index()
     {
         // Cek apakah pengguna sudah login
@@ -16,12 +17,23 @@ class CustomerOrderController extends Controller
         }
 
         // Ambil semua pesanan yang dimiliki oleh customer yang sedang login
-        // Pastikan kolom yang benar digunakan ('customer_id' atau 'user_id')
-        $orders = Order::where('customer_id', auth()->id())->get();
+        $orders = Order::where('customer_id', auth()->id())->with('package', 'vendor')->get();
 
         // Mengirim data pesanan ke halaman "Pesanan Saya"
-        return Inertia::render('Customer/Orders', [
+        return Inertia::render('Customer/Orders/Index', [
             'orders' => $orders
+        ]);
+    }
+
+    // Menampilkan detail pesanan
+    public function show($orderId)
+    {
+        // Ambil pesanan beserta detail yang diperlukan
+        $order = Order::with('package', 'vendor')->findOrFail($orderId);
+
+        // Mengirim data pesanan ke halaman detail
+        return Inertia::render('Customer/Orders/Show', [
+            'order' => $order
         ]);
     }
 }
