@@ -38,44 +38,23 @@ class Order extends Model
     ];
 
     // --- RELASI UTAMA ---
-
-    /**
-     * 1. Relasi ke Vendor (WeddingOrganizer)
-     */
     public function vendor(): BelongsTo
     {
         return $this->belongsTo(WeddingOrganizer::class, 'vendor_id');
     }
 
-    /**
-     * 2. Relasi ke Package
-     */
     public function package(): BelongsTo
     {
         return $this->belongsTo(Package::class, 'package_id');
     }
 
-    /**
-     * 3. Relasi ke Customer (User)
-     * Gunakan customer_id untuk relasi dengan User
-     */
     public function customer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'customer_id');
     }
 
-    /**
-     * 4. Relasi Pembayaran (OrderPayment)
-     * Menggunakan HasOne untuk mendapatkan pembayaran terakhir
-     */
     public function orderPayment(): HasOne
     {
         return $this->hasOne(OrderPayment::class)->latest();  // Ambil pembayaran terakhir
     }
-
-    // Jika Anda membutuhkan relasi pembayaran lebih dari satu, gunakan hasMany
-    // public function orderPayments(): HasMany
-    // {
-    //     return $this->hasMany(OrderPayment::class);
-    // }
 }

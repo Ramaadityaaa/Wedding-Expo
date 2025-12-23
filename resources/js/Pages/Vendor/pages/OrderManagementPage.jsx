@@ -127,7 +127,6 @@ export default function OrderManagementPage({
     ];
 
     const getCount = (statusValue) => {
-        // Logika count sederhana (sesuaikan dengan prop summaryData dari backend jika ada)
         return summaryData[statusValue] ?? 0;
     };
 
@@ -220,12 +219,11 @@ export default function OrderManagementPage({
                             {statusTabs.map((tab) => (
                                 <button
                                     key={tab.value}
-                                    onClick={() => handleTabChange(tab.value)}
+                                    onClick={() => handleTabChange(tab.value)} // Perubahan tab akan men-trigger handleTabChange
                                     className={`px-5 py-3 text-base font-bold rounded-t-xl transition-all duration-200 
-                                        ${
-                                            activeStatus === tab.value
-                                                ? "text-amber-700 border-b-4 border-amber-700 bg-white shadow-t"
-                                                : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 border-b-4 border-transparent"
+                                        ${activeStatus === tab.value
+                                            ? "text-amber-700 border-b-4 border-amber-700 bg-white shadow-t"
+                                            : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 border-b-4 border-transparent"
                                         }`}
                                 >
                                     {tab.label}
@@ -273,8 +271,6 @@ export default function OrderManagementPage({
                                                     ? order.payment_status.toUpperCase()
                                                     : "PENDING";
 
-                                            // LOGIKA BARU: Cek apakah ada file bukti pembayaran
-                                            // Laravel with('orderPayment') -> JSON menjadi order_payment (snake_case)
                                             const hasProof =
                                                 order.order_payment &&
                                                 order.order_payment.proof_file;
@@ -320,9 +316,7 @@ export default function OrderManagementPage({
                                                         />
                                                     </td>
                                                     <td className="p-4 text-center">
-                                                        {/* --- LOGIKA TOMBOL AKSI YANG DIPERBAIKI --- */}
-
-                                                        {/* 1. Jika PENDING + ADA BUKTI -> Munculkan Tombol Cek Bukti */}
+                                                        {/* Tombol Aksi */}
                                                         {statusUpper ===
                                                             "PENDING" &&
                                                             hasProof && (
@@ -339,7 +333,6 @@ export default function OrderManagementPage({
                                                                 </button>
                                                             )}
 
-                                                        {/* 2. Jika PENDING + TIDAK ADA BUKTI -> Teks Menunggu */}
                                                         {statusUpper ===
                                                             "PENDING" &&
                                                             !hasProof && (
@@ -349,7 +342,6 @@ export default function OrderManagementPage({
                                                                 </span>
                                                             )}
 
-                                                        {/* 3. Jika SUDAH PAID (Lunas) -> Tombol "Proses" (Opsional jika ingin flow manual) */}
                                                         {statusUpper ===
                                                             "PAID" && (
                                                             <span className="text-green-600 text-xs font-bold bg-green-50 px-2 py-1 rounded border border-green-200">
@@ -357,7 +349,6 @@ export default function OrderManagementPage({
                                                             </span>
                                                         )}
 
-                                                        {/* 4. Jika PROCESSED -> Tombol Selesai */}
                                                         {statusUpper ===
                                                             "PROCESSED" && (
                                                             <span className="text-blue-600 text-xs font-bold bg-blue-50 px-2 py-1 rounded border border-blue-200">
@@ -365,7 +356,6 @@ export default function OrderManagementPage({
                                                             </span>
                                                         )}
 
-                                                        {/* 5. Jika COMPLETED */}
                                                         {(statusUpper ===
                                                             "COMPLETED" ||
                                                             statusUpper ===
@@ -421,7 +411,6 @@ export default function OrderManagementPage({
                             </div>
                             <div className="p-6">
                                 {(() => {
-                                    // Ambil data payment dari snake_case (standar laravel json)
                                     const payment = selectedOrder.order_payment;
                                     const displayPrice =
                                         selectedOrder.amount ??

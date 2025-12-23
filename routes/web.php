@@ -143,7 +143,6 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/customer/orders/{orders}', [CustomerOrderController::class, 'show'])->name('customer.orders.show');
 });
 
-
 /*
 |-------------------------------------------------------------------------- 
 | VENDOR ROUTES
@@ -228,8 +227,12 @@ Route::prefix('vendor')
         });
 
         // MANAJEMEN PESANAN (DARI CUSTOMER)
-        Route::get('/orders', [VendorOrderController::class, 'index'])->name('orders.index');
+        Route::get('/vendor/orders', [VendorOrderController::class, 'index'])->name('orders.index');
+        Route::get('vendor/orders/processed', [VendorOrderController::class, 'processedOrders'])->name('orders.processed');
+        Route::get('vendor/orders/completed', [VendorOrderController::class, 'completedOrders'])->name('orders.completed'); // Rute untuk pesanan selesai
         Route::post('/orders/{id}/verify', [VendorOrderController::class, 'verifyPayment'])->name('orders.verify');
+        Route::post('/orders/{id}/complete', [VendorOrderController::class, 'completeOrder'])->name('orders.complete');  // Rute untuk menandai selesai
+    
     });
 
 /*
