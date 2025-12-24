@@ -11,54 +11,39 @@ class WeddingOrganizer extends Authenticatable
 {
     use HasFactory;
 
-    // Tentukan nama tabel
     protected $table = 'wedding_organizers';
 
-    /**
-     * Set default values for model attributes.
-     */
     protected $attributes = [
         'isApproved' => 'PENDING',
-        'role' => 'Vendor', // Set default role
+        'role' => 'Vendor',
     ];
 
-    /**
-     * The attributes that are mass assignable.
-     */
     protected $fillable = [
-        // RELASI & STATUS
         'user_id',
         'isApproved',
         'role',
         'terms_accepted',
 
-        // DATA BISNIS
         'name',
         'type',
         'city',
         'province',
         'address',
 
-        // LEGALITAS
         'permit_number',
         'permit_image_path',
 
-        // --- DATA BANK & PEMBAYARAN ---
         'bank_name',
         'account_number',
         'account_holder_name',
-        'qris_path', // <--- TAMBAHAN: Agar path gambar QRIS bisa disimpan
-        // ------------------------------
+        'qris_path',
 
-        // DATA KONTAK
         'contact_name',
         'contact_email',
         'contact_phone',
 
-        // AKUN (hanya digunakan saat create/update)
         'password',
 
-        // Opsional Lainnya
         'description',
         'logo',
         'coverPhoto',
@@ -76,8 +61,6 @@ class WeddingOrganizer extends Authenticatable
     {
         return [];
     }
-
-    // --- RELATIONS ---
 
     public function user(): BelongsTo
     {
@@ -101,6 +84,6 @@ class WeddingOrganizer extends Authenticatable
 
     public function favorites(): HasMany
     {
-        return $this->hasMany(Favorite::class);
+            return $this->hasMany(Favorite::class, 'vendor_id');
     }
 }
