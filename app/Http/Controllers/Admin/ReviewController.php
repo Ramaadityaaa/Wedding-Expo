@@ -11,8 +11,8 @@ class ReviewController extends Controller
 {
     public function index()
     {
-        // Ambil review dengan relasi, urutkan dari terbaru
-        $reviews = Review::with(['weddingOrganizer', 'user'])
+        // Ambil review dengan relasi VENDOR + USER, urutkan terbaru
+        $reviews = Review::with(['vendor', 'user'])
             ->latest()
             ->get();
 
@@ -24,7 +24,7 @@ class ReviewController extends Controller
     public function approve($id)
     {
         $review = Review::findOrFail($id);
-        $review->update(['status' => 'APPROVED']); // Set status APPROVED
+        $review->update(['status' => Review::STATUS_APPROVED]);
 
         return redirect()->back()->with('success', 'Ulasan berhasil disetujui dan ditayangkan.');
     }
@@ -32,7 +32,7 @@ class ReviewController extends Controller
     public function reject($id)
     {
         $review = Review::findOrFail($id);
-        $review->update(['status' => 'REJECTED']); // Set status REJECTED (Data tetap ada)
+        $review->update(['status' => Review::STATUS_REJECTED]);
 
         return redirect()->back()->with('success', 'Ulasan ditolak (diarsipkan).');
     }

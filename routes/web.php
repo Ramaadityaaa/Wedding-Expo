@@ -15,6 +15,7 @@ use App\Http\Controllers\Customer\BookingController;
 use App\Http\Controllers\Customer\CustomerPaymentFlowController;
 use App\Http\Controllers\Customer\CustomerOrderController;
 use App\Http\Controllers\Customer\FavoriteController;
+use App\Http\Controllers\Customer\CustomerReviewController;
 
 // --- KONTROLER ADMIN ---
 use App\Http\Controllers\Admin\DashboardController;
@@ -40,24 +41,27 @@ use App\Http\Controllers\Vendor\VendorOrderController;
 
 // --- MODELS ---
 use App\Models\User;
-use App\Models\WeddingOrganizer;
+use App\Models\Vendor;
 use App\Models\Package;
+use App\Models\Review;
+use App\Models\Favorite;
 
 /*
 |--------------------------------------------------------------------------
-| PUBLIC CUSTOMER & GUEST ROUTES
+| PUBLIC ROUTES
 |--------------------------------------------------------------------------
 */
-
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
 /**
  * FAVORITES
  */
 Route::get('/favorites', [FavoriteController::class, 'index'])->name('favorites');
+
 Route::post('/favorites/{vendor}/toggle', [FavoriteController::class, 'toggle'])
     ->middleware('auth')
     ->name('favorites.toggle');
+
 Route::delete('/favorites/{vendor}', [FavoriteController::class, 'destroy'])
     ->middleware('auth')
     ->name('favorites.destroy');
@@ -65,31 +69,62 @@ Route::delete('/favorites/{vendor}', [FavoriteController::class, 'destroy'])
 /**
  * VENDOR DETAILS (CUSTOMER)
  */
-Route::get('/vendors/{vendor}', function ($vendorId) {
-    $vendor = WeddingOrganizer::with([
+Route::get('/vendors/{vendor}', function (Vendor $vendor) {
+    $userId = auth()->id();
+
+    $vendor->load([
         'packages',
         'portfolios',
-        'reviews.user'
-    ])->findOrFail($vendorId);
+        'reviews' => function ($q) use ($userId) {
+            $q->with('user')
+                ->when($userId, function ($qq) use ($userId) {
+                    $qq->where(function ($w) use ($userId) {
+                        $w->where('status', Review::STATUS_APPROVED)
+                          ->orWhere('user_id', $userId);
+                    });
+                }, function ($qq) {
+                    $qq->where('status', Review::STATUS_APPROVED);
+                })
+                ->orderByDesc('created_at');
+        }
+    ]);
+
+    $avgRating = Review::where('vendor_id', $vendor->id)
+        ->where('status', Review::STATUS_APPROVED)
+        ->avg('rating');
+
+    $reviewCount = Review::where('vendor_id', $vendor->id)
+        ->where('status', Review::STATUS_APPROVED)
+        ->count();
+
+    $myReview = null;
+    if ($userId) {
+        $myReview = Review::where('vendor_id', $vendor->id)
+            ->where('user_id', $userId)
+            ->first();
+    }
+
+    $isFavorited = false;
+    if ($userId) {
+        $isFavorited = Favorite::where('user_id', $userId)
+            ->where('vendor_id', $vendor->id)
+            ->exists();
+    }
 
     return Inertia::render('Customer/VendorDetails', [
-        'vendor' => $vendor,
+        'vendor'      => $vendor,
+        'avgRating'   => $avgRating ? round($avgRating, 1) : 0,
+        'reviewCount' => $reviewCount,
+        'myReview'    => $myReview,
+        'isFavorited' => $isFavorited,
     ]);
 })->name('vendors.details');
 
 /**
- * ✅ PALING AMAN: PACKAGE DETAIL (CUSTOMER)
- * - Jangan overwrite "images" pakai $package->images = ...
- * - Karena "images" adalah nama RELASI, serialize Inertia bisa bentrok.
- * - Solusi aman: buat field baru "gallery" (array URL string) untuk FE.
- * - FE kamu tinggal pakai pkg.gallery (atau fallback ke pkg.images kalau mau).
+ * PACKAGE DETAIL (CUSTOMER)
  */
-Route::get('/vendors/{vendor}/package/{package}', function ($vendorId, $packageId) {
-
-    $vendor = WeddingOrganizer::findOrFail($vendorId);
-
+Route::get('/vendors/{vendor}/package/{package}', function (Vendor $vendor, $packageId) {
     $package = Package::with(['images' => function ($q) {
-        // kalau kolom is_published ada, pakai filter ini
         $q->where('is_published', 1)
           ->orderBy('sort_order')
           ->orderBy('id', 'desc');
@@ -98,19 +133,15 @@ Route::get('/vendors/{vendor}/package/{package}', function ($vendorId, $packageI
         ->where('vendor_id', $vendor->id)
         ->firstOrFail();
 
-    // ✅ Field aman baru: "gallery" => array URL string
     $package->setAttribute(
         'gallery',
-        $package->images
-            ->map(fn ($img) => Storage::url($img->path)) // /storage/...
-            ->values()
+        $package->images->map(fn($img) => Storage::url($img->path))->values()
     );
 
     return Inertia::render('Customer/PackageDetail', [
-        'pkg' => $package,
+        'pkg'    => $package,
         'vendor' => $vendor,
     ]);
-
 })->name('package.detail');
 
 /**
@@ -129,10 +160,19 @@ Route::prefix('api')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| AUTHENTICATED ROUTES (GENERAL - User, Vendor & Admin)
+| AUTH ROUTES (GENERAL)
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth'])->group(function () {
+
+    /**
+     * CUSTOMER REVIEW (tulis/edit/hapus ulasan sendiri)
+     */
+    Route::post('/vendors/{vendor}/reviews', [CustomerReviewController::class, 'upsert'])
+        ->name('customer.reviews.upsert');
+
+    Route::delete('/vendors/{vendor}/reviews', [CustomerReviewController::class, 'destroy'])
+        ->name('customer.reviews.destroy');
 
     /**
      * Booking / Order / Payment (Customer)
@@ -157,6 +197,7 @@ Route::middleware(['auth'])->group(function () {
      */
     Route::get('/admin/contact', function () {
         $admin = User::where('role', 'ADMIN')->first();
+
         return response()->json([
             'id' => $admin ? $admin->id : null,
             'name' => 'Admin Support',
@@ -194,7 +235,6 @@ Route::middleware(['auth'])->group(function () {
 | VENDOR ROUTES
 |--------------------------------------------------------------------------
 */
-
 Route::middleware(['auth'])->group(function () {
     Route::get('/vendor/verification-status', function () {
         $vendor = auth()->user()->vendor;
@@ -223,42 +263,24 @@ Route::prefix('vendor')
         Route::get('/membership', [MembershipController::class, 'index'])->name('membership.index');
         Route::post('/membership/subscribe', [MembershipController::class, 'subscribe'])->name('membership.subscribe');
 
-        /**
-         * Packages
-         */
         Route::get('/packages', [VendorPackageController::class, 'index'])->name('packages.index');
         Route::post('/packages', [VendorPackageController::class, 'store'])->name('packages.store');
         Route::put('/packages/{id}', [VendorPackageController::class, 'update'])->name('packages.update');
         Route::delete('/packages/{id}', [VendorPackageController::class, 'destroy'])->name('packages.destroy');
 
-        /**
-         * Portfolio Vendor
-         */
         Route::get('/portfolio', [VendorPortfolioController::class, 'index'])->name('portfolio.index');
         Route::post('/portfolio', [VendorPortfolioController::class, 'store'])->name('portfolio.store');
         Route::delete('/portfolio/{id}', [VendorPortfolioController::class, 'destroy'])->name('portfolio.destroy');
 
-        /**
-         * Reviews
-         */
         Route::get('/reviews', [VendorReviewController::class, 'index'])->name('reviews.index');
         Route::post('/reviews/{id}/reply', [VendorReviewController::class, 'reply'])->name('reviews.reply');
 
-        /**
-         * Chat Vendor Page
-         */
         Route::get('/chat-page', function () {
             return Inertia::render('Vendor/pages/ChatPage');
         })->name('chat.index');
 
-        /**
-         * Payment Proofs (vendor)
-         */
         Route::get('/payment-proofs', [PaymentProofController::class, 'vendorIndex'])->name('paymentproof.index');
 
-        /**
-         * Vendor Payments Flow
-         */
         Route::prefix('payments')->as('payment.')->group(function () {
             Route::get('/', function () {
                 return Inertia::render('Vendor/Payment/PaymentIndexPage');
@@ -270,9 +292,6 @@ Route::prefix('vendor')
             Route::get('/{invoiceId}', [VendorPaymentFlowController::class, 'create'])->name('create');
         });
 
-        /**
-         * Orders Vendor
-         */
         Route::get('/orders', [VendorOrderController::class, 'index'])->name('orders.index');
         Route::post('/orders/{id}/verify', [VendorOrderController::class, 'verifyPayment'])->name('orders.verify');
         Route::patch('/orders/{id}/complete', [VendorOrderController::class, 'completeOrder'])->name('orders.complete');
@@ -288,9 +307,7 @@ Route::get('/dashboard', function () {
 
     if (!$user) return redirect()->route('home');
 
-    if ($user->role === 'ADMIN') {
-        return redirect()->route('admin.dashboard');
-    }
+    if ($user->role === 'ADMIN') return redirect()->route('admin.dashboard');
 
     if ($user->role === 'VENDOR') {
         $vendor = $user->vendor;

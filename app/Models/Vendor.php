@@ -9,55 +9,36 @@ class Vendor extends Model
 {
     use HasFactory;
 
-    protected $table = 'vendors';
-
+    // sesuaikan fillable kamu kalau beda
     protected $fillable = [
         'user_id',
         'name',
-        'slug',
-        'email',
-        'phone',
         'address',
-        'description',
         'logo',
-        'banner',
-        'status', // <--- PENTING: Kolom baru ini wajib ditambahkan
+        'description',
+        'phone',
+        'contact',
+        'isApproved',
+        'rejection_reason',
     ];
 
-    /**
-     * Relasi ke User
-     */
     public function user()
     {
         return $this->belongsTo(User::class);
     }
 
-    /**
-     * Relasi ke Bukti Pembayaran
-     */
-    public function paymentProofs()
-    {
-        return $this->hasMany(PaymentProof::class, 'vendor_id');
-    }
-
-    /**
-     * Relasi ke Paket Jasa
-     */
     public function packages()
     {
-        return $this->hasMany(Package::class);
+        return $this->hasMany(Package::class, 'vendor_id');
     }
 
-    /**
-     * Relasi ke Portofolio
-     */
     public function portfolios()
     {
-        return $this->hasMany(Portfolio::class);
+        return $this->hasMany(Portfolio::class, 'vendor_id');
     }
 
     public function reviews()
     {
-        return $this->hasMany(Review::class);
+        return $this->hasMany(Review::class, 'vendor_id');
     }
 }
