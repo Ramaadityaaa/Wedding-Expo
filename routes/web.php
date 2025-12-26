@@ -129,8 +129,8 @@ Route::middleware(['auth'])->group(function () {
     })->name('admin.contact');
 
     /**
-     * Customer dashboard route (baru)
-     * Tujuannya: setelah login customer diarahkan ke dashboard, bukan orders.
+     * Customer dashboard route (tetap ada kalau suatu saat mau dipakai),
+     * tapi bukan target redirect default setelah login.
      */
     Route::get('/customer/dashboard', function () {
         return Inertia::render('Customer/Dashboard');
@@ -216,9 +216,9 @@ Route::prefix('vendor')
     });
 
 /*
-|--------------------------------------------------------------------------
+|----------------------------------------------------------------------
 | DASHBOARD REDIRECTOR
-|--------------------------------------------------------------------------
+|----------------------------------------------------------------------
 */
 Route::get('/dashboard', function () {
     $user = auth()->user();
@@ -237,14 +237,18 @@ Route::get('/dashboard', function () {
         return redirect()->route('vendor.dashboard');
     }
 
-    // FIX: Customer diarahkan ke dashboard, bukan orders
-    return redirect()->route('customer.dashboard');
+    /**
+     * FIX SESUAI PERMINTAAN:
+     * Customer setelah login diarahkan ke HOME (/),
+     * bukan /customer/dashboard, supaya data vendor terdeteksi.
+     */
+    return redirect()->route('home'); // atau: return redirect('/');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 /*
-|--------------------------------------------------------------------------
+|----------------------------------------------------------------------
 | ADMIN ROUTES
-|--------------------------------------------------------------------------
+|----------------------------------------------------------------------
 */
 Route::prefix('admin')
     ->name('admin.')
@@ -266,6 +270,7 @@ Route::prefix('admin')
         Route::get('/users', [UserStatsController::class, 'index'])->name('user-stats.index');
         Route::patch('/users/{id}/status', [UserStatsController::class, 'updateStatus'])->name('users.update-status');
         Route::delete('/users/{id}', [UserStatsController::class, 'destroy'])->name('users.destroy');
+
         Route::get('/package-plans', [PackagePlanController::class, 'index'])->name('package-plans.index');
         Route::post('/package-plans', [PackagePlanController::class, 'storeOrUpdate'])->name('package-plans.store-update');
         Route::delete('/package-plans/{id}', [PackagePlanController::class, 'destroy'])->name('package-plans.destroy');
@@ -273,8 +278,10 @@ Route::prefix('admin')
         Route::get('/reviews', [AdminReviewController::class, 'index'])->name('reviews.index');
         Route::patch('/reviews/{id}/approve', [AdminReviewController::class, 'approve'])->name('reviews.approve');
         Route::patch('/reviews/{id}/reject', [AdminReviewController::class, 'reject'])->name('reviews.reject');
+
         Route::get('/roles', [RoleController::class, 'index'])->name('roles.index');
         Route::post('/roles/update', [RoleController::class, 'update'])->name('roles.update');
+
         Route::get('/static-content', [StaticContentController::class, 'index'])->name('static-content.index');
         Route::post('/static-content', [StaticContentController::class, 'update'])->name('static-content.update');
 
