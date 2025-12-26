@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class PaymentProof extends Model
 {
@@ -56,15 +57,12 @@ class PaymentProof extends Model
      */
     public function getFileUrlAttribute()
     {
-        if (!$this->file_path) {
+        // Pastikan file_path ada dan file tersebut ada di storage
+        if (!$this->file_path || !Storage::disk('public')->exists($this->file_path)) {
             return null;
         }
 
-        // Memastikan jika file_path sudah berupa URL penuh tidak akan double storage/
-        if (filter_var($this->file_path, FILTER_VALIDATE_URL)) {
-            return $this->file_path;
-        }
-
+        // Kembalikan URL file
         return asset('storage/' . $this->file_path);
     }
 }

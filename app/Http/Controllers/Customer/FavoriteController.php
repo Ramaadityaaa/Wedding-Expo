@@ -72,22 +72,23 @@ class FavoriteController extends Controller
 
         $vendorModel = WeddingOrganizer::findOrFail($vendor);
 
+        // FIX: pakai vendor_id (sesuai struktur tabel favorites)
         $existing = Favorite::query()
             ->where('user_id', $user->id)
-            ->where('wedding_organizer_id', $vendorModel->id)
+            ->where('vendor_id', $vendorModel->id)
             ->first();
 
         if ($existing) {
             $existing->delete();
-            return redirect()->back()->with('success', 'Vendor dihapus dari favorit.');
+            return back()->with('success', 'Vendor dihapus dari favorit.');
         }
 
         Favorite::create([
             'user_id' => $user->id,
-            'wedding_organizer_id' => $vendorModel->id,
+            'vendor_id' => $vendorModel->id,
         ]);
 
-        return redirect()->back()->with('success', 'Vendor ditambahkan ke favorit.');
+        return back()->with('success', 'Vendor ditambahkan ke favorit.');
     }
 
     public function destroy(Request $request, $vendor)
@@ -97,11 +98,12 @@ class FavoriteController extends Controller
             abort(403, 'Unauthorized');
         }
 
+        // FIX: pakai vendor_id
         Favorite::query()
             ->where('user_id', $user->id)
-            ->where('wedding_organizer_id', $vendor)
+            ->where('vendor_id', $vendor)
             ->delete();
 
-        return redirect()->back()->with('success', 'Vendor dihapus dari favorit.');
+        return back()->with('success', 'Vendor dihapus dari favorit.');
     }
 }

@@ -13,6 +13,7 @@ use App\Http\Controllers\ChatController;
 use App\Http\Controllers\Customer\BookingController;
 use App\Http\Controllers\Customer\CustomerPaymentFlowController;
 use App\Http\Controllers\Customer\CustomerOrderController;
+use App\Http\Controllers\Customer\FavoriteController;
 
 // --- KONTROLER ADMIN ---
 use App\Http\Controllers\Admin\DashboardController;
@@ -48,9 +49,19 @@ use App\Models\WeddingOrganizer;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
-Route::get('/favorites', function () {
-    return Inertia::render('Customer/FavoritePage');
-})->name('favorites');
+/**
+ * FAVORITES
+ * - GET /favorites -> render FavoritePage + data (guest -> favorites kosong)
+ * - POST /favorites/{vendor}/toggle -> toggle favorit (auth)
+ * - DELETE /favorites/{vendor} -> hapus favorit (auth)
+ */
+Route::get('/favorites', [FavoriteController::class, 'index'])->name('favorites');
+Route::post('/favorites/{vendor}/toggle', [FavoriteController::class, 'toggle'])
+    ->middleware('auth')
+    ->name('favorites.toggle');
+Route::delete('/favorites/{vendor}', [FavoriteController::class, 'destroy'])
+    ->middleware('auth')
+    ->name('favorites.destroy');
 
 Route::get('/vendors/{vendor}', function ($vendorId) {
     $vendor = WeddingOrganizer::with([
@@ -116,6 +127,14 @@ Route::middleware(['auth'])->group(function () {
             'avatar' => 'https://ui-avatars.com/api/?name=Admin+Support&background=0D8ABC&color=fff'
         ]);
     })->name('admin.contact');
+
+    /**
+     * Customer dashboard route (baru)
+     * Tujuannya: setelah login customer diarahkan ke dashboard, bukan orders.
+     */
+    Route::get('/customer/dashboard', function () {
+        return Inertia::render('Customer/Dashboard');
+    })->name('customer.dashboard');
 
     Route::group(['prefix' => 'customer', 'as' => 'customer.'], function () {
         Route::get('/payment/upload', [CustomerPaymentFlowController::class, 'uploadProofPage'])->name('payment.proof.page');
@@ -191,13 +210,8 @@ Route::prefix('vendor')
         });
 
         // --- MANAJEMEN PESANAN (DARI CUSTOMER) ---
-        // Route Utama (Index) - Menghandle semua tab status
         Route::get('/orders', [VendorOrderController::class, 'index'])->name('orders.index');
-
-        // Route Verifikasi Pembayaran (POST)
         Route::post('/orders/{id}/verify', [VendorOrderController::class, 'verifyPayment'])->name('orders.verify');
-
-        // FIX: Ubah POST menjadi PATCH agar sesuai dengan Frontend
         Route::patch('/orders/{id}/complete', [VendorOrderController::class, 'completeOrder'])->name('orders.complete');
     });
 
@@ -223,7 +237,8 @@ Route::get('/dashboard', function () {
         return redirect()->route('vendor.dashboard');
     }
 
-    return redirect()->route('customer.orders.index');
+    // FIX: Customer diarahkan ke dashboard, bukan orders
+    return redirect()->route('customer.dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 /*

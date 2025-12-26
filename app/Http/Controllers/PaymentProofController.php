@@ -19,6 +19,7 @@ class PaymentProofController extends Controller
      */
     public function index()
     {
+        // Ambil semua permintaan pembayaran yang dikonfirmasi, dengan relasi vendor dan invoice
         $paymentRequests = PaymentProof::with(['vendor', 'invoice'])
             ->latest()
             ->get()
@@ -47,6 +48,7 @@ class PaymentProofController extends Controller
                 return $proof;
             });
 
+        // Render tampilan menggunakan Inertia
         return Inertia::render('Admin/pages/PaymentConfirmation', [
             'paymentRequests' => $paymentRequests
         ]);
@@ -57,6 +59,7 @@ class PaymentProofController extends Controller
      */
     public function updateStatus(Request $request, $id)
     {
+        // Validasi input status
         $request->validate([
             'status' => 'required|in:Approved,Rejected,Pending'
         ]);
@@ -65,12 +68,14 @@ class PaymentProofController extends Controller
             // Gunakan Database Transaction agar jika satu gagal, semua dibatalkan (aman)
             DB::beginTransaction();
 
+            // Cari data payment proof berdasarkan ID
             $payment = PaymentProof::findOrFail($id);
             
             // 1. Update Status di tabel payment_proofs
             $payment->update(['status' => $request->status]);
 
             if ($payment->invoice_id) {
+                // Update status invoice
                 $invoice = Invoice::find($payment->invoice_id);
 
                 if ($invoice) {
@@ -101,8 +106,10 @@ class PaymentProofController extends Controller
                 }
             }
 
+            // Commit perubahan jika tidak ada error
             DB::commit();
 
+            // Kirimkan pesan sukses
             $message = $request->status === 'Approved' 
                 ? 'Pembayaran disetujui. Vendor sekarang memiliki akses Membership.' 
                 : 'Pembayaran telah ditolak.';
@@ -110,6 +117,7 @@ class PaymentProofController extends Controller
             return redirect()->back()->with('success', $message);
 
         } catch (\Exception $e) {
+            // Rollback jika terjadi error
             DB::rollBack();
             Log::error("Error pada PaymentProofController@updateStatus: " . $e->getMessage());
             return redirect()->back()->with('error', 'Gagal memperbarui status: ' . $e->getMessage());
@@ -122,6 +130,7 @@ class PaymentProofController extends Controller
     public function destroy($id)
     {
         try {
+            // Cari payment proof berdasarkan ID
             $payment = PaymentProof::findOrFail($id);
 
             // Hapus file fisik dari folder storage/app/public
@@ -129,9 +138,11 @@ class PaymentProofController extends Controller
                 Storage::disk('public')->delete($payment->file_path);
             }
 
+            // Hapus entri dari tabel payment_proofs
             $payment->delete();
 
             return redirect()->back()->with('success', 'Data bukti pembayaran berhasil dihapus.');
+
         } catch (\Exception $e) {
             Log::error("Error pada PaymentProofController@destroy: " . $e->getMessage());
             return redirect()->back()->with('error', 'Gagal menghapus data.');
