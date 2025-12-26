@@ -6,7 +6,8 @@ import {
     Image as ImageIcon,
     MessageSquare,
     Banknote,
-    ShoppingBag, // <--- Import Icon baru untuk Pesanan
+    ShoppingBag,
+    Star, // ✅ icon Ulasan
 } from "lucide-react";
 
 export const vendorNavItems = [
@@ -16,14 +17,12 @@ export const vendorNavItems = [
         route: "vendor.dashboard",
         icon: LayoutDashboard,
     },
-    // --- MENU BARU: MANAJEMEN PESANAN ---
     {
         name: "orders",
         label: "Pesanan Masuk",
-        route: "vendor.orders.index", // Pastikan route ini sesuai web.php
+        route: "vendor.orders.index",
         icon: ShoppingBag,
     },
-    // ------------------------------------
     {
         name: "packages",
         label: "Paket Jasa",
@@ -36,6 +35,15 @@ export const vendorNavItems = [
         route: "vendor.portfolio.index",
         icon: ImageIcon,
     },
+
+    // ✅ MENU BARU: ULASAN
+    {
+        name: "reviews",
+        label: "Ulasan",
+        route: "vendor.reviews.index",
+        icon: Star,
+    },
+
     {
         name: "profile",
         label: "Profil Bisnis",
