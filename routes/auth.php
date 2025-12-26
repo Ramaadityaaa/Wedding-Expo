@@ -10,7 +10,6 @@ use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia; // <--- INI YANG HILANG
 
 Route::middleware('guest')->group(function () {
 
@@ -24,21 +23,19 @@ Route::middleware('guest')->group(function () {
         ->name('login');
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
 
-    // FORGOT PASSWORD
-    Route::get('forgot-password', function () {
-        return Inertia::render('Auth/ResetPasswordPage');
-    })->name('password.request');
+    // FORGOT PASSWORD (TAMPILAN UI KAMU)
+    Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
+        ->name('password.request');
 
+    // KIRIM LINK RESET KE EMAIL
     Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
         ->name('password.email');
 
-    Route::get('reset-password/{token}', function ($token) {
-        return Inertia::render('Auth/NewPasswordPage', [
-            'token' => $token,
-            'email' => request()->email,
-        ]);
-    })->name('password.reset');
+    // FORM RESET PASSWORD (DARI LINK EMAIL)
+    Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
+        ->name('password.reset');
 
+    // SUBMIT PASSWORD BARU
     Route::post('reset-password', [NewPasswordController::class, 'store'])
         ->name('password.store');
 });
