@@ -1,11 +1,12 @@
 import React from "react";
-import { Link, router, Head } from "@inertiajs/react";
+import { Link, router, Head, usePage } from "@inertiajs/react";
 import {
     Zap,
     ClipboardCheck,
     Calendar,
     Store,
     ArrowRight,
+    ArrowLeft,
     Package,
     ListTodo,
 } from "lucide-react";
@@ -13,6 +14,19 @@ import {
 export default function OrdersPage({ orders, currentStatus, summaryData }) {
     const normalizeStatus = (status) => (status || "").toString().toUpperCase();
     const activeTab = currentStatus || "processed";
+
+    const { url } = usePage(); // untuk fallback logic (optional, tapi aman)
+
+    const goBack = () => {
+        // kalau user punya history, balik ke halaman sebelumnya
+        if (window.history.length > 1) {
+            window.history.back();
+            return;
+        }
+
+        // fallback: ke dashboard customer
+        router.get(route("customer.dashboard"));
+    };
 
     const handleTabChange = (status) => {
         router.get(
@@ -64,6 +78,30 @@ export default function OrdersPage({ orders, currentStatus, summaryData }) {
             <Head title="Pesanan Saya" />
 
             <div className="max-w-7xl mx-auto py-10 px-5 sm:px-6 lg:px-8">
+                {/* Top bar: Back */}
+                <div className="flex items-start justify-between gap-4 mb-6">
+                    <div>
+                        <button
+                            type="button"
+                            onClick={goBack}
+                            className="
+                inline-flex items-center gap-2
+                px-4 py-2 rounded-xl
+                bg-amber-50 text-amber-800
+                border border-amber-200
+                shadow-sm
+                hover:bg-amber-100 hover:border-amber-300
+                active:scale-[0.98]
+                transition
+            "
+                        >
+                            <ArrowLeft className="w-4 h-4" />
+                            <span className="text-sm font-semibold">Kembali</span>
+                        </button>
+                    </div>
+                </div>
+
+
                 {/* Header */}
                 <div className="flex flex-col gap-2 mb-6">
                     <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
@@ -87,10 +125,9 @@ export default function OrdersPage({ orders, currentStatus, summaryData }) {
                                 type="button"
                                 onClick={() => handleTabChange("processed")}
                                 className={`w-full text-left p-4 rounded-xl border transition-all
-                                    ${
-                                        activeTab === "processed"
-                                            ? "border-amber-300 ring-1 ring-amber-200 bg-amber-50/30"
-                                            : "border-gray-200 bg-white hover:bg-gray-50"
+                                    ${activeTab === "processed"
+                                        ? "border-amber-300 ring-1 ring-amber-200 bg-amber-50/30"
+                                        : "border-gray-200 bg-white hover:bg-gray-50"
                                     }`}
                             >
                                 <div className="flex items-center justify-between">
@@ -110,10 +147,9 @@ export default function OrdersPage({ orders, currentStatus, summaryData }) {
 
                                     <span
                                         className={`text-xs px-2.5 py-1 rounded-full font-semibold
-                                            ${
-                                                activeTab === "processed"
-                                                    ? "bg-amber-100 text-amber-700"
-                                                    : "bg-gray-100 text-gray-600"
+                                            ${activeTab === "processed"
+                                                ? "bg-amber-100 text-amber-700"
+                                                : "bg-gray-100 text-gray-600"
                                             }`}
                                     >
                                         {processedCount}
@@ -125,10 +161,9 @@ export default function OrdersPage({ orders, currentStatus, summaryData }) {
                                 type="button"
                                 onClick={() => handleTabChange("completed")}
                                 className={`w-full text-left p-4 rounded-xl border transition-all
-                                    ${
-                                        activeTab === "completed"
-                                            ? "border-amber-300 ring-1 ring-amber-200 bg-amber-50/30"
-                                            : "border-gray-200 bg-white hover:bg-gray-50"
+                                    ${activeTab === "completed"
+                                        ? "border-amber-300 ring-1 ring-amber-200 bg-amber-50/30"
+                                        : "border-gray-200 bg-white hover:bg-gray-50"
                                     }`}
                             >
                                 <div className="flex items-center justify-between">
@@ -148,10 +183,9 @@ export default function OrdersPage({ orders, currentStatus, summaryData }) {
 
                                     <span
                                         className={`text-xs px-2.5 py-1 rounded-full font-semibold
-                                            ${
-                                                activeTab === "completed"
-                                                    ? "bg-amber-100 text-amber-700"
-                                                    : "bg-gray-100 text-gray-600"
+                                            ${activeTab === "completed"
+                                                ? "bg-amber-100 text-amber-700"
+                                                : "bg-gray-100 text-gray-600"
                                             }`}
                                     >
                                         {completedCount}
@@ -232,13 +266,12 @@ export default function OrdersPage({ orders, currentStatus, summaryData }) {
                                                 </div>
                                             </div>
 
-                                            {/* strip bawah biar lebih “dashboardy” */}
+                                            {/* strip bawah */}
                                             <div
-                                                className={`h-1.5 w-full ${
-                                                    s === "COMPLETED"
-                                                        ? "bg-green-200"
-                                                        : "bg-amber-200"
-                                                }`}
+                                                className={`h-1.5 w-full ${s === "COMPLETED"
+                                                    ? "bg-green-200"
+                                                    : "bg-amber-200"
+                                                    }`}
                                             />
                                         </div>
                                     );
