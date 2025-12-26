@@ -2,128 +2,149 @@ import React, { useState } from "react";
 import { Link, usePage } from "@inertiajs/react";
 import { vendorNavItems } from "@/Pages/Vendor/navItems";
 import {
-    LogOut,
     Menu,
     X,
+    LogOut,
+    Search,
+    Bell,
     ChevronRight,
-    User,
-    Store,
     ShieldCheck,
     Clock,
     Crown,
+    User,
 } from "lucide-react";
 
-export default function VendorLayout({ header, children }) {
-    // Ambil data auth dari props
-    const { auth } = usePage().props;
-    const user = auth.user;
-    const vendor = auth.user?.vendor;
+function ElegantVendorAvatar({ logo, initials }) {
+    return (
+        <div className="relative h-14 w-14 flex-shrink-0">
+            {/* soft glow */}
+            <div className="absolute -inset-1 rounded-2xl bg-gradient-to-tr from-amber-400 via-orange-500 to-red-500 opacity-25 blur-md" />
 
-    console.log("=== DEBUG VENDOR DATA ===");
-    console.log("Full Vendor Object:", vendor);
-    console.log("Status di Database:", vendor?.status);
-    console.log("Role di Database:", vendor?.role);
-    console.log(
-        "Apakah Member?:",
-        vendor?.role?.toLowerCase() === "membership"
+            {/* ring */}
+            <div className="relative h-14 w-14 rounded-2xl p-[2px] bg-gradient-to-tr from-amber-400 via-orange-500 to-red-500 shadow-[0_14px_34px_rgba(249,115,22,0.18)]">
+                <div className="h-full w-full rounded-2xl bg-slate-950/70 border border-white/5 backdrop-blur flex items-center justify-center overflow-hidden">
+                    {logo ? (
+                        <img
+                            src={`/storage/${logo}`}
+                            alt="Vendor Logo"
+                            className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        <div className="relative w-full h-full flex items-center justify-center">
+                            <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent" />
+                            <span className="relative text-[13px] font-extrabold tracking-[0.18em] text-slate-100">
+                                {initials}
+                            </span>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
     );
-    console.log("=========================");
+}
+
+export default function VendorLayout({ header, children }) {
+    const { auth } = usePage().props;
+    const user = auth?.user;
+    const vendor = user?.vendor;
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-    // Helper Active Route - Menggunakan try...catch untuk mencegah crash jika rute Ziggy hilang
     const isRouteActive = (routeName) => {
         if (!routeName) return false;
         try {
-            return (
-                route().current(routeName) || route().current(routeName + ".*")
-            );
+            return route().current(routeName) || route().current(routeName + ".*");
         } catch (e) {
             return false;
         }
     };
 
-    // --- LOGIKA UTAMA (ROLE BASED ACCESS) ---
     const isMember = vendor?.role?.toLowerCase() === "membership";
     const isApproved = vendor?.status === "APPROVED";
 
+    const vendorTitle = vendor?.name || user?.name || "Vendor";
+    const initials =
+        vendorTitle
+            .trim()
+            .split(/\s+/)
+            .slice(0, 2)
+            .map((w) => w?.[0]?.toUpperCase())
+            .join("") || "V";
+
     return (
-        <div className="flex h-screen bg-gray-50 font-sans overflow-hidden">
-            {/* --- SIDEBAR --- */}
+        <div className="flex h-screen bg-gray-50 font-sans overflow-hidden selection:bg-orange-500 selection:text-white">
+            {/* SIDEBAR */}
             <aside
                 className={`
-                    absolute md:relative z-50 h-full w-64 flex-shrink-0 flex flex-col 
-                    bg-white text-slate-800 border-r border-gray-200 shadow-xl
-                    transition-transform duration-300 ease-out
-                    ${isSidebarOpen
-                        ? "translate-x-0"
-                        : "-translate-x-full md:translate-x-0"
-                    }
-                `}
+                    absolute md:relative z-50 h-full w-72 flex-shrink-0 flex flex-col 
+                    bg-[#0f172a] text-white border-r border-slate-800 shadow-2xl
+                    transition-transform duration-300 ease-out
+                    ${isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+                `}
             >
-                {/* Header Sidebar */}
-                {/* ... (Konten Header Sidebar) ... */}
-                <div className="h-32 flex flex-col justify-center px-6 border-b border-gray-200 bg-gradient-to-b from-amber-50 to-white">
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600 font-bold shadow-sm flex-shrink-0 overflow-hidden">
-                            {vendor?.logo ? (
-                                <img
-                                    src={`/storage/${vendor.logo}`}
-                                    className="w-full h-full object-cover"
-                                />
-                            ) : (
-                                <Store size={20} />
-                            )}
-                        </div>
-                        <h1 className="text-sm font-black text-slate-800 leading-tight line-clamp-2">
-                            {vendor?.name || user?.name || "Vendor Area"}
-                        </h1>
-                    </div>
+                {/* HEADER VENDOR */}
+                <div className="px-6 py-5 border-b border-slate-800/60 bg-gradient-to-b from-[#0b1120] to-[#0f172a]">
+                    <div className="flex items-center gap-4">
+                        <ElegantVendorAvatar logo={vendor?.logo} initials={initials} />
 
-                    {/* STATUS BADGE */}
-                    <div className="flex flex-col gap-1">
-                        {/* Badge Approval */}
-                        <div
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full w-fit flex items-center gap-1 border ${isApproved
-                                    ? "bg-green-50 text-green-700 border-green-200"
-                                    : "bg-gray-100 text-gray-500 border-gray-200"
-                                }`}
-                        >
-                            {isApproved ? (
-                                <ShieldCheck size={10} />
-                            ) : (
-                                <Clock size={10} />
-                            )}
-                            {isApproved ? "TERVERIFIKASI" : "MENUNGGU APPROVAL"}
-                        </div>
+                        <div className="min-w-0">
+                            <p className="text-base font-extrabold text-white truncate">
+                                {vendorTitle}
+                            </p>
 
-                        {/* Badge Membership (Premium) */}
-                        <div
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full w-fit flex items-center gap-1 border ${isMember
-                                    ? "bg-amber-100 text-amber-700 border-amber-300"
-                                    : "bg-slate-100 text-slate-500 border-slate-200"
-                                }`}
-                        >
-                            <Crown size={10} />
-                            {isMember ? "MEMBER PREMIUM" : "FREE VENDOR"}
+                            <p className="text-xs text-slate-400 truncate">
+                                {user?.email || "vendor@email.com"}
+                            </p>
+
+                            <div className="flex gap-2 mt-2 flex-wrap">
+                                <span
+                                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border
+                                        ${
+                                            isApproved
+                                                ? "bg-green-500/10 text-green-300 border-green-500/20"
+                                                : "bg-yellow-500/10 text-yellow-300 border-yellow-500/20"
+                                        }
+                                    `}
+                                >
+                                    {isApproved ? <ShieldCheck size={11} /> : <Clock size={11} />}
+                                    {isApproved ? "TERVERIFIKASI" : "MENUNGGU APPROVAL"}
+                                </span>
+
+                                <span
+                                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border
+                                        ${
+                                            isMember
+                                                ? "bg-amber-500/10 text-amber-300 border-amber-500/20"
+                                                : "bg-slate-500/10 text-slate-300 border-slate-500/20"
+                                        }
+                                    `}
+                                >
+                                    <Crown size={11} />
+                                    {isMember ? "MEMBER PREMIUM" : "FREE VENDOR"}
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
+                {/* NAV */}
+                <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1 custom-scrollbar">
+                    <p className="px-4 text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">
+                        Main Menu
+                    </p>
 
-                {/* Menu Navigasi */}
-                <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
                     {vendorNavItems.map((item) => {
-                        if (!item.route) return null;
+                        if (!item.route || !item.icon) return null;
 
-                        // LOGIKA PENGUNCIAN MENU
+                        const isActive = isRouteActive(item.route);
+                        const Icon = item.icon;
+
                         const isLocked =
                             !isMember &&
                             item.name !== "dashboard" &&
                             item.name !== "profile" &&
                             item.name !== "membership" &&
-                            item.name !== "riviews";
-                        const active = isRouteActive(item.route);
+                            item.name !== "reviews";
 
                         return (
                             <Link
@@ -132,122 +153,143 @@ export default function VendorLayout({ header, children }) {
                                 onClick={(e) => {
                                     if (isLocked) {
                                         e.preventDefault();
-                                        alert(
-                                            "Fitur ini khusus Membership. Silakan berlangganan di menu 'Langganan'."
-                                        );
-                                    } else {
-                                        setIsSidebarOpen(false);
+                                        alert("Fitur ini khusus Membership. Silakan berlangganan di menu 'Langganan'.");
+                                        return;
                                     }
+                                    setIsSidebarOpen(false);
                                 }}
                                 className={`
-                                    group relative flex items-center px-4 py-3 rounded-xl font-medium text-sm transition-all duration-200
-                                    ${isLocked
-                                        ? "text-gray-400 bg-gray-50 cursor-not-allowed opacity-70 grayscale"
-                                        : active
-                                            ? "bg-amber-500 text-white shadow-md shadow-amber-200 translate-x-1"
-                                            : "text-slate-600 hover:bg-amber-50 hover:text-amber-700"
+                                    group relative flex items-center px-4 py-3.5 rounded-xl font-medium text-sm transition-all duration-300
+                                    ${
+                                        isLocked
+                                            ? "text-slate-600 bg-slate-900/30 cursor-not-allowed opacity-80"
+                                            : isActive
+                                            ? "text-white shadow-lg shadow-orange-500/20"
+                                            : "text-slate-400 hover:text-white hover:bg-slate-800/50"
                                     }
-                                `}
+                                `}
                             >
-                                <div
-                                    className={`mr-3 transition-transform duration-200 ${active
-                                            ? "scale-110"
-                                            : "group-hover:scale-110"
-                                        }`}
-                                >
-                                    <item.icon size={20} />
-                                </div>
-                                <span className="flex-1">{item.label}</span>
-
-                                {active && !isLocked && (
-                                    <ChevronRight
-                                        size={16}
-                                        className="text-white/80"
-                                    />
+                                {isActive && !isLocked && (
+                                    <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 opacity-100" />
                                 )}
 
+                                <div
+                                    className={`relative z-10 mr-3 transition-transform duration-300 ${
+                                        isLocked
+                                            ? "text-slate-600"
+                                            : isActive
+                                            ? "scale-110 text-white"
+                                            : "group-hover:scale-110 group-hover:text-orange-400"
+                                    }`}
+                                >
+                                    <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                                </div>
+
+                                <span className="relative z-10 flex-1">{item.label}</span>
+
                                 {isLocked && (
-                                    <span className="ml-auto text-[9px] bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded border border-slate-300">
+                                    <span className="relative z-10 ml-auto text-[9px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded border border-slate-700">
                                         LOCKED
                                     </span>
+                                )}
+
+                                {isActive && !isLocked && (
+                                    <ChevronRight
+                                        size={16}
+                                        className="relative z-10 text-white/80 animate-pulse"
+                                    />
                                 )}
                             </Link>
                         );
                     })}
                 </nav>
 
-                {/* Footer Sidebar */}
-                <div className="p-4 border-t border-gray-200 bg-gray-50">
+                {/* FOOTER */}
+                <div className="p-4 border-t border-slate-800 bg-[#0b1120]">
+                    <div className="flex items-center gap-3 mb-4 px-2">
+                        <div className="relative h-10 w-10">
+                            <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-amber-400 to-orange-600 opacity-25 blur-md" />
+                            <div className="relative h-10 w-10 rounded-full p-[2px] bg-gradient-to-tr from-amber-400 to-orange-600">
+                                <div className="h-full w-full rounded-full bg-slate-950/70 border border-white/5 backdrop-blur flex items-center justify-center overflow-hidden">
+                                    {user?.profile_photo_url ? (
+                                        <img
+                                            src={user.profile_photo_url}
+                                            alt={user?.name}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <User size={18} className="text-slate-200" />
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="overflow-hidden">
+                            <p className="text-sm font-bold text-white truncate w-40">
+                                {user?.name || "Vendor"}
+                            </p>
+                            <p className="text-xs text-slate-400 truncate w-40">
+                                {vendor?.name ? "Vendor" : "Account"}
+                            </p>
+                        </div>
+                    </div>
+
                     <Link
                         href={route("logout")}
                         method="post"
                         as="button"
-                        className="flex items-center w-full justify-center py-2.5 px-4 rounded-xl bg-white border border-gray-200 text-red-600 text-sm font-bold hover:bg-red-50 hover:border-red-200 transition-all shadow-sm group"
+                        className="flex items-center justify-center w-full py-2.5 px-4 rounded-lg bg-slate-800 text-red-400 text-sm font-semibold hover:bg-red-500/10 hover:text-red-400 transition-colors border border-transparent hover:border-red-500/20"
                     >
-                        <LogOut
-                            size={16}
-                            className="mr-2 group-hover:-translate-x-1 transition-transform"
-                        />
+                        <LogOut size={16} className="mr-2" />
                         Keluar
                     </Link>
                 </div>
             </aside>
 
-            {/* --- MOBILE OVERLAY --- */}
+            {/* MOBILE OVERLAY */}
             {isSidebarOpen && (
                 <div
-                    className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm transition-opacity"
+                    className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-40 md:hidden"
                     onClick={() => setIsSidebarOpen(false)}
-                ></div>
+                />
             )}
 
-            {/* --- MAIN CONTENT --- */}
-            <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-                <header className="h-20 flex-shrink-0 bg-white border-b border-gray-200 sticky top-0 z-30 flex items-center justify-between px-6 lg:px-8">
+            {/* MAIN */}
+            <div className="flex-1 flex flex-col min-w-0 bg-gray-50 h-screen overflow-hidden">
+                <header className="h-20 flex-shrink-0 bg-white/80 backdrop-blur-md border-b border-gray-200/60 sticky top-0 z-30 flex items-center justify-between px-4 sm:px-8">
                     <div className="flex items-center gap-4">
                         <button
-                            className="p-2 -ml-2 rounded-lg text-slate-600 hover:bg-gray-100 md:hidden transition-colors"
+                            className="p-2 -ml-2 rounded-lg text-slate-600 hover:bg-slate-100 md:hidden transition-colors"
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                         >
-                            {isSidebarOpen ? (
-                                <X size={24} />
-                            ) : (
-                                <Menu size={24} />
-                            )}
+                            {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
                         </button>
+
                         <div>
                             <h2 className="text-xl font-bold text-slate-800 tracking-tight">
-                                {header || "Dashboard"}
+                                {header || "Manajemen Vendor"}
                             </h2>
-                            <p className="text-xs text-gray-400 hidden sm:block">
-                                Kelola bisnis pernikahan Anda dengan mudah
-                            </p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                        <div className="text-right hidden sm:block">
-                            <p className="text-sm font-bold text-slate-700">
-                                {user.name}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                                {user.email}
-                            </p>
+
+                    <div className="flex items-center gap-3 sm:gap-4">
+                        <div className="hidden md:flex items-center bg-gray-100 rounded-full px-4 py-2 border border-transparent focus-within:border-orange-300 focus-within:bg-white transition-all w-64">
+                            <Search size={18} className="text-gray-400 mr-2" />
+                            <input
+                                type="text"
+                                placeholder="Cari data..."
+                                className="bg-transparent border-none outline-none text-sm text-gray-600 w-full placeholder-gray-400 focus:ring-0"
+                            />
                         </div>
-                        <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-amber-400 to-amber-600 flex items-center justify-center text-white font-bold shadow-lg ring-2 ring-amber-100 overflow-hidden">
-                            {user.profile_photo_url ? (
-                                <img
-                                    src={user.profile_photo_url}
-                                    alt={user.name}
-                                    className="w-full h-full object-cover"
-                                />
-                            ) : (
-                                <User size={20} />
-                            )}
-                        </div>
+
+                        <button className="p-2.5 rounded-full text-slate-500 hover:bg-orange-50 hover:text-orange-600 transition-colors relative">
+                            <Bell size={20} />
+                            <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
+                        </button>
                     </div>
                 </header>
 
-                <main className="flex-1 overflow-y-auto p-4 sm:p-8 bg-gray-50/50">
+                <main className="flex-1 overflow-y-auto p-4 sm:p-8 scroll-smooth">
                     <div className="max-w-7xl mx-auto pb-10">{children}</div>
                 </main>
             </div>

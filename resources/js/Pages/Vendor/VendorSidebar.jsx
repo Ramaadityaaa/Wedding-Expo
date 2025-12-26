@@ -1,15 +1,53 @@
 import * as React from "react";
 import { Link, usePage } from "@inertiajs/react";
 import { vendorNavItems } from "./navItems";
-import { ShieldCheck, Clock, LogOut, Crown, Store } from "lucide-react";
+import { ChevronRight, LogOut, Crown, ShieldCheck, Clock, User } from "lucide-react";
+
+function ElegantVendorAvatar({ logo, initials }) {
+    return (
+        <div className="relative h-14 w-14 flex-shrink-0">
+            {/* soft glow */}
+            <div className="absolute -inset-1 rounded-2xl bg-gradient-to-tr from-amber-400 via-orange-500 to-red-500 opacity-25 blur-md" />
+
+            {/* ring */}
+            <div className="relative h-14 w-14 rounded-2xl p-[2px] bg-gradient-to-tr from-amber-400 via-orange-500 to-red-500 shadow-[0_14px_34px_rgba(249,115,22,0.18)]">
+                <div className="h-full w-full rounded-2xl bg-slate-950/70 border border-white/5 backdrop-blur flex items-center justify-center overflow-hidden">
+                    {logo ? (
+                        <img
+                            src={`/storage/${logo}`}
+                            alt="Vendor Logo"
+                            className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        <div className="relative w-full h-full flex items-center justify-center">
+                            <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent" />
+                            <span className="relative text-[13px] font-extrabold tracking-[0.18em] text-slate-100">
+                                {initials}
+                            </span>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
 
 export default function VendorSidebar() {
     const { auth } = usePage().props;
-    const vendor = auth.user?.vendor;
+    const user = auth?.user;
+    const vendor = user?.vendor;
 
-    // ✅ samakan dengan real value di DB
     const isApproved = vendor?.status === "APPROVED";
     const isMember = vendor?.role?.toLowerCase() === "membership";
+
+    const vendorTitle = vendor?.name || user?.name || "Vendor";
+    const initials =
+        vendorTitle
+            .trim()
+            .split(/\s+/)
+            .slice(0, 2)
+            .map((w) => w?.[0]?.toUpperCase())
+            .join("") || "V";
 
     const isCurrentRoute = (routeName) => {
         try {
@@ -20,60 +58,64 @@ export default function VendorSidebar() {
     };
 
     return (
-        <aside className="w-64 bg-white border-r border-gray-200 h-screen flex flex-col fixed left-0 top-0 z-40 overflow-y-auto">
-            <div className="p-6 border-b border-gray-100 flex flex-col items-center">
-                <div className="w-20 h-20 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-600 text-3xl font-bold mb-3 shadow-sm overflow-hidden">
-                    {vendor?.logo ? (
-                        <img
-                            src={`/storage/${vendor.logo}`}
-                            alt="Logo"
-                            className="w-full h-full object-cover rounded-2xl"
-                        />
-                    ) : (
-                        <Store size={28} />
-                    )}
-                </div>
+        <aside className="w-72 bg-[#0f172a] text-white border-r border-slate-800 h-screen flex flex-col fixed left-0 top-0 z-40 overflow-y-auto">
+            {/* HEADER VENDOR */}
+            <div className="px-6 py-5 border-b border-slate-800/60 bg-gradient-to-b from-[#0b1120] to-[#0f172a]">
+                <div className="flex items-center gap-4">
+                    <ElegantVendorAvatar logo={vendor?.logo} initials={initials} />
 
-                <h2 className="font-bold text-gray-800 text-center truncate w-full">
-                    {vendor?.name || "Nama Vendor"}
-                </h2>
+                    <div className="min-w-0">
+                        <p className="text-base font-extrabold text-white truncate">
+                            {vendorTitle}
+                        </p>
 
-                {/* Badge Approval */}
-                <div
-                    className={`mt-2 px-3 py-1 rounded-full text-[10px] font-bold flex items-center gap-1 border ${
-                        isApproved
-                            ? "bg-green-50 text-green-700 border-green-200"
-                            : "bg-yellow-50 text-yellow-700 border-yellow-200"
-                    }`}
-                >
-                    {isApproved ? (
-                        <>
-                            <ShieldCheck size={12} /> TERVERIFIKASI
-                        </>
-                    ) : (
-                        <>
-                            <Clock size={12} /> MENUNGGU APPROVAL
-                        </>
-                    )}
-                </div>
+                        <p className="text-xs text-slate-400 truncate">
+                            {user?.email || "vendor@email.com"}
+                        </p>
 
-                {/* Badge Membership */}
-                <div
-                    className={`mt-2 px-3 py-1 rounded-full text-[10px] font-bold flex items-center gap-1 border ${
-                        isMember
-                            ? "bg-amber-100 text-amber-700 border-amber-300"
-                            : "bg-gray-100 text-gray-600 border-gray-200"
-                    }`}
-                >
-                    <Crown size={12} />
-                    {isMember ? "MEMBER PREMIUM" : "FREE VENDOR"}
+                        <div className="flex gap-2 mt-2 flex-wrap">
+                            <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border
+                                    ${
+                                        isApproved
+                                            ? "bg-green-500/10 text-green-300 border-green-500/20"
+                                            : "bg-yellow-500/10 text-yellow-300 border-yellow-500/20"
+                                    }
+                                `}
+                            >
+                                {isApproved ? <ShieldCheck size={11} /> : <Clock size={11} />}
+                                {isApproved ? "TERVERIFIKASI" : "MENUNGGU APPROVAL"}
+                            </span>
+
+                            <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 border
+                                    ${
+                                        isMember
+                                            ? "bg-amber-500/10 text-amber-300 border-amber-500/20"
+                                            : "bg-slate-500/10 text-slate-300 border-slate-500/20"
+                                    }
+                                `}
+                            >
+                                <Crown size={11} />
+                                {isMember ? "MEMBER PREMIUM" : "FREE VENDOR"}
+                            </span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <nav className="flex-1 p-4 space-y-1">
+            {/* NAV */}
+            <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1 custom-scrollbar">
+                <p className="px-4 text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">
+                    Main Menu
+                </p>
+
                 {vendorNavItems.map((item) => {
-                    // ✅ Lock rule: kalau kamu mau membership-only, tentukan di sini.
-                    // Aku bikin "reviews" tetap kebuka biar vendor bisa lihat ulasan walau free.
+                    if (!item.route || !item.icon) return null;
+
+                    const isActive = isCurrentRoute(item.route);
+                    const Icon = item.icon;
+
                     const isLocked =
                         !isMember &&
                         item.name !== "dashboard" &&
@@ -81,57 +123,98 @@ export default function VendorSidebar() {
                         item.name !== "membership" &&
                         item.name !== "reviews";
 
-                    const isCurrent = isCurrentRoute(item.route);
-
                     return (
                         <Link
                             key={item.name}
                             href={isLocked ? "#" : route(item.route)}
-                            className={`flex items-center px-4 py-3 rounded-xl transition-all duration-200 font-medium ${
-                                isLocked
-                                    ? "text-gray-300 cursor-not-allowed bg-gray-50"
-                                    : isCurrent
-                                    ? "bg-amber-50 text-amber-700 shadow-sm ring-1 ring-amber-200"
-                                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                            }`}
                             onClick={(e) => {
-                                if (isLocked) {
-                                    e.preventDefault();
-                                    alert(
-                                        "Fitur ini khusus Membership. Silakan berlangganan di menu 'Langganan'."
-                                    );
-                                }
+                                if (!isLocked) return;
+                                e.preventDefault();
+                                alert("Fitur ini khusus Membership. Silakan berlangganan di menu 'Langganan'.");
                             }}
+                            className={`
+                                group relative flex items-center px-4 py-3.5 rounded-xl font-medium text-sm transition-all duration-300
+                                ${
+                                    isLocked
+                                        ? "text-slate-600 bg-slate-900/30 cursor-not-allowed opacity-80"
+                                        : isActive
+                                        ? "text-white shadow-lg shadow-orange-500/20"
+                                        : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                                }
+                            `}
                         >
-                            <item.icon
-                                className={`w-5 h-5 mr-3 ${
-                                    isCurrent
-                                        ? "text-amber-600"
-                                        : isLocked
-                                        ? "text-gray-300"
-                                        : "text-gray-400"
+                            {isActive && !isLocked && (
+                                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 opacity-100" />
+                            )}
+
+                            <div
+                                className={`relative z-10 mr-3 transition-transform duration-300 ${
+                                    isLocked
+                                        ? "text-slate-600"
+                                        : isActive
+                                        ? "scale-110 text-white"
+                                        : "group-hover:scale-110 group-hover:text-orange-400"
                                 }`}
-                            />
-                            <span>{item.label}</span>
+                            >
+                                <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                            </div>
+
+                            <span className="relative z-10 flex-1">{item.label}</span>
 
                             {isLocked && (
-                                <span className="ml-auto text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded">
+                                <span className="relative z-10 ml-auto text-[9px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded border border-slate-700">
                                     LOCKED
                                 </span>
+                            )}
+
+                            {isActive && !isLocked && (
+                                <ChevronRight
+                                    size={16}
+                                    className="relative z-10 text-white/80 animate-pulse"
+                                />
                             )}
                         </Link>
                     );
                 })}
             </nav>
 
-            <div className="p-4 border-t border-gray-100">
+            {/* FOOTER */}
+            <div className="p-4 border-t border-slate-800 bg-[#0b1120]">
+                <div className="flex items-center gap-3 mb-4 px-2">
+                    <div className="relative h-10 w-10">
+                        <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-amber-400 to-orange-600 opacity-25 blur-md" />
+                        <div className="relative h-10 w-10 rounded-full p-[2px] bg-gradient-to-tr from-amber-400 to-orange-600">
+                            <div className="h-full w-full rounded-full bg-slate-950/70 border border-white/5 backdrop-blur flex items-center justify-center overflow-hidden">
+                                {user?.profile_photo_url ? (
+                                    <img
+                                        src={user.profile_photo_url}
+                                        alt={user?.name}
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <User size={18} className="text-slate-200" />
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="overflow-hidden">
+                        <p className="text-sm font-bold text-white truncate w-40">
+                            {user?.name || "Vendor"}
+                        </p>
+                        <p className="text-xs text-slate-400 truncate w-40">
+                            {vendor?.name ? "Vendor" : "Account"}
+                        </p>
+                    </div>
+                </div>
+
                 <Link
                     href={route("logout")}
                     method="post"
                     as="button"
-                    className="flex items-center w-full px-4 py-3 text-red-500 rounded-xl hover:bg-red-50 transition font-medium"
+                    className="flex items-center justify-center w-full py-2.5 px-4 rounded-lg bg-slate-800 text-red-400 text-sm font-semibold hover:bg-red-500/10 hover:text-red-400 transition-colors border border-transparent hover:border-red-500/20"
                 >
-                    <LogOut className="w-5 h-5 mr-3" />
+                    <LogOut size={16} className="mr-2" />
                     Keluar
                 </Link>
             </div>
