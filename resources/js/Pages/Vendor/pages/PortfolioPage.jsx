@@ -1,23 +1,37 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Head, useForm, router } from "@inertiajs/react";
 import VendorLayout from "@/Layouts/VendorLayout";
 import {
-    Plus,
     Trash2,
     Image as ImageIcon,
     Video,
     Loader2,
     PlayCircle,
+    Filter,
 } from "lucide-react";
 
-export default function PortfolioPage({ auth, portfolios }) {
+export default function PortfolioPage({ auth, portfolios, packages = [] }) {
     // State untuk Tipe Media (image / video)
     const [mediaType, setMediaType] = useState("image"); // default 'image'
     const [preview, setPreview] = useState(null);
 
+    /**
+     * FILTER TAMPILAN GALERI (opsional)
+     * - "all" -> tampil semua
+     * - package id -> tampil yang package_id tersebut
+     */
+    const [galleryFilter, setGalleryFilter] = useState("all");
+
+    const filteredPortfolios = useMemo(() => {
+        if (galleryFilter === "all") return portfolios;
+        const pid = Number(galleryFilter);
+        return portfolios.filter((p) => Number(p.package_id) === pid);
+    }, [portfolios, galleryFilter]);
+
     const { data, setData, post, processing, errors, reset } = useForm({
         title: "",
         description: "",
+        package_id: "", // ✅ pilih paket mana (opsional)
         image: null,
         video: null,
     });
@@ -47,6 +61,7 @@ export default function PortfolioPage({ auth, portfolios }) {
                 setData({
                     title: "",
                     description: "",
+                    package_id: "",
                     image: null,
                     video: null,
                 });
@@ -149,6 +164,7 @@ export default function PortfolioPage({ auth, portfolios }) {
                                                     <img
                                                         src={preview}
                                                         className="w-full h-full object-cover"
+                                                        alt="preview"
                                                     />
                                                 ) : (
                                                     <video
@@ -199,6 +215,39 @@ export default function PortfolioPage({ auth, portfolios }) {
 
                                     {/* Form Input Text */}
                                     <div className="md:col-span-2 space-y-4">
+                                        {/* ✅ FILTER PAKET UNTUK MEDIA INI */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Masukkan ke Paket (Opsional)
+                                            </label>
+                                            <select
+                                                value={data.package_id}
+                                                onChange={(e) =>
+                                                    setData(
+                                                        "package_id",
+                                                        e.target.value
+                                                    )
+                                                }
+                                                className="w-full rounded-lg border-gray-300 focus:ring-amber-500 focus:border-amber-500"
+                                            >
+                                                <option value="block text-sm font-medium text-gray-700 mb-1">
+                                                    Pilih Paket
+                                                </option>
+                                                {packages.map((p) => (
+                                                    <option key={p.id} value={p.id}>
+                                                        {p.name} (Rp{" "}
+                                                        {Number(p.price ?? 0).toLocaleString("id-ID")}
+                                                        )
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            {errors.package_id && (
+                                                <p className="text-red-500 text-xs mt-1">
+                                                    {errors.package_id}
+                                                </p>
+                                            )}
+                                        </div>
+
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                                 Judul
@@ -207,10 +256,7 @@ export default function PortfolioPage({ auth, portfolios }) {
                                                 type="text"
                                                 value={data.title}
                                                 onChange={(e) =>
-                                                    setData(
-                                                        "title",
-                                                        e.target.value
-                                                    )
+                                                    setData("title", e.target.value)
                                                 }
                                                 className="w-full rounded-lg border-gray-300 focus:ring-amber-500 focus:border-amber-500"
                                                 placeholder={`Judul ${
@@ -225,6 +271,7 @@ export default function PortfolioPage({ auth, portfolios }) {
                                                 </p>
                                             )}
                                         </div>
+
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                                 Deskripsi
@@ -242,6 +289,7 @@ export default function PortfolioPage({ auth, portfolios }) {
                                                 placeholder="Keterangan singkat..."
                                             ></textarea>
                                         </div>
+
                                         <div className="flex justify-end">
                                             <button
                                                 type="submit"
@@ -267,16 +315,38 @@ export default function PortfolioPage({ auth, portfolios }) {
                         </form>
                     </div>
 
-                    {/* --- BAGIAN 2: GALERI GRID --- */}
-                    <div className="mb-4">
-                        <h3 className="text-xl font-bold text-gray-800">
-                            Galeri Portofolio ({portfolios.length} Item)
-                        </h3>
+                    {/* --- FILTER GALERI (TAMPILAN) --- */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <h3 className="text-xl font-bold text-gray-800">
+                                Galeri Portofolio ({filteredPortfolios.length} Item)
+                            </h3>
+                            <p className="text-xs text-gray-500">
+                                Kamu bisa filter: semua media, atau media yang ditempel ke paket tertentu.
+                            </p>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <Filter className="w-4 h-4 text-gray-400" />
+                            <select
+                                value={galleryFilter}
+                                onChange={(e) => setGalleryFilter(e.target.value)}
+                                className="rounded-lg border-gray-300 text-sm focus:ring-amber-500 focus:border-amber-500"
+                            >
+                                <option value="all">Semua</option>
+                                {packages.map((p) => (
+                                    <option key={p.id} value={p.id}>
+                                        Hanya Paket: {p.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
 
-                    {portfolios.length > 0 ? (
+                    {/* --- BAGIAN 2: GALERI GRID --- */}
+                    {filteredPortfolios.length > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                            {portfolios.map((item) => (
+                            {filteredPortfolios.map((item) => (
                                 <div
                                     key={item.id}
                                     className="group bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition"
@@ -288,7 +358,7 @@ export default function PortfolioPage({ auth, portfolios }) {
                                                 <video
                                                     src={`/storage/${item.videoUrl}`}
                                                     className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition"
-                                                    controls={false} // Disable controls di thumbnail
+                                                    controls={false}
                                                 />
                                                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                                     <PlayCircle className="w-12 h-12 text-white opacity-80" />
@@ -309,17 +379,23 @@ export default function PortfolioPage({ auth, portfolios }) {
                                             />
                                         )}
 
+                                        {/* Badge paket kalau item ini terkait paket */}
+                                        {item.package_id && (
+                                            <div className="absolute bottom-2 left-2 bg-amber-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow">
+                                                TERKAIT PAKET
+                                            </div>
+                                        )}
+
                                         {/* Tombol Hapus */}
                                         <button
-                                            onClick={() =>
-                                                handleDelete(item.id)
-                                            }
+                                            onClick={() => handleDelete(item.id)}
                                             className="absolute top-2 right-2 bg-red-600/90 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition hover:bg-red-700 z-10"
                                             title="Hapus"
                                         >
                                             <Trash2 size={16} />
                                         </button>
                                     </div>
+
                                     <div className="p-4">
                                         <h4
                                             className="font-bold text-gray-800 truncate"
@@ -327,10 +403,17 @@ export default function PortfolioPage({ auth, portfolios }) {
                                         >
                                             {item.title}
                                         </h4>
+
                                         <p className="text-xs text-gray-500 mt-1 line-clamp-2">
-                                            {item.description ||
-                                                "Tidak ada deskripsi."}
+                                            {item.description || "Tidak ada deskripsi."}
                                         </p>
+
+                                        {/* tampil nama paket kalau ada */}
+                                        {item.package_id && (
+                                            <p className="text-[11px] text-amber-700 mt-2 font-semibold">
+                                                Dipasang ke paket ID: {item.package_id}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                             ))}
@@ -345,8 +428,7 @@ export default function PortfolioPage({ auth, portfolios }) {
                                 Belum ada media
                             </h3>
                             <p className="text-gray-500">
-                                Unggah foto atau video untuk mempercantik profil
-                                Anda.
+                                Unggah foto atau video untuk mempercantik profil Anda.
                             </p>
                         </div>
                     )}

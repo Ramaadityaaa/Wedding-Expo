@@ -8,6 +8,10 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+use App\Models\WeddingOrganizer;
+use App\Models\Review;
+use App\Models\Favorite;
+
 class User extends Authenticatable
 {
     use HasFactory, Notifiable;
@@ -39,7 +43,7 @@ class User extends Authenticatable
         'role' => 'USER',
     ];
 
-    // Relasi utama untuk mengecek profil vendor
+    // Relasi utama untuk mengecek profil vendor (WeddingOrganizer)
     public function vendor(): HasOne
     {
         return $this->hasOne(WeddingOrganizer::class, 'user_id');

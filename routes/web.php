@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Storage;
 
 // --- KONTROLER UMUM ---
 use App\Http\Controllers\HomeController;
@@ -40,6 +41,7 @@ use App\Http\Controllers\Vendor\VendorOrderController;
 // --- MODELS ---
 use App\Models\User;
 use App\Models\WeddingOrganizer;
+use App\Models\Package;
 
 /*
 |--------------------------------------------------------------------------
@@ -51,9 +53,6 @@ Route::get('/', [HomeController::class, 'index'])->name('home');
 
 /**
  * FAVORITES
- * - GET /favorites -> render FavoritePage + data (guest -> favorites kosong)
- * - POST /favorites/{vendor}/toggle -> toggle favorit (auth)
- * - DELETE /favorites/{vendor} -> hapus favorit (auth)
  */
 Route::get('/favorites', [FavoriteController::class, 'index'])->name('favorites');
 Route::post('/favorites/{vendor}/toggle', [FavoriteController::class, 'toggle'])
@@ -63,6 +62,9 @@ Route::delete('/favorites/{vendor}', [FavoriteController::class, 'destroy'])
     ->middleware('auth')
     ->name('favorites.destroy');
 
+/**
+ * VENDOR DETAILS (CUSTOMER)
+ */
 Route::get('/vendors/{vendor}', function ($vendorId) {
     $vendor = WeddingOrganizer::with([
         'packages',
@@ -75,31 +77,51 @@ Route::get('/vendors/{vendor}', function ($vendorId) {
     ]);
 })->name('vendors.details');
 
+/**
+ * ✅ PALING AMAN: PACKAGE DETAIL (CUSTOMER)
+ * - Jangan overwrite "images" pakai $package->images = ...
+ * - Karena "images" adalah nama RELASI, serialize Inertia bisa bentrok.
+ * - Solusi aman: buat field baru "gallery" (array URL string) untuk FE.
+ * - FE kamu tinggal pakai pkg.gallery (atau fallback ke pkg.images kalau mau).
+ */
 Route::get('/vendors/{vendor}/package/{package}', function ($vendorId, $packageId) {
-    $vendor = WeddingOrganizer::with([
-        'packages',
-        'portfolios',
-        'reviews.user'
-    ])->findOrFail($vendorId);
 
-    $package = $vendor->packages->find($packageId);
+    $vendor = WeddingOrganizer::findOrFail($vendorId);
 
-    if (!$package) {
-        abort(404, 'Package not found');
-    }
+    $package = Package::with(['images' => function ($q) {
+        // kalau kolom is_published ada, pakai filter ini
+        $q->where('is_published', 1)
+          ->orderBy('sort_order')
+          ->orderBy('id', 'desc');
+    }])
+        ->where('id', $packageId)
+        ->where('vendor_id', $vendor->id)
+        ->firstOrFail();
+
+    // ✅ Field aman baru: "gallery" => array URL string
+    $package->setAttribute(
+        'gallery',
+        $package->images
+            ->map(fn ($img) => Storage::url($img->path)) // /storage/...
+            ->values()
+    );
 
     return Inertia::render('Customer/PackageDetail', [
         'pkg' => $package,
         'vendor' => $vendor,
     ]);
+
 })->name('package.detail');
 
-Route::get('/order/select-date/{vendorId}/{packageId}', [BookingController::class, 'selectDate'])->name('order.selectDate');
-Route::get('/payment/{orderId}', [BookingController::class, 'showPaymentPage'])->name('payment.page');
-
+/**
+ * Register Vendor (Public)
+ */
 Route::get('/register/vendor', [HomeController::class, 'vendorRegister'])->name('vendor.register');
 Route::post('/register/vendor', [HomeController::class, 'vendorStore'])->name('vendor.store');
 
+/**
+ * API Vendors
+ */
 Route::prefix('api')->group(function () {
     Route::get('/vendors', [VendorController::class, 'index'])->name('api.vendors.index');
     Route::get('/vendors/{vendor}', [VendorController::class, 'show'])->name('api.vendors.show');
@@ -112,13 +134,27 @@ Route::prefix('api')->group(function () {
 */
 Route::middleware(['auth'])->group(function () {
 
-    Route::post('/order', [BookingController::class, 'store'])->name('order.store');
-    Route::get('/select-date/{vendorId}/{packageId}', [BookingController::class, 'selectDate'])->name('order.selectDate');
+    /**
+     * Booking / Order / Payment (Customer)
+     */
+    Route::get('/order/select-date/{vendorId}/{packageId}', [BookingController::class, 'selectDate'])
+        ->name('order.selectDate');
 
+    Route::post('/order', [BookingController::class, 'store'])->name('order.store');
+
+    Route::get('/payment/{orderId}', [BookingController::class, 'showPaymentPage'])
+        ->name('payment.page');
+
+    /**
+     * Chat
+     */
     Route::get('/chat/conversations', [ChatController::class, 'getConversations'])->name('chat.conversations');
     Route::get('/chat/{userId}', [ChatController::class, 'getMessages'])->name('chat.get');
     Route::post('/chat', [ChatController::class, 'sendMessage'])->name('chat.send');
 
+    /**
+     * Admin contact helper
+     */
     Route::get('/admin/contact', function () {
         $admin = User::where('role', 'ADMIN')->first();
         return response()->json([
@@ -129,14 +165,16 @@ Route::middleware(['auth'])->group(function () {
     })->name('admin.contact');
 
     /**
-     * Customer dashboard route (tetap ada kalau suatu saat mau dipakai),
-     * tapi bukan target redirect default setelah login.
+     * Customer Dashboard
      */
     Route::get('/customer/dashboard', function () {
         return Inertia::render('Customer/Dashboard');
     })->name('customer.dashboard');
 
-    Route::group(['prefix' => 'customer', 'as' => 'customer.'], function () {
+    /**
+     * Customer Payment Flow
+     */
+    Route::prefix('customer')->as('customer.')->group(function () {
         Route::get('/payment/upload', [CustomerPaymentFlowController::class, 'uploadProofPage'])->name('payment.proof.page');
         Route::post('/payment/upload', [CustomerPaymentFlowController::class, 'uploadProof'])->name('payment.proof.store');
         Route::get('/payment/loading', [CustomerPaymentFlowController::class, 'paymentLoadingPage'])->name('payment.loading');
@@ -144,6 +182,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/payment/{orderId}/invoice', [BookingController::class, 'showPaymentInvoice'])->name('payment.invoice');
     });
 
+    /**
+     * Customer Orders
+     */
     Route::get('/customer/orders', [CustomerOrderController::class, 'index'])->name('customer.orders.index');
     Route::get('/customer/orders/{orders}', [CustomerOrderController::class, 'show'])->name('customer.orders.show');
 });
@@ -157,6 +198,7 @@ Route::middleware(['auth'])->group(function () {
 Route::middleware(['auth'])->group(function () {
     Route::get('/vendor/verification-status', function () {
         $vendor = auth()->user()->vendor;
+
         return Inertia::render('Auth/Vendor/VerificationStatus', [
             'status' => $vendor ? $vendor->isApproved : 'PENDING',
             'rejectionReason' => $vendor ? $vendor->rejection_reason : null,
@@ -181,44 +223,65 @@ Route::prefix('vendor')
         Route::get('/membership', [MembershipController::class, 'index'])->name('membership.index');
         Route::post('/membership/subscribe', [MembershipController::class, 'subscribe'])->name('membership.subscribe');
 
+        /**
+         * Packages
+         */
         Route::get('/packages', [VendorPackageController::class, 'index'])->name('packages.index');
         Route::post('/packages', [VendorPackageController::class, 'store'])->name('packages.store');
         Route::put('/packages/{id}', [VendorPackageController::class, 'update'])->name('packages.update');
         Route::delete('/packages/{id}', [VendorPackageController::class, 'destroy'])->name('packages.destroy');
 
+        /**
+         * Portfolio Vendor
+         */
         Route::get('/portfolio', [VendorPortfolioController::class, 'index'])->name('portfolio.index');
         Route::post('/portfolio', [VendorPortfolioController::class, 'store'])->name('portfolio.store');
         Route::delete('/portfolio/{id}', [VendorPortfolioController::class, 'destroy'])->name('portfolio.destroy');
 
+        /**
+         * Reviews
+         */
         Route::get('/reviews', [VendorReviewController::class, 'index'])->name('reviews.index');
         Route::post('/reviews/{id}/reply', [VendorReviewController::class, 'reply'])->name('reviews.reply');
 
+        /**
+         * Chat Vendor Page
+         */
         Route::get('/chat-page', function () {
             return Inertia::render('Vendor/pages/ChatPage');
         })->name('chat.index');
 
+        /**
+         * Payment Proofs (vendor)
+         */
         Route::get('/payment-proofs', [PaymentProofController::class, 'vendorIndex'])->name('paymentproof.index');
 
-        Route::group(['prefix' => 'payments', 'as' => 'payment.'], function () {
+        /**
+         * Vendor Payments Flow
+         */
+        Route::prefix('payments')->as('payment.')->group(function () {
             Route::get('/', function () {
                 return Inertia::render('Vendor/Payment/PaymentIndexPage');
             })->name('index');
+
             Route::get('/loading', [VendorPaymentFlowController::class, 'paymentLoadingPage'])->name('loading');
             Route::get('/upload', [VendorPaymentFlowController::class, 'uploadProofPage'])->name('proof.upload');
             Route::post('/upload', [VendorPaymentFlowController::class, 'uploadProof'])->name('proof.store');
             Route::get('/{invoiceId}', [VendorPaymentFlowController::class, 'create'])->name('create');
         });
 
-        // --- MANAJEMEN PESANAN (DARI CUSTOMER) ---
+        /**
+         * Orders Vendor
+         */
         Route::get('/orders', [VendorOrderController::class, 'index'])->name('orders.index');
         Route::post('/orders/{id}/verify', [VendorOrderController::class, 'verifyPayment'])->name('orders.verify');
         Route::patch('/orders/{id}/complete', [VendorOrderController::class, 'completeOrder'])->name('orders.complete');
     });
 
 /*
-|----------------------------------------------------------------------
+|--------------------------------------------------------------------------
 | DASHBOARD REDIRECTOR
-|----------------------------------------------------------------------
+|--------------------------------------------------------------------------
 */
 Route::get('/dashboard', function () {
     $user = auth()->user();
@@ -237,23 +300,19 @@ Route::get('/dashboard', function () {
         return redirect()->route('vendor.dashboard');
     }
 
-    /**
-     * FIX SESUAI PERMINTAAN:
-     * Customer setelah login diarahkan ke HOME (/),
-     * bukan /customer/dashboard, supaya data vendor terdeteksi.
-     */
-    return redirect()->route('home'); // atau: return redirect('/');
+    return redirect()->route('home');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 /*
-|----------------------------------------------------------------------
+|--------------------------------------------------------------------------
 | ADMIN ROUTES
-|----------------------------------------------------------------------
+|--------------------------------------------------------------------------
 */
 Route::prefix('admin')
     ->name('admin.')
     ->middleware(['auth', 'admin'])
     ->group(function () {
+
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
         Route::get('/vendors', [AdminVendorController::class, 'index'])->name('vendors.index');

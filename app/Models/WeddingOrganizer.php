@@ -84,6 +84,6 @@ class WeddingOrganizer extends Authenticatable
 
     public function favorites(): HasMany
     {
-            return $this->hasMany(Favorite::class, 'vendor_id');
+        return $this->hasMany(Favorite::class, 'vendor_id');
     }
 }
