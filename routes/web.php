@@ -26,6 +26,7 @@ use App\Http\Controllers\Admin\PaymentSettingsController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\StaticContentController;
 use App\Http\Controllers\Admin\PackagePlanController;
+use App\Http\Controllers\Admin\NotificationController as AdminNotificationController;
 
 // --- KONTROLER VENDOR ---
 use App\Http\Controllers\Vendor\DashboardController as VendorDashboard;
@@ -39,7 +40,6 @@ use App\Http\Controllers\Vendor\BankSettingsController;
 use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Vendor\VendorOrderController;
 use App\Http\Controllers\Vendor\NotificationController as VendorNotificationController;
-
 
 // --- MODELS ---
 use App\Models\User;
@@ -82,7 +82,7 @@ Route::get('/vendors/{vendor}', function (Vendor $vendor) {
                 ->when($userId, function ($qq) use ($userId) {
                     $qq->where(function ($w) use ($userId) {
                         $w->where('status', Review::STATUS_APPROVED)
-                          ->orWhere('user_id', $userId);
+                            ->orWhere('user_id', $userId);
                     });
                 }, function ($qq) {
                     $qq->where('status', Review::STATUS_APPROVED);
@@ -114,10 +114,10 @@ Route::get('/vendors/{vendor}', function (Vendor $vendor) {
     }
 
     return Inertia::render('Customer/VendorDetails', [
-        'vendor'      => $vendor,
-        'avgRating'   => $avgRating ? round($avgRating, 1) : 0,
+        'vendor' => $vendor,
+        'avgRating' => $avgRating ? round($avgRating, 1) : 0,
         'reviewCount' => $reviewCount,
-        'myReview'    => $myReview,
+        'myReview' => $myReview,
         'isFavorited' => $isFavorited,
     ]);
 })->name('vendors.details');
@@ -126,11 +126,13 @@ Route::get('/vendors/{vendor}', function (Vendor $vendor) {
  * PACKAGE DETAIL (CUSTOMER)
  */
 Route::get('/vendors/{vendor}/package/{package}', function (Vendor $vendor, $packageId) {
-    $package = Package::with(['images' => function ($q) {
-        $q->where('is_published', 1)
-          ->orderBy('sort_order')
-          ->orderBy('id', 'desc');
-    }])
+    $package = Package::with([
+        'images' => function ($q) {
+            $q->where('is_published', 1)
+                ->orderBy('sort_order')
+                ->orderBy('id', 'desc');
+        }
+    ])
         ->where('id', $packageId)
         ->where('vendor_id', $vendor->id)
         ->firstOrFail();
@@ -141,7 +143,7 @@ Route::get('/vendors/{vendor}/package/{package}', function (Vendor $vendor, $pac
     );
 
     return Inertia::render('Customer/PackageDetail', [
-        'pkg'    => $package,
+        'pkg' => $package,
         'vendor' => $vendor,
     ]);
 })->name('package.detail');
@@ -299,14 +301,18 @@ Route::prefix('vendor')
         Route::patch('/orders/{id}/complete', [VendorOrderController::class, 'completeOrder'])->name('orders.complete');
 
         /*
-        |----------------------------------------------------------------------
+        |--------------------------------------------------------------------------
         | VENDOR NOTIFICATIONS
-        |----------------------------------------------------------------------
+        |--------------------------------------------------------------------------
         */
         Route::get('/notifications', [VendorNotificationController::class, 'index'])->name('notifications.index');
         Route::post('/notifications/{id}/read', [VendorNotificationController::class, 'markAsRead'])->name('notifications.read');
         Route::post('/notifications/read-all', [VendorNotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
 
+        // Tambahan agar Link "/vendor/notifications-page" tidak 404
+        Route::get('/notifications-page', function () {
+            return Inertia::render('Vendor/pages/NotificationsPage');
+        })->name('notifications.page');
     });
 
 /*
@@ -372,6 +378,34 @@ Route::prefix('admin')
 
         Route::get('/static-content', [StaticContentController::class, 'index'])->name('static-content.index');
         Route::post('/static-content', [StaticContentController::class, 'update'])->name('static-content.update');
+
+        /*
+        |--------------------------------------------------------------------------
+        | ADMIN NOTIFICATIONS
+        |--------------------------------------------------------------------------
+        | Catatan:
+        | - /admin/notifications sebaiknya hanya fetch data. Jangan otomatis markAsRead.
+        | - Kalau controller kamu belum punya method latest/unreadCount, route itu akan error.
+        */
+        Route::get('/notifications', [AdminNotificationController::class, 'index'])->name('notifications.index');
+
+        // Aman: arahkan ke index agar tidak error kalau method latest tidak ada
+        Route::get('/notifications/latest', [AdminNotificationController::class, 'index'])->name('notifications.latest');
+
+        // Aman: pakai closure supaya tidak tergantung method unreadCount
+        Route::get('/notifications/unread-count', function (\Illuminate\Http\Request $request) {
+            return response()->json([
+                'unread_count' => $request->user()->unreadNotifications()->count(),
+            ]);
+        })->name('notifications.unread-count');
+
+        Route::post('/notifications/{id}/read', [AdminNotificationController::class, 'markAsRead'])->name('notifications.read');
+        Route::post('/notifications/read-all', [AdminNotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
+
+        // Tambahan halaman agar kamu bisa bikin halaman list notifikasi admin jika diperlukan
+        Route::get('/notifications-page', function () {
+            return Inertia::render('Admin/pages/NotificationsPage');
+        })->name('notifications.page');
 
         Route::get('/chat', function () {
             return Inertia::render('Admin/pages/AdminChatPage');

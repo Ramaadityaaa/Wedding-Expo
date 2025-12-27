@@ -23,6 +23,7 @@ class Invoice extends Model
         'due_date' => 'date',
     ];
 
+    // Invoice kamu pakai vendor_id yang mengarah ke WeddingOrganizer
     public function vendor()
     {
         return $this->belongsTo(WeddingOrganizer::class, 'vendor_id');

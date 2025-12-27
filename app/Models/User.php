@@ -12,7 +12,6 @@ use App\Models\WeddingOrganizer;
 use App\Models\Review;
 use App\Models\Favorite;
 
-
 class User extends Authenticatable
 {
     use HasFactory, Notifiable;
@@ -31,6 +30,11 @@ class User extends Authenticatable
         'remember_token',
     ];
 
+    protected $attributes = [
+        'status' => 'Active',
+        'role' => 'USER',
+    ];
+
     protected function casts(): array
     {
         return [
@@ -39,18 +43,11 @@ class User extends Authenticatable
         ];
     }
 
-    protected $attributes = [
-        'status' => 'Active',
-        'role' => 'USER',
-    ];
-
-    // Relasi utama untuk mengecek profil vendor (WeddingOrganizer)
     public function vendor(): HasOne
     {
         return $this->hasOne(WeddingOrganizer::class, 'user_id');
     }
 
-    // Alias jika ada bagian kode lain yang memanggil nama ini
     public function weddingOrganizer(): HasOne
     {
         return $this->hasOne(WeddingOrganizer::class, 'user_id');

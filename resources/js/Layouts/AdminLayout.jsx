@@ -1,52 +1,34 @@
 import React, { useState } from "react";
 import { Link, usePage } from "@inertiajs/react";
-import { navItems } from "@/Pages/Admin/navItems"; // Import menu dari file terpisah
-import {
-    Menu,
-    X,
-    LogOut,
-    Search,
-    Bell,
-    ChevronRight,
-    User,
-    Package, // Import ikon jika diperlukan manual, tapi biasanya via navItems
-} from "lucide-react";
+import { navItems } from "@/Pages/Admin/navItems";
+import AdminNotificationsBell from "@/Components/AdminNotificationsBell";
+import { Menu, X, LogOut, Search, ChevronRight } from "lucide-react";
 
 export default function AdminLayout({ header, children }) {
-    // Ambil user dari props global Inertia
     const { auth } = usePage().props;
-    const user = auth.user;
+    const user = auth?.user;
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-    // Helper untuk cek route aktif
     const isRouteActive = (routeName) => {
         if (!routeName) return false;
         try {
-            return (
-                route().current(routeName) || route().current(routeName + ".*")
-            );
-        } catch (e) {
+            return route().current(routeName) || route().current(routeName + ".*");
+        } catch {
             return false;
         }
     };
 
     return (
         <div className="flex h-screen bg-gray-50 font-sans overflow-hidden selection:bg-orange-500 selection:text-white">
-            {/* --- SIDEBAR (Dark Theme) --- */}
             <aside
                 className={`
                     absolute md:relative z-50 h-full w-72 flex-shrink-0 flex flex-col 
                     bg-[#0f172a] text-white border-r border-slate-800 shadow-2xl
                     transition-transform duration-300 ease-out
-                    ${
-                        isSidebarOpen
-                            ? "translate-x-0"
-                            : "-translate-x-full md:translate-x-0"
-                    }
+                    ${isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
                 `}
             >
-                {/* 1. LOGO AREA */}
                 <div className="h-20 flex items-center px-8 border-b border-slate-800/50 bg-[#0f172a] backdrop-blur-xl">
                     <div>
                         <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
@@ -61,14 +43,13 @@ export default function AdminLayout({ header, children }) {
                     </div>
                 </div>
 
-                {/* 2. NAVIGATION */}
                 <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1 custom-scrollbar">
                     <p className="px-4 text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">
                         Main Menu
                     </p>
 
                     {navItems.map((item) => {
-                        if (!item.icon) return null; // Skip jika error
+                        if (!item.icon) return null;
 
                         const isActive = isRouteActive(item.route);
                         const Icon = item.icon;
@@ -87,12 +68,10 @@ export default function AdminLayout({ header, children }) {
                                     }
                                 `}
                             >
-                                {/* Active Background Gradient */}
                                 {isActive && (
                                     <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 opacity-100 transition-opacity"></div>
                                 )}
 
-                                {/* Icon */}
                                 <div
                                     className={`relative z-10 mr-3 transition-transform duration-300 ${
                                         isActive
@@ -100,18 +79,11 @@ export default function AdminLayout({ header, children }) {
                                             : "group-hover:scale-110 group-hover:text-orange-400"
                                     }`}
                                 >
-                                    <Icon
-                                        size={20}
-                                        strokeWidth={isActive ? 2.5 : 2}
-                                    />
+                                    <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
                                 </div>
 
-                                {/* Label */}
-                                <span className="relative z-10 flex-1">
-                                    {item.label}
-                                </span>
+                                <span className="relative z-10 flex-1">{item.label}</span>
 
-                                {/* Chevron Active */}
                                 {isActive && (
                                     <ChevronRight
                                         size={16}
@@ -123,11 +95,9 @@ export default function AdminLayout({ header, children }) {
                     })}
                 </nav>
 
-                {/* 3. SIDEBAR FOOTER (User Info & Logout) */}
                 <div className="p-4 border-t border-slate-800 bg-[#0b1120]">
                     <div className="flex items-center gap-3 mb-4 px-2">
                         <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-amber-400 to-orange-600 p-[2px]">
-                            {/* Avatar Admin */}
                             <div className="h-full w-full rounded-full bg-slate-900 flex items-center justify-center text-white font-bold text-sm overflow-hidden">
                                 {user?.profile_photo_url ? (
                                     <img
@@ -136,7 +106,7 @@ export default function AdminLayout({ header, children }) {
                                         className="w-full h-full object-cover"
                                     />
                                 ) : (
-                                    user?.name?.charAt(0).toUpperCase()
+                                    (user?.name?.charAt(0) || "A").toUpperCase()
                                 )}
                             </div>
                         </div>
@@ -162,7 +132,6 @@ export default function AdminLayout({ header, children }) {
                 </div>
             </aside>
 
-            {/* --- MOBILE OVERLAY --- */}
             {isSidebarOpen && (
                 <div
                     className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-40 md:hidden"
@@ -170,20 +139,14 @@ export default function AdminLayout({ header, children }) {
                 ></div>
             )}
 
-            {/* --- MAIN CONTENT WRAPPER --- */}
             <div className="flex-1 flex flex-col min-w-0 bg-gray-50 h-screen overflow-hidden">
-                {/* 1. TOP NAVBAR */}
                 <header className="h-20 flex-shrink-0 bg-white/80 backdrop-blur-md border-b border-gray-200/60 sticky top-0 z-30 flex items-center justify-between px-4 sm:px-8">
                     <div className="flex items-center gap-4">
                         <button
                             className="p-2 -ml-2 rounded-lg text-slate-600 hover:bg-slate-100 md:hidden transition-colors"
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                         >
-                            {isSidebarOpen ? (
-                                <X size={24} />
-                            ) : (
-                                <Menu size={24} />
-                            )}
+                            {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
                         </button>
 
                         <div>
@@ -194,7 +157,6 @@ export default function AdminLayout({ header, children }) {
                     </div>
 
                     <div className="flex items-center gap-3 sm:gap-4">
-                        {/* Search Bar */}
                         <div className="hidden md:flex items-center bg-gray-100 rounded-full px-4 py-2 border border-transparent focus-within:border-orange-300 focus-within:bg-white transition-all w-64">
                             <Search size={18} className="text-gray-400 mr-2" />
                             <input
@@ -204,15 +166,10 @@ export default function AdminLayout({ header, children }) {
                             />
                         </div>
 
-                        {/* Notification Bell */}
-                        <button className="p-2.5 rounded-full text-slate-500 hover:bg-orange-50 hover:text-orange-600 transition-colors relative">
-                            <Bell size={20} />
-                            <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-                        </button>
+                        <AdminNotificationsBell />
                     </div>
                 </header>
 
-                {/* 2. SCROLLABLE CONTENT AREA */}
                 <main className="flex-1 overflow-y-auto p-4 sm:p-8 scroll-smooth">
                     <div className="max-w-7xl mx-auto pb-10">{children}</div>
                 </main>

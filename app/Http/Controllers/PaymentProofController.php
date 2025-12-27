@@ -11,6 +11,8 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 
 class PaymentProofController extends Controller
 {
@@ -19,107 +21,164 @@ class PaymentProofController extends Controller
      */
     public function index()
     {
-        // Ambil semua permintaan pembayaran yang dikonfirmasi, dengan relasi vendor dan invoice
         $paymentRequests = PaymentProof::with(['vendor', 'invoice'])
-            ->latest()
+            ->latest('id')
             ->get()
             ->map(function ($proof) {
-                // Default Value jika data plan tidak ditemukan
                 $planName = 'Paket Membership';
 
-                // Logika pencarian nama paket berdasarkan Invoice
                 if ($proof->invoice) {
-                    // Cek jika ada snapshot nama paket di tabel invoice
                     if (!empty($proof->invoice->package_name)) {
                         $planName = $proof->invoice->package_name;
-                    } 
-                    // Jika tidak ada, cari berdasarkan plan_id ke tabel PackagePlan
-                    elseif (!empty($proof->invoice->plan_id)) {
+                    } elseif (!empty($proof->invoice->plan_id)) {
                         $planId = $proof->invoice->plan_id;
-                        $plan = PackagePlan::where('id', $planId)
-                            ->orWhere('slug', $planId)
+
+                        $plan = PackagePlan::query()
+                            ->where('id', $planId)
+                            ->orWhere('slug', (string) $planId)
                             ->first();
 
-                        $planName = $plan ? $plan->name : "Paket ID: $planId (Terhapus)";
+                        $planName = $plan ? $plan->name : "Paket ID: {$planId} (Terhapus)";
                     }
                 }
 
-                $proof->package_name = $planName;
+                $proof->setAttribute('package_name', $planName);
+
+                // pastikan frontend selalu punya id payment proof yang benar
+                $proof->setAttribute('payment_proof_id', $proof->id);
+                $proof->setAttribute('invoice_id', $proof->invoice_id);
+
                 return $proof;
             });
 
-        // Render tampilan menggunakan Inertia
         return Inertia::render('Admin/pages/PaymentConfirmation', [
             'paymentRequests' => $paymentRequests
         ]);
     }
 
     /**
-     * Update status pembayaran (Approved/Rejected) dan upgrade role Vendor.
+     * Update status pembayaran (Approved/Rejected/Pending) dan aktivasi vendor.
      */
     public function updateStatus(Request $request, $id)
     {
-        // Validasi input status
         $request->validate([
-            'status' => 'required|in:Approved,Rejected,Pending'
+            'status' => [
+                'required',
+                Rule::in(['Approved', 'Rejected', 'Pending', 'APPROVED', 'REJECTED', 'PENDING']),
+            ],
         ]);
 
+        $normalizedStatus = ucfirst(strtolower((string) $request->status)); // Approved / Rejected / Pending
+
         try {
-            // Gunakan Database Transaction agar jika satu gagal, semua dibatalkan (aman)
             DB::beginTransaction();
 
-            // Cari data payment proof berdasarkan ID
-            $payment = PaymentProof::findOrFail($id);
-            
-            // 1. Update Status di tabel payment_proofs
-            $payment->update(['status' => $request->status]);
+            // 1) Cari payment proof dengan id.
+            // Kalau frontend salah kirim invoice_id, fallback ke invoice_id.
+            $payment = PaymentProof::query()->lockForUpdate()->find($id);
 
+            if (!$payment) {
+                $payment = PaymentProof::query()
+                    ->lockForUpdate()
+                    ->where('invoice_id', $id)
+                    ->latest('id')
+                    ->firstOrFail();
+            }
+
+            // 2) Update payment_proofs.status
+            $payment->update(['status' => $normalizedStatus]);
+
+            // 3) Update invoice + aktivasi vendor saat Approved
             if ($payment->invoice_id) {
-                // Update status invoice
-                $invoice = Invoice::find($payment->invoice_id);
+                $invoice = Invoice::query()->lockForUpdate()->find($payment->invoice_id);
 
                 if ($invoice) {
-                    if ($request->status === 'Approved') {
-                        // A. Tandai Invoice sebagai Lunas
+                    if ($normalizedStatus === 'Approved') {
                         $invoice->update(['status' => 'PAID']);
 
-                        // B. Logika Upgrade Vendor
                         if ($payment->vendor_id) {
-                            $vendor = Vendor::find($payment->vendor_id);
+                            $vendor = Vendor::query()->lockForUpdate()->find($payment->vendor_id);
 
                             if ($vendor) {
-                                // MENGAKTIFKAN FITUR VENDOR
-                                $vendor->update([
-                                    'status'     => 'active',       // Badge jadi Hijau/Terverifikasi
-                                    'isApproved' => 'APPROVED',     // Status approval admin
-                                    'role'       => 'Membership'    // MEMBUKA SEMUA AKSES MENU (Chat, Portfolio, dll)
+                                $updateVendor = [];
+
+                                // Sesuaikan dengan kolom yang benar-benar ada di tabel vendors kamu
+                                if (Schema::hasColumn('vendors', 'status')) {
+                                    $updateVendor['status'] = 'active';
+                                }
+
+                                if (Schema::hasColumn('vendors', 'isApproved')) {
+                                    $updateVendor['isApproved'] = 'APPROVED';
+                                }
+
+                                // Banyak project menyimpan paket aktif vendor dengan kolom-kolom ini.
+                                // Kalau ada, kita isi. Kalau tidak ada, aman karena dicek dulu.
+                                if (Schema::hasColumn('vendors', 'membership_status')) {
+                                    $updateVendor['membership_status'] = 'ACTIVE';
+                                }
+
+                                if (Schema::hasColumn('vendors', 'plan_id') && !empty($invoice->plan_id)) {
+                                    $updateVendor['plan_id'] = $invoice->plan_id;
+                                }
+
+                                if (!empty($updateVendor)) {
+                                    $vendor->update($updateVendor);
+                                }
+
+                                Log::info("Payment Approved. Vendor ID {$vendor->id} diaktifkan.", [
+                                    'payment_proof_id' => $payment->id,
+                                    'invoice_id' => $payment->invoice_id,
+                                    'vendor_id' => $payment->vendor_id,
                                 ]);
-                                
-                                Log::info("Vendor ID {$vendor->id} telah diupgrade ke Membership.");
                             }
                         }
-                    } 
-                    elseif ($request->status === 'Rejected') {
-                        // Jika ditolak, kembalikan status invoice
+                    }
+
+                    if ($normalizedStatus === 'Rejected') {
                         $invoice->update(['status' => 'REJECTED']);
+                    }
+
+                    if ($normalizedStatus === 'Pending') {
+                        $invoice->update(['status' => 'PENDING']);
                     }
                 }
             }
 
-            // Commit perubahan jika tidak ada error
             DB::commit();
 
-            // Kirimkan pesan sukses
-            $message = $request->status === 'Approved' 
-                ? 'Pembayaran disetujui. Vendor sekarang memiliki akses Membership.' 
-                : 'Pembayaran telah ditolak.';
+            $message = match ($normalizedStatus) {
+                'Approved' => 'Pembayaran disetujui. Sistem mengaktifkan paket vendor.',
+                'Rejected' => 'Pembayaran ditolak.',
+                default => 'Status pembayaran diubah ke Pending.',
+            };
+
+            // Jika request dari axios dan butuh json
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'ok' => true,
+                    'message' => $message,
+                    'status' => $normalizedStatus,
+                    'payment_proof_id' => $payment->id,
+                ]);
+            }
 
             return redirect()->back()->with('success', $message);
-
-        } catch (\Exception $e) {
-            // Rollback jika terjadi error
+        } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error("Error pada PaymentProofController@updateStatus: " . $e->getMessage());
+
+            Log::error("Error PaymentProofController@updateStatus: {$e->getMessage()}", [
+                'id_param' => $id,
+                'status' => $request->status ?? null,
+            ]);
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'Gagal memperbarui status.',
+                    'error' => $e->getMessage(),
+                ], 500);
+            }
+
             return redirect()->back()->with('error', 'Gagal memperbarui status: ' . $e->getMessage());
         }
     }
@@ -130,22 +189,18 @@ class PaymentProofController extends Controller
     public function destroy($id)
     {
         try {
-            // Cari payment proof berdasarkan ID
             $payment = PaymentProof::findOrFail($id);
 
-            // Hapus file fisik dari folder storage/app/public
             if ($payment->file_path && Storage::disk('public')->exists($payment->file_path)) {
                 Storage::disk('public')->delete($payment->file_path);
             }
 
-            // Hapus entri dari tabel payment_proofs
             $payment->delete();
 
             return redirect()->back()->with('success', 'Data bukti pembayaran berhasil dihapus.');
-
-        } catch (\Exception $e) {
-            Log::error("Error pada PaymentProofController@destroy: " . $e->getMessage());
-            return redirect()->back()->with('error', 'Gagal menghapus data.');
+        } catch (\Throwable $e) {
+            Log::error("Error PaymentProofController@destroy: {$e->getMessage()}");
+            return redirect()->back()->with('error', 'Gagal menghapus data: ' . $e->getMessage());
         }
     }
 }
