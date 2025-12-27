@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Vendor;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Pagination\LengthAwarePaginator;
 use App\Models\Order;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -14,19 +16,19 @@ class VendorOrderController extends Controller
     /**
      * Menampilkan daftar pesanan dengan filter Tab & Summary Count.
      */
-    public function index(Request $request): Response
+    public function index(Request $request): Response|RedirectResponse
     {
-        $vendor = Auth::user()->vendor;
+        $vendor = Auth::user()?->vendor;
 
         if (!$vendor) {
             return redirect()->route('dashboard')->with('error', 'Akses ditolak.');
         }
 
         // 1. Ambil Parameter "status" dari Tab (default: waiting)
-        $tabStatus = $request->query('status', 'waiting');
+        $tabStatus = (string) $request->query('status', 'waiting');
 
         // 2. Query Dasar
-        $baseQuery = Order::whereHas('package', function ($q) use ($vendor) {
+        $baseQuery = Order::query()->whereHas('package', function ($q) use ($vendor) {
             $q->where('vendor_id', $vendor->id);
         });
 
@@ -55,17 +57,24 @@ class VendorOrderController extends Controller
                         ->orWhere('payment_status', 'REJECTED');
                 });
                 break;
+
+            default:
+                // fallback aman kalau status tab aneh
+                $tabStatus = 'waiting';
+                $ordersQuery->where('payment_status', 'PENDING');
+                break;
         }
 
         // 4. Load Relasi (FIX: GANTI 'user' JADI 'customer')
+        /** @var LengthAwarePaginator $orders */
         $orders = $ordersQuery->with([
             'customer:id,name,email', // <--- PENTING: Sesuai nama fungsi di Model Order
             'package:id,name,price,vendor_id',
-            'orderPayment:id,order_id,account_name,bank_source,proof_file,status,amount'
+            'orderPayment:id,order_id,account_name,bank_source,proof_file,status,amount',
         ])
             ->latest()
             ->paginate(10)
-            ->withQueryString();
+            ->appends($request->query()); // ✅ pengganti withQueryString()
 
         // 5. Hitung Summary Data (Real Count)
         $summaryData = [
@@ -85,36 +94,44 @@ class VendorOrderController extends Controller
         return Inertia::render('Vendor/pages/OrderManagementPage', [
             'orders' => $orders,
             'currentStatus' => $tabStatus,
-            'summaryData' => $summaryData
+            'summaryData' => $summaryData,
         ]);
     }
 
     /**
      * Verifikasi Pembayaran
      */
-    public function verifyPayment(Request $request, $orderId)
+    public function verifyPayment(Request $request, $orderId): RedirectResponse
     {
         $request->validate(['action' => 'required|in:approve,reject']);
         $order = Order::findOrFail($orderId);
 
-        if ($order->package->vendor_id !== Auth::user()->vendor->id) abort(403);
+        if ($order->package->vendor_id !== Auth::user()?->vendor?->id) {
+            abort(403);
+        }
 
         if ($request->action === 'approve') {
             // TERIMA: Ubah status jadi PROCESSED agar masuk tab 'Diproses'
             $order->update([
                 'payment_status' => 'PAID',
-                'status' => 'PROCESSED'
+                'status' => 'PROCESSED',
             ]);
-            if ($order->orderPayment) $order->orderPayment()->update(['status' => 'VERIFIED']);
+
+            if ($order->orderPayment) {
+                $order->orderPayment()->update(['status' => 'VERIFIED']);
+            }
 
             $msg = 'Pembayaran diterima. Pesanan dipindahkan ke tab Diproses.';
         } else {
             // TOLAK
             $order->update([
                 'payment_status' => 'REJECTED',
-                'status' => 'CANCELLED'
+                'status' => 'CANCELLED',
             ]);
-            if ($order->orderPayment) $order->orderPayment()->update(['status' => 'REJECTED']);
+
+            if ($order->orderPayment) {
+                $order->orderPayment()->update(['status' => 'REJECTED']);
+            }
 
             $msg = 'Pembayaran ditolak.';
         }
@@ -125,11 +142,13 @@ class VendorOrderController extends Controller
     /**
      * Tandai Selesai (Method ini yang dipanggil tombol biru)
      */
-    public function completeOrder($orderId)
+    public function completeOrder($orderId): RedirectResponse
     {
         $order = Order::findOrFail($orderId);
 
-        if ($order->package->vendor_id !== Auth::user()->vendor->id) abort(403);
+        if ($order->package->vendor_id !== Auth::user()?->vendor?->id) {
+            abort(403);
+        }
 
         // Ubah status jadi COMPLETED agar pindah ke tab 'Selesai'
         $order->update(['status' => 'COMPLETED']);

@@ -12,7 +12,9 @@ class BroadcastServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Broadcast::routes();
+        // Wajib agar endpoint /broadcasting/auth terdaftar
+        // Pakai middleware web + auth (session-based login Inertia cocok)
+        Broadcast::routes(['middleware' => ['web', 'auth']]);
 
         require base_path('routes/channels.php');
     }

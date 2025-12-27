@@ -38,6 +38,8 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Vendor\BankSettingsController;
 use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Vendor\VendorOrderController;
+use App\Http\Controllers\Vendor\NotificationController as VendorNotificationController;
+
 
 // --- MODELS ---
 use App\Models\User;
@@ -295,6 +297,16 @@ Route::prefix('vendor')
         Route::get('/orders', [VendorOrderController::class, 'index'])->name('orders.index');
         Route::post('/orders/{id}/verify', [VendorOrderController::class, 'verifyPayment'])->name('orders.verify');
         Route::patch('/orders/{id}/complete', [VendorOrderController::class, 'completeOrder'])->name('orders.complete');
+
+        /*
+        |----------------------------------------------------------------------
+        | VENDOR NOTIFICATIONS
+        |----------------------------------------------------------------------
+        */
+        Route::get('/notifications', [VendorNotificationController::class, 'index'])->name('notifications.index');
+        Route::post('/notifications/{id}/read', [VendorNotificationController::class, 'markAsRead'])->name('notifications.read');
+        Route::post('/notifications/read-all', [VendorNotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
+
     });
 
 /*

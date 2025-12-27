@@ -12,6 +12,7 @@ use App\Models\WeddingOrganizer;
 use App\Models\Review;
 use App\Models\Favorite;
 
+
 class User extends Authenticatable
 {
     use HasFactory, Notifiable;

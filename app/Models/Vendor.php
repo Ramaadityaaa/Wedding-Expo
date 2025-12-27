@@ -5,6 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+use App\Models\User;
+use App\Models\Package;
+use App\Models\Portfolio;
+use App\Models\Review;
+
 class Vendor extends Model
 {
     use HasFactory;

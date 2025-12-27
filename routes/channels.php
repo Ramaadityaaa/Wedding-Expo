@@ -7,19 +7,44 @@ use Illuminate\Support\Facades\Broadcast;
 | Broadcast Channels
 |--------------------------------------------------------------------------
 |
-| Here you may register all of the event broadcasting channels that your
-| application supports. The given channel authorization callbacks are
-| used to check if an authenticated user can listen to the channel.
+| Di sini kamu mendefinisikan channel apa saja yang boleh didengar user.
+| Callback return true/false menentukan user boleh subscribe atau tidak.
 |
 */
 
-// Channel Default Laravel (Biarkan saja, berguna untuk notifikasi sistem nanti)
+/**
+ * Default Laravel Private Channel (dipakai oleh Laravel Notifications)
+ * Channel: private-App.Models.User.{id}
+ */
 Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
     return (int) $user->id === (int) $id;
 });
 
-// --- CHANNEL CHAT KITA ---
-// Aturan: User hanya boleh mendengarkan channel 'chat.5' jika dia adalah User ID 5.
+/**
+ * Vendor Channel (opsional tapi sangat berguna)
+ * Kalau nanti kamu broadcast notifikasi per vendor:
+ * Channel: private-vendor.{vendorId}
+ *
+ * Catatan:
+ * - Pastikan relasi user->vendor ada.
+ * - vendorId adalah ID dari vendor milik user.
+ */
+Broadcast::channel('vendor.{vendorId}', function ($user, $vendorId) {
+    $vendor = $user->vendor ?? $user->weddingOrganizer ?? null;
+
+    if (!$vendor) {
+        return false;
+    }
+
+    return (int) $vendor->id === (int) $vendorId;
+});
+
+/**
+ * Channel Chat
+ * Channel: private-chat.{id}
+ *
+ * Versi aman: user hanya boleh listen channel chat milik dirinya sendiri.
+ */
 Broadcast::channel('chat.{id}', function ($user, $id) {
     return (int) $user->id === (int) $id;
 });

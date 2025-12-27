@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import { Link, usePage } from "@inertiajs/react";
 import { vendorNavItems } from "@/Pages/Vendor/navItems";
+import VendorNotificationBell from "@/Components/VendorNotificationBell";
+
 import {
     Menu,
     X,
     LogOut,
     Search,
-    Bell,
     ChevronRight,
     ShieldCheck,
     Clock,
@@ -17,10 +18,7 @@ import {
 function ElegantVendorAvatar({ logo, initials }) {
     return (
         <div className="relative h-14 w-14 flex-shrink-0">
-            {/* soft glow */}
             <div className="absolute -inset-1 rounded-2xl bg-gradient-to-tr from-amber-400 via-orange-500 to-red-500 opacity-25 blur-md" />
-
-            {/* ring */}
             <div className="relative h-14 w-14 rounded-2xl p-[2px] bg-gradient-to-tr from-amber-400 via-orange-500 to-red-500 shadow-[0_14px_34px_rgba(249,115,22,0.18)]">
                 <div className="h-full w-full rounded-2xl bg-slate-950/70 border border-white/5 backdrop-blur flex items-center justify-center overflow-hidden">
                     {logo ? (
@@ -54,13 +52,13 @@ export default function VendorLayout({ header, children }) {
         if (!routeName) return false;
         try {
             return route().current(routeName) || route().current(routeName + ".*");
-        } catch (e) {
+        } catch {
             return false;
         }
     };
 
-    const isMember = vendor?.role?.toLowerCase() === "membership";
-    const isApproved = vendor?.status === "APPROVED";
+    const isMember = (vendor?.role ?? "").toLowerCase() === "membership";
+    const isApproved = (vendor?.status ?? vendor?.isApproved) === "APPROVED";
 
     const vendorTitle = vendor?.name || user?.name || "Vendor";
     const initials =
@@ -73,7 +71,6 @@ export default function VendorLayout({ header, children }) {
 
     return (
         <div className="flex h-screen bg-gray-50 font-sans overflow-hidden selection:bg-orange-500 selection:text-white">
-            {/* SIDEBAR */}
             <aside
                 className={`
                     absolute md:relative z-50 h-full w-72 flex-shrink-0 flex flex-col 
@@ -82,7 +79,6 @@ export default function VendorLayout({ header, children }) {
                     ${isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
                 `}
             >
-                {/* HEADER VENDOR */}
                 <div className="px-6 py-5 border-b border-slate-800/60 bg-gradient-to-b from-[#0b1120] to-[#0f172a]">
                     <div className="flex items-center gap-4">
                         <ElegantVendorAvatar logo={vendor?.logo} initials={initials} />
@@ -127,7 +123,6 @@ export default function VendorLayout({ header, children }) {
                     </div>
                 </div>
 
-                {/* NAV */}
                 <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1 custom-scrollbar">
                     <p className="px-4 text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">
                         Main Menu
@@ -204,7 +199,6 @@ export default function VendorLayout({ header, children }) {
                     })}
                 </nav>
 
-                {/* FOOTER */}
                 <div className="p-4 border-t border-slate-800 bg-[#0b1120]">
                     <div className="flex items-center gap-3 mb-4 px-2">
                         <div className="relative h-10 w-10">
@@ -246,7 +240,6 @@ export default function VendorLayout({ header, children }) {
                 </div>
             </aside>
 
-            {/* MOBILE OVERLAY */}
             {isSidebarOpen && (
                 <div
                     className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-40 md:hidden"
@@ -254,7 +247,6 @@ export default function VendorLayout({ header, children }) {
                 />
             )}
 
-            {/* MAIN */}
             <div className="flex-1 flex flex-col min-w-0 bg-gray-50 h-screen overflow-hidden">
                 <header className="h-20 flex-shrink-0 bg-white/80 backdrop-blur-md border-b border-gray-200/60 sticky top-0 z-30 flex items-center justify-between px-4 sm:px-8">
                     <div className="flex items-center gap-4">
@@ -282,10 +274,7 @@ export default function VendorLayout({ header, children }) {
                             />
                         </div>
 
-                        <button className="p-2.5 rounded-full text-slate-500 hover:bg-orange-50 hover:text-orange-600 transition-colors relative">
-                            <Bell size={20} />
-                            <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
-                        </button>
+                        <VendorNotificationBell />
                     </div>
                 </header>
 

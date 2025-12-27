@@ -5,6 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+use App\Models\User;
+use App\Models\WeddingOrganizer;
+
 class Review extends Model
 {
     use HasFactory;
@@ -32,19 +35,18 @@ class Review extends Model
     }
 
     /**
-     * Relasi ke vendor (model baru yang kamu pakai sekarang)
+     * Relasi ke vendor (konsisten dengan sistem vendor kamu: WeddingOrganizer)
      */
     public function vendor()
     {
-        return $this->belongsTo(Vendor::class, 'vendor_id');
+        return $this->belongsTo(WeddingOrganizer::class, 'vendor_id');
     }
 
     /**
      * Alias biar kode lama yang masih pake weddingOrganizer ga error.
-     * (Optional tapi sangat membantu migrasi)
      */
     public function weddingOrganizer()
     {
-        return $this->belongsTo(Vendor::class, 'vendor_id');
+        return $this->belongsTo(WeddingOrganizer::class, 'vendor_id');
     }
 }
