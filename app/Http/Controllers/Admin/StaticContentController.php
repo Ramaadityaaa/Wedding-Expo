@@ -14,13 +14,11 @@ class StaticContentController extends Controller
      */
     public function index()
     {
-        // Ambil semua data dan format menjadi array asosiatif [ 'Judul' => 'Isi' ]
-        // Contoh: ['Tentang Kami' => 'Teks panjang...', 'FAQ' => 'Teks FAQ...']
-        $contents = StaticContent::all()->pluck('content', 'key');
+        $contents = StaticContent::query()->pluck('content', 'key');
 
         return Inertia::render('Admin/pages/StaticContentManagement', [
-            'initialContent' => $contents->isEmpty() ? null : $contents,
-            // Jika kosong, frontend akan menggunakan default text
+            // selalu kirim array (lebih konsisten untuk merge di frontend)
+            'initialContent' => $contents->toArray(),
         ]);
     }
 
@@ -30,11 +28,10 @@ class StaticContentController extends Controller
     public function update(Request $request)
     {
         $request->validate([
-            'key'   => 'required|string',
+            'key'   => 'required|string|max:255',
             'value' => 'required|string',
         ]);
 
-        // Cari berdasarkan 'key', jika ada update, jika tidak buat baru
         StaticContent::updateOrCreate(
             ['key' => $request->key],
             ['content' => $request->value]

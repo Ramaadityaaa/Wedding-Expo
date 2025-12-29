@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Favorite;
+use App\Models\StaticContent;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Tighten\Ziggy\Ziggy;
@@ -44,6 +45,11 @@ class HandleInertiaRequests extends Middleware
             'favoritesCount' => fn () => $request->user()
                 ? Favorite::where('user_id', $request->user()->id)->count()
                 : 0,
+
+            // >>> INI YANG BARU: Share static content untuk semua page (Footer, dsb.)
+            'staticContent' => fn () => StaticContent::query()
+                ->pluck('content', 'key')
+                ->toArray(),
 
             'ziggy' => fn () => [
                 ...(new Ziggy)->toArray(),
