@@ -61,15 +61,7 @@ export default function VendorsIndex({ auth, vendors, filters }) {
                                 />
                             </div>
 
-                            <select
-                                value={sort}
-                                onChange={(e) => setSort(e.target.value)}
-                                className="rounded-xl border border-gray-100 bg-white px-4 py-3 text-gray-700"
-                            >
-                                <option value="rating">Rating tertinggi</option>
-                                <option value="newest">Terbaru</option>
-                                <option value="name">Nama A-Z</option>
-                            </select>
+                           
 
                             <Button
                                 type="submit"
