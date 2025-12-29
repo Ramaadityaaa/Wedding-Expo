@@ -18,29 +18,18 @@ class VendorController extends Controller
             $q = trim((string) $request->query('q', ''));
             $sort = (string) $request->query('sort', 'rating');
 
-            // Batasi nilai sort agar tidak aneh-aneh
+            // Batasi nilai sort
             if (!in_array($sort, ['rating', 'newest', 'name'], true)) {
                 $sort = 'rating';
             }
 
             $query = WeddingOrganizer::query()
                 ->where('isApproved', 'APPROVED')
-
-                // Konsisten: hanya hitung review yang sudah APPROVED (karena di show() juga begitu)
-                ->withAvg([
-                    'reviews as reviews_avg_rating' => function ($q) {
-                        $q->where('status_verifikasi', 'APPROVED');
-                    }
-                ], 'rating')
-                ->withCount([
-                    'reviews as reviews_count' => function ($q) {
-                        $q->where('status_verifikasi', 'APPROVED');
-                    }
-                ])
-
-                // Kurangi N+1 query untuk coverPhoto (ambil portfolios sekali via eager load)
+                // agregasi rating dan jumlah review (tanpa filter status_verifikasi)
+                ->withAvg('reviews', 'rating')
+                ->withCount('reviews')
+                // eager load portfolios untuk cover photo (hindari N+1)
                 ->with(['portfolios' => function ($q) {
-                    // Ambil yang terbaru di urutan pertama
                     $q->latest();
                 }]);
 
@@ -51,7 +40,7 @@ class VendorController extends Controller
                 });
             }
 
-            // Sorting yang rapi dan deterministik
+            // Sorting deterministik
             switch ($sort) {
                 case 'newest':
                     $query->reorder()->orderByDesc('created_at');
@@ -72,15 +61,14 @@ class VendorController extends Controller
             /** @var \Illuminate\Pagination\LengthAwarePaginator $vendorsPaginator */
             $vendorsPaginator = $query->paginate(12);
 
-            // IDE sering salah infer type; ini tetap aman untuk runtime
+            // Bawa query string untuk pagination
             if (method_exists($vendorsPaginator, 'withQueryString')) {
                 $vendorsPaginator->withQueryString();
             } else {
-                // fallback untuk versi Laravel lama (jika ada)
                 $vendorsPaginator->appends($request->except('page'));
             }
 
-            // Transform data tanpa memicu query tambahan per item
+            // Transform untuk kebutuhan frontend (tanpa query tambahan)
             $vendorsPaginator->setCollection(
                 $vendorsPaginator->getCollection()->map(function ($vendor) {
                     $portfolio = $vendor->relationLoaded('portfolios')
@@ -125,16 +113,8 @@ class VendorController extends Controller
         try {
             $vendors = WeddingOrganizer::query()
                 ->where('isApproved', 'APPROVED')
-                ->withAvg([
-                    'reviews as reviews_avg_rating' => function ($q) {
-                        $q->where('status_verifikasi', 'APPROVED');
-                    }
-                ], 'rating')
-                ->withCount([
-                    'reviews as reviews_count' => function ($q) {
-                        $q->where('status_verifikasi', 'APPROVED');
-                    }
-                ])
+                ->withAvg('reviews', 'rating')
+                ->withCount('reviews')
                 ->orderByDesc('created_at')
                 ->paginate(10);
 
@@ -164,12 +144,8 @@ class VendorController extends Controller
                 return response()->json(['message' => 'Vendor tidak ditemukan atau belum diverifikasi.'], 404);
             }
 
-            $vendor->load([
-                'packages',
-                'reviews' => function ($query) {
-                    $query->where('status_verifikasi', 'APPROVED');
-                }
-            ]);
+            // Load relasi tanpa filter status_verifikasi (karena kolom itu tidak ada)
+            $vendor->load(['packages', 'reviews']);
 
             return response()->json([
                 'message' => 'Detail Vendor berhasil diambil',
@@ -191,7 +167,6 @@ class VendorController extends Controller
                 ->where('isApproved', 'APPROVED')
                 ->findOrFail($vendorId);
 
-            // Lebih efisien daripada ambil semua packages lalu find di collection
             $package = $vendor->packages()->find($packageId);
 
             if (!$package) {
