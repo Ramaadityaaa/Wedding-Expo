@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth; // Tambahkan ini
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class HomeController extends Controller
@@ -20,7 +20,6 @@ class HomeController extends Controller
      */
     public function index()
     {
-        // Mengambil data dari WeddingOrganizer (karena ini tabel profil utama Anda)
         $vendors = WeddingOrganizer::where('isApproved', 'APPROVED')
             ->withAvg('reviews', 'rating')
             ->orderByDesc('reviews_avg_rating')
@@ -38,6 +37,7 @@ class HomeController extends Controller
                         : null,
                     'rating' => $vendor->reviews_avg_rating ? number_format($vendor->reviews_avg_rating, 1) : 0,
                     'reviewCount' => $vendor->reviews()->count(),
+                    'isVerified' => true,
                 ];
             });
 
@@ -98,7 +98,6 @@ class HomeController extends Controller
 
         DB::beginTransaction();
         try {
-            // LANGKAH A: Buat User
             $user = User::create([
                 'name'     => $request->pic_name,
                 'email'    => $request->email,
@@ -106,7 +105,6 @@ class HomeController extends Controller
                 'role'     => 'VENDOR',
             ]);
 
-            // LANGKAH B: Buat Profil Wedding Organizer
             WeddingOrganizer::create([
                 'user_id'           => $user->id,
                 'name'              => $request->name,
@@ -125,10 +123,8 @@ class HomeController extends Controller
 
             DB::commit();
 
-            // LANGKAH C: AUTO-LOGIN setelah berhasil daftar
             Auth::login($user);
 
-            // LANGKAH D: Redirect ke halaman verifikasi status
             return redirect()
                 ->route('vendor.verification')
                 ->with('success', 'Pendaftaran berhasil! Akun Anda sedang menunggu verifikasi.');

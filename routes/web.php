@@ -56,6 +56,11 @@ use App\Models\Favorite;
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
 /**
+ * HALAMAN SEMUA VENDOR (PUBLIC)
+ */
+Route::get('/vendors', [VendorController::class, 'publicIndexPage'])->name('vendors.index');
+
+/**
  * FAVORITES
  */
 Route::get('/favorites', [FavoriteController::class, 'index'])->name('favorites');
@@ -211,10 +216,9 @@ Route::middleware(['auth'])->group(function () {
 
     /**
      * Customer Dashboard
+     * Perbaikan: pakai HomeController@index agar prop vendors ikut terkirim.
      */
-    Route::get('/customer/dashboard', function () {
-        return Inertia::render('Customer/Dashboard');
-    })->name('customer.dashboard');
+    Route::get('/customer/dashboard', [HomeController::class, 'index'])->name('customer.dashboard');
 
     /**
      * Customer Payment Flow
@@ -309,7 +313,6 @@ Route::prefix('vendor')
         Route::post('/notifications/{id}/read', [VendorNotificationController::class, 'markAsRead'])->name('notifications.read');
         Route::post('/notifications/read-all', [VendorNotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
 
-        // Tambahan agar Link "/vendor/notifications-page" tidak 404
         Route::get('/notifications-page', function () {
             return Inertia::render('Vendor/pages/NotificationsPage');
         })->name('notifications.page');
@@ -383,16 +386,11 @@ Route::prefix('admin')
         |--------------------------------------------------------------------------
         | ADMIN NOTIFICATIONS
         |--------------------------------------------------------------------------
-        | Catatan:
-        | - /admin/notifications sebaiknya hanya fetch data. Jangan otomatis markAsRead.
-        | - Kalau controller kamu belum punya method latest/unreadCount, route itu akan error.
         */
         Route::get('/notifications', [AdminNotificationController::class, 'index'])->name('notifications.index');
 
-        // Aman: arahkan ke index agar tidak error kalau method latest tidak ada
         Route::get('/notifications/latest', [AdminNotificationController::class, 'index'])->name('notifications.latest');
 
-        // Aman: pakai closure supaya tidak tergantung method unreadCount
         Route::get('/notifications/unread-count', function (\Illuminate\Http\Request $request) {
             return response()->json([
                 'unread_count' => $request->user()->unreadNotifications()->count(),
@@ -402,7 +400,6 @@ Route::prefix('admin')
         Route::post('/notifications/{id}/read', [AdminNotificationController::class, 'markAsRead'])->name('notifications.read');
         Route::post('/notifications/read-all', [AdminNotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
 
-        // Tambahan halaman agar kamu bisa bikin halaman list notifikasi admin jika diperlukan
         Route::get('/notifications-page', function () {
             return Inertia::render('Admin/pages/NotificationsPage');
         })->name('notifications.page');

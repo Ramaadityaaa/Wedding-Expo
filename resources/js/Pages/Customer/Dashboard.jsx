@@ -1,38 +1,34 @@
 import React, { useState } from "react";
 import { Head, Link } from "@inertiajs/react";
 import { Button } from "@/components/ui/button";
-import { Search, MapPin } from "lucide-react";
+import { Search } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/Components/Footer";
+import VendorCard from "@/components/VendorCard";
 
 export default function Dashboard({ auth, vendors = [] }) {
     const user = auth?.user ?? null;
 
-    // State untuk pencarian
     const [searchQuery, setSearchQuery] = useState({
-        term: "", // Satu input untuk semua (bisa nama atau kota)
-        filter: "all", // Opsional: bisa dikembangkan nanti
+        term: "",
+        filter: "all",
     });
 
-    // Filter Logic: Mencari di Nama ATAU Kota
     const filteredVendors = vendors.filter((vendor) => {
-        const term = searchQuery.term.toLowerCase();
-        const matchName = vendor.name.toLowerCase().includes(term);
-        const matchCity = vendor.city.toLowerCase().includes(term);
-        return matchName || matchCity;
+        const term = (searchQuery.term || "").toLowerCase();
+        const name = (vendor.name || "").toLowerCase();
+        const city = (vendor.city || "").toLowerCase();
+        return name.includes(term) || city.includes(term);
     });
 
     return (
         <div className="min-h-screen bg-gray-50 font-sans">
             <Head title="Temukan Vendor Pernikahan Impian Anda" />
 
-            {/* Navbar */}
             <Navbar auth={auth} user={user} />
 
             <main>
-                {/* 1. HERO SECTION */}
                 <section className="relative bg-gradient-to-b from-yellow-100 via-amber-50 to-white py-24 md:py-32 px-4 overflow-hidden">
-                    {/* Background Blobs */}
                     <div className="absolute inset-0 opacity-20 pointer-events-none">
                         <div className="absolute top-[-10%] left-[-5%] w-96 h-96 bg-yellow-300 rounded-full filter blur-3xl opacity-40 animate-pulse"></div>
                         <div className="absolute bottom-[-10%] right-[-5%] w-96 h-96 bg-amber-400 rounded-full filter blur-3xl opacity-30"></div>
@@ -53,7 +49,6 @@ export default function Dashboard({ auth, vendors = [] }) {
                             memukau, hingga dokumentasi abadi.
                         </p>
 
-                        {/* SEARCH BAR (Updated UI) */}
                         <div className="max-w-2xl mx-auto relative group">
                             <div className="absolute -inset-1 bg-gradient-to-r from-yellow-400 to-amber-500 rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
                             <div className="relative flex items-center bg-white rounded-full shadow-xl p-2 pr-2">
@@ -78,7 +73,6 @@ export default function Dashboard({ auth, vendors = [] }) {
                     </div>
                 </section>
 
-                {/* 2. VENDOR LIST SECTION */}
                 <section id="vendors" className="py-20 px-4 bg-white">
                     <div className="max-w-7xl mx-auto">
                         <div className="text-center mb-16">
@@ -97,90 +91,26 @@ export default function Dashboard({ auth, vendors = [] }) {
                                     Belum ada vendor yang sesuai pencarian Anda.
                                 </p>
                                 <p className="text-gray-400 mt-2">
-                                    Coba kata kunci lain atau lihat semua
-                                    vendor.
+                                    Coba kata kunci lain atau lihat semua vendor.
                                 </p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-                                {filteredVendors.map((vendor) => (
-                                    <Link
-                                        key={vendor.id}
-                                        href={route(
-                                            "vendors.details",
-                                            vendor.id
-                                        )}
-                                        className="group h-full"
-                                    >
-                                        <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl border border-gray-100 hover:border-amber-200 transition-all duration-300 h-full flex flex-col transform hover:-translate-y-1">
-                                            {/* Cover Image */}
-                                            <div className="relative h-48 overflow-hidden bg-gray-200">
-                                                {vendor.coverPhoto ? (
-                                                    <img
-                                                        src={vendor.coverPhoto}
-                                                        alt={vendor.name}
-                                                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                                                    />
-                                                ) : (
-                                                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-amber-100 to-yellow-50 text-amber-300">
-                                                        <span className="text-4xl font-bold opacity-50">
-                                                            {vendor.name.charAt(
-                                                                0
-                                                            )}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                                            </div>
-
-                                            {/* Content */}
-                                            <div className="p-5 flex-1 flex flex-col">
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <h3 className="text-lg font-bold text-gray-900 group-hover:text-amber-600 transition-colors line-clamp-1">
-                                                        {vendor.name}
-                                                    </h3>
-                                                </div>
-
-                                                <div className="flex items-center bg-amber-50 px-2 py-1 rounded-md">
-                                                    <span className="text-amber-500 mr-1">
-                                                        ★
-                                                    </span>
-                                                    <span className="text-xs font-bold text-amber-700">
-                                                        {vendor.rating > 0
-                                                            ? vendor.rating
-                                                            : "New"}
-                                                    </span>
-                                                </div>
-
-                                                <div className="flex items-center text-gray-500 text-sm mb-3">
-                                                    <MapPin className="w-4 h-4 mr-1 text-amber-500" />
-                                                    <span className="truncate">
-                                                        {vendor.city}
-                                                    </span>
-                                                </div>
-
-                                                <p className="text-gray-600 text-sm line-clamp-2 mb-4 flex-1">
-                                                    {vendor.description ||
-                                                        "Tidak ada deskripsi singkat."}
-                                                </p>
-
-                                                <div className="mt-auto pt-4 border-t border-gray-100 flex justify-between items-center">
-                                                    <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-1 rounded">
-                                                        Verified Vendor
-                                                    </span>
-                                                    <span className="text-sm text-gray-400 group-hover:translate-x-1 transition-transform">
-                                                        Detail →
-                                                    </span>
-                                                </div>
-                                            </div>
+                            <div className="relative">
+                                <div className="flex gap-8 overflow-x-auto pb-4 scroll-smooth snap-x snap-mandatory">
+                                    {filteredVendors.map((vendor) => (
+                                        <div
+                                            key={vendor.id}
+                                            className="flex-none w-[320px] snap-start"
+                                        >
+                                            <VendorCard vendor={vendor} />
                                         </div>
-                                    </Link>
-                                ))}
+                                    ))}
+                                </div>
                             </div>
                         )}
 
                         <div className="text-center mt-16">
-                            <Link href="/vendors">
+                            <Link href={route("vendors.index")}>
                                 <Button
                                     variant="outline"
                                     className="px-8 py-6 rounded-full border-2 border-gray-200 text-gray-600 font-bold hover:border-amber-500 hover:text-amber-600 hover:bg-white transition-all text-lg"
@@ -192,8 +122,7 @@ export default function Dashboard({ auth, vendors = [] }) {
                     </div>
                 </section>
 
-                {/* 3. ABOUT SECTION (Updated) */}
-                <section className="py-24 bg-gray-900 text-white relative overflow-hidden">
+                <section className="py-24 bg-gray-900 text-white relative overflow-hidden" id="about">
                     <div className="absolute top-0 right-0 w-1/2 h-full bg-gray-800/50 skew-x-12 transform translate-x-20"></div>
 
                     <div className="max-w-6xl mx-auto px-4 relative z-10 flex flex-col md:flex-row items-center gap-16">

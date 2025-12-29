@@ -85,7 +85,7 @@ export default function Navbar() {
 
                         <div className="hidden md:flex items-center space-x-8">
                             <Link className="navLink" href="/">Beranda</Link>
-                            <Link className="navLink" href="/#vendors">Vendor</Link>
+                            <Link className="navLink" href={route("vendors.index")}>Vendor</Link>
 
                             <Link className="flex items-center navLink" href="/favorites">
                                 Favorit
@@ -259,7 +259,7 @@ export default function Navbar() {
                                     </Link>
 
                                     <Link
-                                        href="/#vendors"
+                                        href={route("vendors.index")}
                                         onClick={handleNavClick}
                                         className="w-full block px-4 py-3 rounded-xl text-sm font-semibold text-gray-800 hover:bg-yellow-50 hover:text-yellow-800 transition"
                                     >
