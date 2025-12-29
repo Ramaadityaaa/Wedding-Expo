@@ -2,7 +2,7 @@ import React from "react";
 import { Head, usePage, Link } from "@inertiajs/react";
 import VendorLayout from "@/Layouts/VendorLayout";
 // Import icon yang dibutuhkan
-import { DollarSign, ShoppingBag, Star, UserCheck, ArrowRight, CheckCircle, Eye } from 'lucide-react'; 
+import { DollarSign, ShoppingBag, Star, UserCheck, ArrowRight, CheckCircle, Eye } from 'lucide-react';
 
 // ======================================================================
 // Helper Functions
@@ -10,7 +10,7 @@ import { DollarSign, ShoppingBag, Star, UserCheck, ArrowRight, CheckCircle, Eye 
 
 // Helper untuk format mata uang Rupiah
 const formatRupiah = (number) => {
-    const num = number || 0; 
+    const num = number || 0;
     return new Intl.NumberFormat('id-ID', {
         style: 'currency',
         currency: 'IDR',
@@ -24,7 +24,7 @@ const formatRupiah = (number) => {
 
 // Catatan: 'colorClass' sekarang adalah kelas gradien
 const SummaryCard = ({ title, value, icon: Icon, colorClass, secondaryValue, secondaryText, secondaryLink, subTitle }) => {
-    
+
     // Kelas default untuk icon di kartu
     const iconClass = `p-3 rounded-xl text-white shadow-lg shadow-black/20`;
 
@@ -47,13 +47,13 @@ const SummaryCard = ({ title, value, icon: Icon, colorClass, secondaryValue, sec
                         </p>
                     )}
                 </div>
-                
+
                 {/* Icon di Pojok Kanan Atas */}
                 <div className={iconClass}>
                     {Icon && <Icon size={24} />}
                 </div>
             </div>
-            
+
             {/* Bagian Bawah (Secondary Value / Quick Action) */}
             <div className="mt-4 pt-4 border-t border-white border-opacity-30">
                 {secondaryValue && (
@@ -82,10 +82,10 @@ export default function VendorDashboard({ vendor, stats }) {
     const { auth } = usePage().props;
 
     // Default values jika stats belum terisi (untuk keamanan)
-    const { 
-        total_revenue = 0, 
-        total_orders = 0, 
-        total_reviews = 0, 
+    const {
+        total_revenue = 0,
+        total_orders = 0,
+        total_reviews = 0,
         average_rating = 0.0,
         recent_orders = [],
         recent_reviews = [],
@@ -102,11 +102,11 @@ export default function VendorDashboard({ vendor, stats }) {
             value: vendor.isApproved,
             icon: UserCheck,
             // Warna Orange/Amber
-            colorClass: `bg-gradient-to-br from-amber-500 to-orange-600`, 
+            colorClass: `bg-gradient-to-br from-amber-500 to-orange-600`,
             secondaryValue: vendor.isApproved === 'APPROVED' ? 'Vendor Terverifikasi' : 'Proses Sekarang',
             secondaryText: vendor.isApproved === 'APPROVED' ? 'Lihat Profil' : 'Lengkapi Dokumen',
             // PERBAIKAN ZIGGY: Menggunakan URL relatif
-            secondaryLink: '/vendor/profile', 
+            secondaryLink: '/vendor/profile',
             subTitle: `Rating Anda: ${average_rating}/5.0`,
         },
         {
@@ -114,10 +114,10 @@ export default function VendorDashboard({ vendor, stats }) {
             value: formatRupiah(total_revenue),
             icon: DollarSign,
             // Warna Hijau/Teal
-            colorClass: `bg-gradient-to-br from-green-500 to-teal-600`, 
+            colorClass: `bg-gradient-to-br from-green-500 to-teal-600`,
             secondaryText: 'Lihat Transaksi',
             // PERBAIKAN ZIGGY: Menggunakan URL relatif
-            secondaryLink: '/vendor/payments', 
+            secondaryLink: '/vendor/payments',
             subTitle: `Total ${total_orders} Pesanan`,
         },
         {
@@ -125,10 +125,10 @@ export default function VendorDashboard({ vendor, stats }) {
             value: `${total_reviews} Ulasan`,
             icon: Star,
             // Warna Biru/Ungu
-            colorClass: `bg-gradient-to-br from-indigo-500 to-purple-600`, 
+            colorClass: `bg-gradient-to-br from-indigo-500 to-purple-600`,
             secondaryText: 'Lihat Semua Ulasan',
             // PERBAIKAN ZIGGY: Menggunakan URL relatif
-            secondaryLink: '/vendor/reviews', 
+            secondaryLink: '/vendor/reviews',
             subTitle: `Rata-rata: ${average_rating} / 5.0`,
         },
         {
@@ -136,10 +136,10 @@ export default function VendorDashboard({ vendor, stats }) {
             value: `${total_orders}`,
             icon: ShoppingBag,
             // Warna Pink/Merah
-            colorClass: `bg-gradient-to-br from-pink-500 to-red-600`, 
+            colorClass: `bg-gradient-to-br from-pink-500 to-red-600`,
             secondaryText: 'Kelola Pesanan',
             // PERBAIKAN ZIGGY: Menggunakan URL relatif
-            secondaryLink: '/vendor/orders', 
+            secondaryLink: '/vendor/orders',
             subTitle: 'Semua Status Pesanan',
         },
     ];
@@ -154,7 +154,7 @@ export default function VendorDashboard({ vendor, stats }) {
 
             {/* Konten Utama Dashboard */}
             <div className="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
-                
+
                 {/* === BAGIAN SAPAAN ELEGAN === */}
                 <div className="bg-white rounded-xl shadow-xl p-8 mb-8 border border-gray-100">
                     <div className="flex justify-between items-start">
@@ -175,7 +175,7 @@ export default function VendorDashboard({ vendor, stats }) {
                 {/* === SUMMARY CARDS === */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     {cardData.map((item, index) => (
-                        <SummaryCard 
+                        <SummaryCard
                             key={index}
                             title={item.title}
                             value={item.value}
@@ -187,7 +187,7 @@ export default function VendorDashboard({ vendor, stats }) {
                         />
                     ))}
                 </div>
-                
+
                 {/* === LIST PESANAN & REVIEW TERBARU === */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Kartu Pesanan Terbaru */}
@@ -201,7 +201,7 @@ export default function VendorDashboard({ vendor, stats }) {
                                 Lihat Semua
                             </Link>
                         </div>
-                        
+
                         {recent_orders && recent_orders.length > 0 ? (
                             // Daftar Pesanan
                             <div className="space-y-3">
@@ -209,8 +209,7 @@ export default function VendorDashboard({ vendor, stats }) {
                                     <div key={order.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                                         <div>
                                             {/* Catatan: customer_name diasumsikan ada di object order yang dikirim dari controller */}
-                                            <p className="font-semibold text-gray-800">#{order.id} - {order.customer_name}</p>
-                                            <p className="text-xs text-gray-500">{formatRupiah(order.total_price)}</p>
+                                            <p className="font-semibold text-gray-800">{order.customer_name}</p>
                                         </div>
                                         <span className={`text-xs font-medium px-2 py-1 rounded-full ${order.status === 'PENDING' ? 'bg-amber-100 text-amber-600' : 'bg-green-100 text-green-600'}`}>
                                             {order.status}
@@ -237,7 +236,7 @@ export default function VendorDashboard({ vendor, stats }) {
                                 Lihat Semua
                             </Link>
                         </div>
-                        
+
                         {recent_reviews && recent_reviews.length > 0 ? (
                             // Daftar Review
                             <div className="space-y-3">
