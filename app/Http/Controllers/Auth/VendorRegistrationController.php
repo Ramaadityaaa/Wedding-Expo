@@ -10,7 +10,6 @@ use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -29,40 +28,50 @@ class VendorRegistrationController extends Controller
      */
     public function store(VendorRegistrationRequest $request): RedirectResponse
     {
-        // 1. Simpan data ke tabel 'users' dengan role VENDOR
+        // 1) Simpan data ke tabel 'users'
         $user = User::create([
-            'name'     => $request->name, // Nama kontak person
+            'name'     => $request->name,  // nama kontak person
             'email'    => $request->email,
             'password' => Hash::make($request->password),
-            'phone'    => $request->phone, // Nomor WhatsApp
+            'phone'    => $request->phone,
             'role'     => 'VENDOR',
         ]);
 
-        // 2. Handle upload file permit_image (Izin Usaha)
+        // 2) Upload file permit_image (Izin Usaha)
         $permitPath = null;
         if ($request->hasFile('permit_image')) {
             $permitPath = $request->file('permit_image')->store('vendor/permits', 'public');
         }
 
-        // 3. Simpan data bisnis ke tabel 'wedding_organizers'
+        // 3) Simpan data bisnis ke tabel 'wedding_organizers'
         WeddingOrganizer::create([
-            'user_id'       => $user->id,
-            'company_name'  => $request->company_name,
-            'vendor_type'   => $request->vendor_type,
-            'city'          => $request->city,
-            'address'       => $request->address,
-            'permit_number' => $request->permit_number,
-            'permit_image'  => $permitPath,
-            'isApproved'    => 'PENDING', // Status awal pendaftaran
+            'user_id'           => $user->id,
+
+            // sesuaikan dengan fillable WeddingOrganizer Anda
+            'name'              => $request->company_name,   // NAMA VENDOR / NAMA USAHA
+            'type'              => $request->vendor_type,    // JENIS VENDOR
+
+            'city'              => $request->city,
+            'address'           => $request->address,
+
+            'permit_number'     => $request->permit_number,
+            'permit_image_path' => $permitPath,              // INI YANG BENAR
+
+            // info kontak vendor (opsional tapi bagus untuk admin)
+            'contact_name'      => $request->name,
+            'contact_email'     => $request->email,
+            'contact_phone'     => $request->phone,
+
+            'isApproved'        => 'PENDING',
         ]);
 
-        // 4. Memicu event pendaftaran (opsional, untuk kirim email verifikasi)
+        // 4) event pendaftaran (opsional)
         event(new Registered($user));
 
-        // 5. Otomatis Login setelah daftar agar vendor tidak perlu ke halaman login lagi
+        // 5) login otomatis
         Auth::login($user);
 
-        // 6. REDIRECT ke rute status verifikasi (Halaman Tunggu)
+        // 6) redirect status verifikasi
         return redirect()->route('vendor.verification')
             ->with('message', 'Pendaftaran berhasil! Akun Anda sedang ditinjau oleh tim kami.');
     }

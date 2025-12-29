@@ -11,38 +11,46 @@ use Illuminate\Validation\Rule;
 class AdminVendorController extends Controller
 {
     /**
-     * Menampilkan halaman manajemen vendor.
-     * Mengirim SEMUA data vendor dari DATABASE ke Frontend React.
+     * Halaman manajemen vendor (Admin).
+     * Mengirim data vendor + URL publik untuk permit_image_path ke React.
      */
     public function index()
     {
-        // Ambil data asli dari database, urutkan dari yang terbaru
-        // Pastikan kolom-kolom ini ada di tabel 'wedding_organizers' Anda
         $vendors = WeddingOrganizer::select(
             'id',
             'user_id',
             'isApproved',
             'created_at',
+
+            // data tampilan
             'name',
-            'contact_email as email', // Alias agar sesuai dengan frontend yang minta 'email'
-            'contact_phone as phone', // Alias agar sesuai dengan frontend yang minta 'phone'
+            'contact_email as email',
+            'contact_phone as phone',
             'address',
-            'city'
+            'city',
+
+            // permit
+            'permit_number',
+            'permit_image_path'
         )
             ->latest()
-            ->get();
+            ->get()
+            ->map(function ($v) {
+                // Kirim URL publik ke React (tanpa Storage::url untuk menghindari warning editor)
+                $v->permit_image_url = $v->permit_image_path
+                    ? asset('storage/' . ltrim($v->permit_image_path, '/'))
+                    : null;
 
-        // Debugging: Cek apakah data ada
-        // dd($vendors); 
+                return $v;
+            });
 
-        // Render React Page dengan membawa data 'vendors'
         return Inertia::render('Admin/pages/VendorManagement', [
-            'vendors' => $vendors
+            'vendors' => $vendors,
         ]);
     }
 
     /**
-     * Mengubah status verifikasi vendor (APPROVED/REJECTED).
+     * Mengubah status verifikasi vendor (APPROVED/REJECTED/PENDING).
      */
     public function updateStatus(Request $request, $id)
     {
@@ -53,10 +61,13 @@ class AdminVendorController extends Controller
         $vendor = WeddingOrganizer::findOrFail($id);
 
         $vendor->update([
-            'isApproved' => $request->status
+            'isApproved' => $request->status,
         ]);
 
-        return redirect()->back()->with('success', "Status vendor '{$vendor->name}' berhasil diubah menjadi {$request->status}.");
+        return redirect()->back()->with(
+            'success',
+            "Status vendor '{$vendor->name}' berhasil diubah menjadi {$request->status}."
+        );
     }
 
     /**
@@ -67,17 +78,23 @@ class AdminVendorController extends Controller
         $vendor = WeddingOrganizer::findOrFail($id);
         $vendor->delete();
 
-        return redirect()->back()->with('success', "Vendor berhasil dihapus.");
+        return redirect()->back()->with('success', 'Vendor berhasil dihapus.');
     }
 
     /**
-     * Menampilkan detail vendor (Jika diperlukan halaman terpisah)
+     * Detail vendor (jika halaman terpisah digunakan).
      */
     public function show($id)
     {
         $vendor = WeddingOrganizer::with('user')->findOrFail($id);
+
+        // Tambahkan URL gambar untuk permit
+        $vendor->permit_image_url = $vendor->permit_image_path
+            ? asset('storage/' . ltrim($vendor->permit_image_path, '/'))
+            : null;
+
         return Inertia::render('Admin/pages/VendorDetail', [
-            'vendor' => $vendor
+            'vendor' => $vendor,
         ]);
     }
 }
