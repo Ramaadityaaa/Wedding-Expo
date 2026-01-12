@@ -91,7 +91,7 @@ export default function Dashboard({
                             <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-orange-600">
                                 {auth.user.name}
                             </span>
-                            ! 👋
+                            ! 
                         </h2>
                         <p className="text-gray-500 mt-1">
                             Berikut adalah ringkasan aktivitas platform Wedding

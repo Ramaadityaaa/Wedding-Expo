@@ -61,7 +61,7 @@ export default function VendorsIndex({ auth, vendors, filters }) {
                                 />
                             </div>
 
-                           
+                            
 
                             <Button
                                 type="submit"
