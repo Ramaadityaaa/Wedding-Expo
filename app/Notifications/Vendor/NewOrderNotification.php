@@ -10,21 +10,21 @@ class NewOrderNotification extends Notification
 {
     use Queueable;
 
-    public function __construct(
-        public array $payload
-    ) {}
+    public function __construct(public array $payload)
+    {
+    }
 
-    public function via($notifiable)
+    public function via($notifiable): array
     {
         return ['database', 'broadcast'];
     }
 
-    public function toArray($notifiable)
+    public function toArray($notifiable): array
     {
         return $this->payload;
     }
 
-    public function toBroadcast($notifiable)
+    public function toBroadcast($notifiable): BroadcastMessage
     {
         return new BroadcastMessage($this->payload);
     }

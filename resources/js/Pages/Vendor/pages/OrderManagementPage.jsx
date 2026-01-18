@@ -27,31 +27,42 @@ const formatCurrency = (number) => {
 };
 
 // --- Helper Format Tanggal ---
+// Support: "2026-01-18" (order_date) atau ISO datetime (created_at)
 const formatDate = (dateString) => {
     if (!dateString) return "-";
-    const options = {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    };
-    return new Date(dateString).toLocaleDateString("id-ID", options);
+
+    // Kalau formatnya hanya YYYY-MM-DD, paksa jadi date valid local
+    // (new Date("YYYY-MM-DD") di beberapa browser bisa dianggap UTC dan geser)
+    const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(dateString);
+    const dateObj = isDateOnly
+        ? new Date(`${dateString}T00:00:00`)
+        : new Date(dateString);
+
+    if (Number.isNaN(dateObj.getTime())) return "-";
+
+    // Kalau date only: tidak perlu jam, kalau datetime: tampilkan jam
+    const options = isDateOnly
+        ? { year: "numeric", month: "short", day: "numeric" }
+        : {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+          };
+
+    return dateObj.toLocaleDateString("id-ID", options);
 };
 
 // --- [LOGIKA STATUS UTAMA] ---
-// Fungsi ini menentukan status mana yang harus ditampilkan (Prioritas: Status Utama > Status Bayar)
 const getEffectiveStatus = (order) => {
-    // 1. Cek Status Utama Order dulu (COMPLETED, CANCELLED, PROCESSED)
     if (order.status === "COMPLETED") return "COMPLETED";
     if (order.status === "CANCELLED") return "CANCELLED";
     if (order.status === "PROCESSED") return "PROCESSED";
 
-    // 2. Jika Status Utama masih default/null, cek Payment Status
-    if (order.payment_status === "PAID") return "PAID"; // Kasus jarang, biasanya PAID langsung jadi PROCESSED
+    if (order.payment_status === "PAID") return "PAID";
     if (order.payment_status === "REJECTED") return "REJECTED";
 
-    // 3. Default
     return "PENDING";
 };
 
@@ -60,7 +71,6 @@ const SubStatusBadge = ({ order }) => {
     const effectiveStatus = getEffectiveStatus(order);
     const hasProof = order.order_payment && order.order_payment.proof_file;
 
-    // 1. KASUS MENUNGGU (PENDING)
     if (effectiveStatus === "PENDING") {
         if (hasProof) {
             return (
@@ -69,17 +79,15 @@ const SubStatusBadge = ({ order }) => {
                     Perlu Verifikasi
                 </span>
             );
-        } else {
-            return (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-100 text-gray-500 border border-gray-200 text-xs font-medium">
-                    <Clock className="w-3.5 h-3.5" />
-                    Menunggu Upload Customer
-                </span>
-            );
         }
+        return (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-100 text-gray-500 border border-gray-200 text-xs font-medium">
+                <Clock className="w-3.5 h-3.5" />
+                Menunggu Upload Customer
+            </span>
+        );
     }
 
-    // 2. KASUS DIPROSES (PROCESSED / PAID)
     if (effectiveStatus === "PROCESSED" || effectiveStatus === "PAID") {
         return (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold">
@@ -89,7 +97,6 @@ const SubStatusBadge = ({ order }) => {
         );
     }
 
-    // 3. KASUS SELESAI
     if (effectiveStatus === "COMPLETED") {
         return (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-50 text-green-700 border border-green-200 text-xs font-bold">
@@ -99,7 +106,6 @@ const SubStatusBadge = ({ order }) => {
         );
     }
 
-    // 4. KASUS BATAL
     if (effectiveStatus === "REJECTED" || effectiveStatus === "CANCELLED") {
         return (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 text-red-700 border border-red-200 text-xs font-bold">
@@ -166,12 +172,9 @@ export default function OrderManagementPage({
 
     const handleTabChange = (status) => {
         router.get(
-            route("vendor.orders.index", { status: status }),
+            route("vendor.orders.index", { status }),
             {},
-            {
-                preserveScroll: true,
-                preserveState: true,
-            }
+            { preserveScroll: true, preserveState: true }
         );
     };
 
@@ -182,20 +185,21 @@ export default function OrderManagementPage({
                     action === "approve" ? "MENERIMA" : "MENOLAK"
                 } pesanan ini?`
             )
-        )
+        ) {
             return;
+        }
 
         setIsProcessing(true);
         router.post(
             route("vendor.orders.verify", orderId),
-            { action: action },
+            { action },
             {
                 onSuccess: () => {
                     setIsProcessing(false);
                     setSelectedOrder(null);
                     toast({
                         title: "Berhasil",
-                        description: `Status pesanan berhasil diperbarui.`,
+                        description: "Status pesanan berhasil diperbarui.",
                         className: "bg-green-600 text-white",
                     });
                 },
@@ -208,7 +212,6 @@ export default function OrderManagementPage({
         if (!confirm("Apakah pesanan ini benar-benar sudah selesai?")) return;
 
         setIsProcessing(true);
-        // FIX: Menggunakan PATCH sesuai perbaikan di web.php
         router.patch(
             route("vendor.orders.complete", orderId),
             {},
@@ -235,11 +238,10 @@ export default function OrderManagementPage({
 
             <div className="p-4 md:p-6 bg-gray-50 min-h-screen font-sans">
                 <div className="max-w-7xl mx-auto space-y-6">
-                    {/* Header Section */}
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
                             <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight">
-                                📦 Order Masuk
+                                Order Masuk
                             </h1>
                             <p className="text-gray-500 text-sm mt-1">
                                 Pantau pembayaran dan status pengerjaan pesanan
@@ -248,7 +250,6 @@ export default function OrderManagementPage({
                         </div>
                     </div>
 
-                    {/* Summary Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div onClick={() => handleTabChange("waiting")}>
                             <SummaryCard
@@ -279,9 +280,7 @@ export default function OrderManagementPage({
                         </div>
                     </div>
 
-                    {/* Main Content Area */}
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                        {/* Tab Navigation */}
                         <div className="flex overflow-x-auto border-b border-gray-200 bg-gray-50/50">
                             {statusTabs.map((tab) => (
                                 <button
@@ -302,7 +301,6 @@ export default function OrderManagementPage({
                             ))}
                         </div>
 
-                        {/* Table Section */}
                         {orderList.length === 0 ? (
                             <div className="p-16 text-center flex flex-col items-center justify-center">
                                 <div className="bg-gray-100 rounded-full w-20 h-20 flex items-center justify-center mb-4">
@@ -327,8 +325,14 @@ export default function OrderManagementPage({
                                                 Customer & Paket
                                             </th>
                                             <th className="p-4">
-                                                Total & Tanggal
+                                                Total & Tanggal Order
                                             </th>
+
+                                            {/* ✅ KOLOM BARU */}
+                                            <th className="p-4">
+                                                Tanggal Dibuat
+                                            </th>
+
                                             <th className="p-4">
                                                 Status & Sub-Status
                                             </th>
@@ -337,6 +341,7 @@ export default function OrderManagementPage({
                                             </th>
                                         </tr>
                                     </thead>
+
                                     <tbody className="divide-y divide-gray-100">
                                         {orderList.map((order) => {
                                             const displayPrice =
@@ -344,11 +349,18 @@ export default function OrderManagementPage({
                                                 order.total_price ??
                                                 order.package?.price ??
                                                 0;
+
                                             const effectiveStatus =
-                                                getEffectiveStatus(order); // Gunakan helper function baru
+                                                getEffectiveStatus(order);
+
                                             const hasProof =
                                                 order.order_payment &&
                                                 order.order_payment.proof_file;
+
+                                            // Tanggal order yang ditampilkan di kolom "Total & Tanggal Order"
+                                            const orderDateDisplay =
+                                                order.order_date ||
+                                                order.created_at;
 
                                             return (
                                                 <tr
@@ -360,23 +372,22 @@ export default function OrderManagementPage({
                                                     </td>
 
                                                     <td className="p-4">
-                                                        {/* Menggunakan relasi customer (sesuai controller perbaikan sebelumnya) */}
                                                         <div className="font-bold text-gray-900">
                                                             {order.customer
                                                                 ?.name ||
                                                                 "Guest"}
                                                         </div>
+
                                                         <div className="flex items-center text-xs text-gray-500 mt-1">
                                                             <Package className="w-3 h-3 mr-1 text-blue-500" />
                                                             {order.package
                                                                 ?.name ||
                                                                 "Paket tidak ditemukan"}
                                                         </div>
+
                                                         <div className="text-xs text-gray-400 mt-0.5">
-                                                            {
-                                                                order.customer
-                                                                    ?.email
-                                                            }
+                                                            {order.customer
+                                                                ?.email || "-"}
                                                         </div>
                                                     </td>
 
@@ -387,7 +398,18 @@ export default function OrderManagementPage({
                                                                 displayPrice
                                                             )}
                                                         </div>
+
+                                                        {/* ✅ TANGGAL ORDER */}
                                                         <div className="text-gray-400 text-xs mt-1">
+                                                            {formatDate(
+                                                                orderDateDisplay
+                                                            )}
+                                                        </div>
+                                                    </td>
+
+                                                    {/* ✅ KOLOM BARU: TANGGAL PESANAN DIBUAT */}
+                                                    <td className="p-4">
+                                                        <div className="text-gray-400 text-xs">
                                                             {formatDate(
                                                                 order.created_at
                                                             )}
@@ -401,7 +423,6 @@ export default function OrderManagementPage({
                                                     </td>
 
                                                     <td className="p-4 text-center">
-                                                        {/* 1. Tab Menunggu */}
                                                         {activeTab ===
                                                             "waiting" &&
                                                             hasProof && (
@@ -413,10 +434,11 @@ export default function OrderManagementPage({
                                                                     }
                                                                     className="inline-flex items-center justify-center px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all transform hover:scale-105 active:scale-95"
                                                                 >
-                                                                    <FileText className="w-3 h-3 mr-1.5" />{" "}
+                                                                    <FileText className="w-3 h-3 mr-1.5" />
                                                                     Cek Bukti
                                                                 </button>
                                                             )}
+
                                                         {activeTab ===
                                                             "waiting" &&
                                                             !hasProof && (
@@ -426,7 +448,6 @@ export default function OrderManagementPage({
                                                                 </span>
                                                             )}
 
-                                                        {/* 2. Tab Diproses */}
                                                         {activeTab ===
                                                             "processed" && (
                                                             <button
@@ -440,12 +461,11 @@ export default function OrderManagementPage({
                                                                 }
                                                                 className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all transform hover:scale-105"
                                                             >
-                                                                <ClipboardCheck className="w-3 h-3 mr-1.5" />{" "}
+                                                                <ClipboardCheck className="w-3 h-3 mr-1.5" />
                                                                 Tandai Selesai
                                                             </button>
                                                         )}
 
-                                                        {/* 3. Tab Selesai */}
                                                         {activeTab ===
                                                             "completed" && (
                                                             <span
@@ -470,7 +490,7 @@ export default function OrderManagementPage({
                                 </table>
                             </div>
                         )}
-                        {/* Pagination */}
+
                         {orderList.length > 0 && paginationLinks.length > 3 && (
                             <div className="p-4 border-t border-gray-100 bg-gray-50">
                                 <Pagination links={paginationLinks} />
@@ -491,7 +511,27 @@ export default function OrderManagementPage({
                                     <p className="text-xs text-gray-500">
                                         Order ID: #{selectedOrder.id}
                                     </p>
+
+                                    {/* ✅ TANGGAL ORDER DI POPUP */}
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Tanggal Order:{" "}
+                                        <span className="font-semibold text-gray-700">
+                                            {formatDate(
+                                                selectedOrder.order_date ||
+                                                    selectedOrder.created_at
+                                            )}
+                                        </span>
+                                    </p>
+
+                                    {/* ✅ TANGGAL DIBUAT DI POPUP (opsional, tapi biasanya bagus untuk audit) */}
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Dibuat:{" "}
+                                        <span className="font-semibold text-gray-700">
+                                            {formatDate(selectedOrder.created_at)}
+                                        </span>
+                                    </p>
                                 </div>
+
                                 <button
                                     onClick={() => setSelectedOrder(null)}
                                     className="text-gray-400 hover:text-gray-600 transition rounded-full p-1 hover:bg-gray-100"
@@ -502,18 +542,20 @@ export default function OrderManagementPage({
 
                             <div className="p-6">
                                 {(() => {
-                                    const payment = selectedOrder.order_payment;
+                                    const payment =
+                                        selectedOrder.order_payment;
                                     const displayPrice =
                                         selectedOrder.amount ??
                                         selectedOrder.total_price ??
                                         0;
 
-                                    if (!payment)
+                                    if (!payment) {
                                         return (
                                             <div className="text-center py-8 text-red-500">
                                                 Data pembayaran tidak valid.
                                             </div>
                                         );
+                                    }
 
                                     return (
                                         <>
@@ -530,6 +572,7 @@ export default function OrderManagementPage({
                                                             "Bank Transfer"}
                                                     </p>
                                                 </div>
+
                                                 <div className="text-right">
                                                     <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">
                                                         Nominal
@@ -583,9 +626,10 @@ export default function OrderManagementPage({
                                                     disabled={isProcessing}
                                                     className="py-3 px-4 rounded-xl border border-red-200 text-red-600 font-bold hover:bg-red-50 transition flex justify-center items-center gap-2"
                                                 >
-                                                    <XCircle className="w-4 h-4" />{" "}
+                                                    <XCircle className="w-4 h-4" />
                                                     Tolak
                                                 </button>
+
                                                 <button
                                                     onClick={() =>
                                                         handleVerify(
@@ -600,7 +644,7 @@ export default function OrderManagementPage({
                                                         "Menyimpan..."
                                                     ) : (
                                                         <>
-                                                            <ShieldCheck className="w-4 h-4" />{" "}
+                                                            <ShieldCheck className="w-4 h-4" />
                                                             Terima Pembayaran
                                                         </>
                                                     )}

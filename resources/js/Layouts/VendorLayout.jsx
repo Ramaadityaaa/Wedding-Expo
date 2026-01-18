@@ -259,7 +259,7 @@ export default function VendorLayout({ header, children }) {
 
                         <div>
                             <h2 className="text-xl font-bold text-slate-800 tracking-tight">
-                                {header || "Manajemen Vendor"}
+                                {header || "Manajemen Order"}
                             </h2>
                         </div>
                     </div>

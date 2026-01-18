@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Link, usePage } from "@inertiajs/react";
 import { Bell, CheckCheck, ExternalLink, Loader2 } from "lucide-react";
+import webApi from "@/lib/webApi";
 
 export default function VendorNotificationBell() {
     const { auth } = usePage().props;
@@ -18,16 +19,30 @@ export default function VendorNotificationBell() {
         return Array.isArray(items) ? items.slice(0, 8) : [];
     }, [items]);
 
-    const axiosGet = useCallback((url, config) => {
-        const ax = window.axios;
-        if (!ax) throw new Error("window.axios belum tersedia. Pastikan resources/js/bootstrap.js menginisialisasi axios.");
-        return ax.get(url, config);
+    const formatTanggal = useCallback((isoOrDateString) => {
+        if (!isoOrDateString) return "";
+
+        const d = new Date(isoOrDateString);
+        if (Number.isNaN(d.getTime())) return "";
+
+        return d.toLocaleDateString("id-ID", {
+            weekday: "long",
+            day: "2-digit",
+            month: "long",
+            year: "numeric",
+        });
     }, []);
 
-    const axiosPost = useCallback((url, data = {}, config) => {
-        const ax = window.axios;
-        if (!ax) throw new Error("window.axios belum tersedia. Pastikan resources/js/bootstrap.js menginisialisasi axios.");
-        return ax.post(url, data, config);
+    const formatJam = useCallback((isoOrDateString) => {
+        if (!isoOrDateString) return "";
+
+        const d = new Date(isoOrDateString);
+        if (Number.isNaN(d.getTime())) return "";
+
+        return d.toLocaleTimeString("id-ID", {
+            hour: "2-digit",
+            minute: "2-digit",
+        });
     }, []);
 
     const fetchNotifications = useCallback(async () => {
@@ -35,7 +50,7 @@ export default function VendorNotificationBell() {
 
         setLoading(true);
         try {
-            const res = await axiosGet("/vendor/notifications", { params: { limit: 8 } });
+            const res = await webApi.get("/vendor/notifications", { params: { limit: 20 } });
 
             const notifications = res?.data?.notifications ?? [];
             const unreadCount = res?.data?.unread_count ?? 0;
@@ -49,33 +64,32 @@ export default function VendorNotificationBell() {
         } finally {
             if (mountedRef.current) setLoading(false);
         }
-    }, [axiosGet, userId]);
+    }, [userId]);
 
-    const markRead = useCallback(
-        async (id) => {
-            if (!id) return;
+    const markRead = useCallback(async (id) => {
+        if (!id) return;
 
-            try {
-                await axiosPost(`/vendor/notifications/${id}/read`);
+        try {
+            await webApi.post(`/vendor/notifications/${id}/read`);
 
-                if (!mountedRef.current) return;
+            if (!mountedRef.current) return;
 
-                setItems((prev) => {
-                    const arr = Array.isArray(prev) ? prev : [];
-                    return arr.map((n) => (n?.id === id ? { ...n, read_at: n.read_at ?? new Date().toISOString() } : n));
-                });
+            setItems((prev) => {
+                const arr = Array.isArray(prev) ? prev : [];
+                return arr.map((n) =>
+                    n?.id === id ? { ...n, read_at: n.read_at ?? new Date().toISOString() } : n
+                );
+            });
 
-                setUnread((prevUnread) => Math.max(0, (Number(prevUnread) || 0) - 1));
-            } catch (e) {
-                console.error("Mark read failed:", e);
-            }
-        },
-        [axiosPost]
-    );
+            setUnread((prevUnread) => Math.max(0, (Number(prevUnread) || 0) - 1));
+        } catch (e) {
+            console.error("Mark read failed:", e);
+        }
+    }, []);
 
     const markAllRead = useCallback(async () => {
         try {
-            await axiosPost("/vendor/notifications/read-all");
+            await webApi.post("/vendor/notifications/read-all");
 
             if (!mountedRef.current) return;
 
@@ -87,7 +101,7 @@ export default function VendorNotificationBell() {
         } catch (e) {
             console.error("Mark all read failed:", e);
         }
-    }, [axiosPost]);
+    }, []);
 
     useEffect(() => {
         mountedRef.current = true;
@@ -95,6 +109,11 @@ export default function VendorNotificationBell() {
             mountedRef.current = false;
         };
     }, []);
+
+    useEffect(() => {
+        if (!userId) return;
+        fetchNotifications();
+    }, [userId, fetchNotifications]);
 
     useEffect(() => {
         if (!open) return;
@@ -118,14 +137,19 @@ export default function VendorNotificationBell() {
     }, [open]);
 
     useEffect(() => {
-        if (!userId) return;
-        fetchNotifications();
-    }, [userId, fetchNotifications]);
-
-    useEffect(() => {
         if (!open) return;
         fetchNotifications();
     }, [open, fetchNotifications]);
+
+    useEffect(() => {
+        if (!userId) return;
+
+        const t = setInterval(() => {
+            fetchNotifications();
+        }, 15000);
+
+        return () => clearInterval(t);
+    }, [userId, fetchNotifications]);
 
     useEffect(() => {
         if (!userId) return;
@@ -133,45 +157,20 @@ export default function VendorNotificationBell() {
 
         const channelName = `App.Models.User.${userId}`;
 
-        let subscribed = false;
-
         try {
             const channel = window.Echo.private(channelName);
-            subscribed = true;
 
-            channel.notification((payload) => {
-                if (!mountedRef.current) return;
-
-                const normalized = {
-                    id: payload?.id,
-                    type: payload?.type,
-                    data: payload?.data ?? {},
-                    created_at: payload?.created_at ?? new Date().toISOString(),
-                    read_at: null,
-                };
-
-                setItems((prev) => {
-                    const arr = Array.isArray(prev) ? prev : [];
-                    const exists = normalized.id && arr.some((x) => x?.id === normalized.id);
-                    const next = exists ? arr : [normalized, ...arr];
-                    return next.slice(0, 50);
-                });
-
-                setUnread((u) => (Number(u) || 0) + 1);
+            channel.notification(() => {
+                fetchNotifications();
             });
+
+            return () => {
+                window.Echo.leave(channelName);
+            };
         } catch (e) {
             console.error("Echo subscribe failed:", e);
         }
-
-        return () => {
-            if (!subscribed) return;
-            try {
-                window.Echo.leave(channelName);
-            } catch (e) {
-                console.error("Echo leave failed:", e);
-            }
-        };
-    }, [userId]);
+    }, [userId, fetchNotifications]);
 
     return (
         <div className="relative" ref={panelRef}>
@@ -206,7 +205,7 @@ export default function VendorNotificationBell() {
                             type="button"
                             onClick={markAllRead}
                             disabled={items.length === 0 || unread === 0}
-                            className="text-xs font-semibold text-slate-600 hover:text-orange-600 inline-flex items-center gap-1 disabled:opacity-50 disabled:hover:text-slate-600"
+                            className="text-xs font-semibold text-slate-600 hover:text-orange-600 inline-flex items-center gap-1 disabled:opacity-50"
                         >
                             <CheckCheck size={14} />
                             Tandai semua
@@ -224,9 +223,15 @@ export default function VendorNotificationBell() {
                         ) : (
                             latestItems.map((n) => {
                                 const title = n?.data?.title ?? "Aktivitas baru";
-                                const message = n?.data?.message ?? n?.data?.body ?? "Ada update baru pada akun vendor kamu.";
+                                const message =
+                                    n?.data?.message ?? n?.data?.body ?? "Ada update baru pada akun vendor kamu.";
                                 const url = n?.data?.url ?? null;
                                 const isUnread = !n?.read_at;
+
+                                // tampilkan tanggal order jika ada, fallback created_at notifikasi
+                                const waktuUtama = n?.data?.order_date ?? n?.created_at;
+                                const tanggal = formatTanggal(waktuUtama);
+                                const jam = formatJam(n?.created_at);
 
                                 return (
                                     <div
@@ -239,6 +244,13 @@ export default function VendorNotificationBell() {
                                             <div className="min-w-0">
                                                 <p className="text-sm font-bold text-slate-800 truncate">{title}</p>
                                                 <p className="text-xs text-slate-600 mt-0.5 line-clamp-2">{message}</p>
+
+                                                {(tanggal || jam) && (
+                                                    <p className="text-[11px] text-slate-400 mt-1">
+                                                        {tanggal}
+                                                        {jam ? `, ${jam}` : ""}
+                                                    </p>
+                                                )}
 
                                                 <div className="mt-2 flex items-center gap-2">
                                                     {url && (
@@ -263,7 +275,9 @@ export default function VendorNotificationBell() {
                                                 </div>
                                             </div>
 
-                                            {isUnread && <span className="mt-1 w-2 h-2 rounded-full bg-orange-500 flex-shrink-0" />}
+                                            {isUnread && (
+                                                <span className="mt-1 w-2 h-2 rounded-full bg-orange-500 flex-shrink-0" />
+                                            )}
                                         </div>
                                     </div>
                                 );

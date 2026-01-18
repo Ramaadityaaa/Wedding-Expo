@@ -6,7 +6,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 use Illuminate\Notifications\Messages\BroadcastMessage;
 
-class NewReviewNotification extends Notification
+class PaymentProofUploadedNotification extends Notification
 {
     use Queueable;
 
@@ -14,17 +14,18 @@ class NewReviewNotification extends Notification
     {
     }
 
-    public function via($notifiable): array
+    public function via($notifiable)
     {
+        // database untuk badge unread + broadcast untuk realtime Echo
         return ['database', 'broadcast'];
     }
 
-    public function toArray($notifiable): array
+    public function toArray($notifiable)
     {
         return $this->payload;
     }
 
-    public function toBroadcast($notifiable): BroadcastMessage
+    public function toBroadcast($notifiable)
     {
         return new BroadcastMessage($this->payload);
     }

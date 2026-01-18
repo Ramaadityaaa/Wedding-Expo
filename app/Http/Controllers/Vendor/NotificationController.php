@@ -10,18 +10,21 @@ class NotificationController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
+        $limit = (int) $request->query('limit', 20);
 
         $notifications = $user->notifications()
             ->latest()
-            ->limit(20)
+            ->limit($limit)
             ->get()
             ->map(function ($n) {
                 return [
                     'id' => $n->id,
                     'type' => $n->type,
                     'data' => $n->data,
-                    'read_at' => $n->read_at,
-                    'created_at' => $n->created_at,
+
+                    // pastikan string biar frontend gampang format
+                    'read_at' => $n->read_at ? $n->read_at->toIso8601String() : null,
+                    'created_at' => $n->created_at ? $n->created_at->toIso8601String() : null,
                 ];
             });
 

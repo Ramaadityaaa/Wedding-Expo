@@ -8,6 +8,7 @@ export default function useVendorNotifications() {
 
     const [loading, setLoading] = useState(true);
     const [items, setItems] = useState([]);
+
     const unreadCount = useMemo(
         () => items.filter((n) => !n.read_at).length,
         [items]
@@ -17,7 +18,7 @@ export default function useVendorNotifications() {
         if (!userId) return;
         setLoading(true);
         try {
-            const res = await webApi.get(route("vendor.notifications.index"));
+            const res = await webApi.get(route("vendor.notifications.index"), { params: { limit: 20 } });
             setItems(res.data.notifications || []);
         } finally {
             setLoading(false);
@@ -47,13 +48,13 @@ export default function useVendorNotifications() {
         const channelName = `App.Models.User.${userId}`;
         const channel = window.Echo.private(channelName);
 
-        channel.notification((notification) => {
+        channel.notification((payload) => {
             const newItem = {
-                id: notification.id ?? crypto.randomUUID(),
-                type: notification.type ?? "broadcast",
-                data: notification,
+                id: payload?.id ?? crypto.randomUUID(),
+                type: payload?.type ?? "broadcast",
+                data: payload?.data ?? {},        // FIX: ambil payload.data, bukan payload full
                 read_at: null,
-                created_at: new Date().toISOString(),
+                created_at: payload?.created_at ?? new Date().toISOString(),
             };
             setItems((prev) => [newItem, ...prev].slice(0, 20));
         });
