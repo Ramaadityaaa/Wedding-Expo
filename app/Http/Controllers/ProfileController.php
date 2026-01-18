@@ -15,20 +15,23 @@ class ProfileController extends Controller
 {
     /**
      * Display the user's profile form.
+     * Role aware:
+     * - Customer: resources/js/Pages/Customer/Profile/Edit.jsx
+     * - Vendor: resources/js/Pages/Vendor/pages/ProfilePage.jsx (atau sesuaikan)
      */
     public function edit(Request $request): Response
     {
-        // Fungsi ini merender halaman React 'Profile/Edit'
-        // Catatan: Jika Anda menggunakan halaman yang berbeda untuk Vendor (misalnya 'Vendor/ProfileEdit'),
-        // Anda mungkin perlu menyesuaikan logic di sini berdasarkan role user, atau membuat Controller terpisah.
-        
-        // Memastikan rute render adalah yang benar untuk Vendor.
-        // Jika Anda menggunakan halaman Vendor, pastikan 'Vendor/pages/ProfileEdit' atau sejenisnya.
-        // Asumsi: 'Profile/Edit' adalah komponen yang menangani tampilan Vendor/Customer.
-        
-        return Inertia::render('Profile/Edit', [
-            // Memuat props yang dibutuhkan oleh halaman
-            'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
+        $user = $request->user();
+
+        // Pilih komponen Inertia berdasarkan role
+        // Sesuaikan nilai role jika di database Anda memakai "USER" atau "CUSTOMER"
+        $component = ($user && $user->role === 'VENDOR')
+            ? 'Vendor/pages/ProfilePage'
+            : 'Customer/Profile/Edit';
+
+        return Inertia::render($component, [
+            'user' => $user,
+            'mustVerifyEmail' => $user instanceof MustVerifyEmail,
             'status' => session('status'),
         ]);
     }
@@ -38,20 +41,22 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        // 1. Mengisi data yang divalidasi ke user
-        $request->user()->fill($request->validated());
+        $user = $request->user();
 
-        // 2. Jika email diubah, set email_verified_at menjadi null (membutuhkan verifikasi ulang)
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+        $user->fill($request->validated());
+
+        if ($user->isDirty('email')) {
+            $user->email_verified_at = null;
         }
 
-        // 3. Menyimpan data ke database
-        $request->user()->save();
+        $user->save();
 
-        // 4. Redirect ke rute edit dengan status sukses.
-        // PERBAIKAN: Menggunakan rute Vendor agar tidak terjadi RouteNotFoundException
-        return Redirect::route('vendor.profile.edit')->with('status', 'profile-updated'); 
+        // Redirect sesuai role
+        if ($user->role === 'VENDOR') {
+            return Redirect::route('vendor.profile.edit')->with('status', 'profile-updated');
+        }
+
+        return Redirect::route('customer.profile.edit')->with('status', 'profile-updated');
     }
 
     /**

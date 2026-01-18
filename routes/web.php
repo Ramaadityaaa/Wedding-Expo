@@ -9,6 +9,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\VendorController;
 use App\Http\Controllers\PaymentProofController;
 use App\Http\Controllers\ChatController;
+use App\Http\Controllers\ProfileController;
 
 // --- KONTROLER CUSTOMER ---
 use App\Http\Controllers\Customer\BookingController;
@@ -35,7 +36,6 @@ use App\Http\Controllers\Vendor\VendorPortfolioController;
 use App\Http\Controllers\Vendor\MembershipController;
 use App\Http\Controllers\Vendor\VendorPaymentFlowController;
 use App\Http\Controllers\Vendor\VendorReviewController;
-use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Vendor\BankSettingsController;
 use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Vendor\VendorOrderController;
@@ -175,6 +175,13 @@ Route::prefix('api')->group(function () {
 Route::middleware(['auth'])->group(function () {
 
     /**
+     * FIX UTAMA: Alias /profile agar tidak 404 jika menu masih pakai /profile
+     * Halaman yang dirender tetap ditentukan oleh ProfileController (role aware)
+     */
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+
+    /**
      * API Check Availability (AUTH)
      */
     Route::prefix('api')->group(function () {
@@ -183,7 +190,40 @@ Route::middleware(['auth'])->group(function () {
     });
 
     /**
-     * CUSTOMER REVIEW
+     * CUSTOMER ROUTES (gabung jadi satu block)
+     */
+    Route::prefix('customer')->as('customer.')->group(function () {
+
+        /**
+         * Customer Dashboard
+         */
+        Route::get('/dashboard', [HomeController::class, 'index'])->name('dashboard');
+
+        /**
+         * CUSTOMER PROFILE (EDIT + UPDATE)
+         * Halaman: resources/js/Pages/Customer/Profile/Edit.jsx
+         */
+        Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+        Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+
+        /**
+         * Customer Payment Flow
+         */
+        Route::get('/payment/upload', [CustomerPaymentFlowController::class, 'uploadProofPage'])->name('payment.proof.page');
+        Route::post('/payment/upload', [CustomerPaymentFlowController::class, 'uploadProof'])->name('payment.proof.store');
+        Route::get('/payment/loading', [CustomerPaymentFlowController::class, 'paymentLoadingPage'])->name('payment.loading');
+        Route::get('/payment/{orderId}', [BookingController::class, 'showPaymentPage'])->name('payment.page');
+        Route::get('/payment/{orderId}/invoice', [BookingController::class, 'showPaymentInvoice'])->name('payment.invoice');
+
+        /**
+         * Customer Orders
+         */
+        Route::get('/orders', [CustomerOrderController::class, 'index'])->name('orders.index');
+        Route::get('/orders/{orders}', [CustomerOrderController::class, 'show'])->name('orders.show');
+    });
+
+    /**
+     * CUSTOMER REVIEW (tulis/edit/hapus ulasan sendiri)
      */
     Route::post('/vendors/{vendor}/reviews', [CustomerReviewController::class, 'upsert'])
         ->name('customer.reviews.upsert');
@@ -221,28 +261,6 @@ Route::middleware(['auth'])->group(function () {
             'avatar' => 'https://ui-avatars.com/api/?name=Admin+Support&background=0D8ABC&color=fff'
         ]);
     })->name('admin.contact');
-
-    /**
-     * Customer Dashboard
-     */
-    Route::get('/customer/dashboard', [HomeController::class, 'index'])->name('customer.dashboard');
-
-    /**
-     * Customer Payment Flow
-     */
-    Route::prefix('customer')->as('customer.')->group(function () {
-        Route::get('/payment/upload', [CustomerPaymentFlowController::class, 'uploadProofPage'])->name('payment.proof.page');
-        Route::post('/payment/upload', [CustomerPaymentFlowController::class, 'uploadProof'])->name('payment.proof.store');
-        Route::get('/payment/loading', [CustomerPaymentFlowController::class, 'paymentLoadingPage'])->name('payment.loading');
-        Route::get('/payment/{orderId}', [BookingController::class, 'showPaymentPage'])->name('payment.page');
-        Route::get('/payment/{orderId}/invoice', [BookingController::class, 'showPaymentInvoice'])->name('payment.invoice');
-    });
-
-    /**
-     * Customer Orders
-     */
-    Route::get('/customer/orders', [CustomerOrderController::class, 'index'])->name('customer.orders.index');
-    Route::get('/customer/orders/{orders}', [CustomerOrderController::class, 'show'])->name('customer.orders.show');
 });
 
 /*
@@ -268,8 +286,12 @@ Route::prefix('vendor')
 
         Route::get('/dashboard', [VendorDashboard::class, 'index'])->name('dashboard');
 
+        /**
+         * VENDOR PROFILE (EDIT + UPDATE)
+         */
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+
         Route::put('/password', [PasswordController::class, 'update'])->name('password.update');
 
         Route::get('/bank-settings', [BankSettingsController::class, 'edit'])->name('bank.edit');
@@ -337,9 +359,13 @@ Route::prefix('vendor')
 Route::get('/dashboard', function () {
     $user = auth()->user();
 
-    if (!$user) return redirect()->route('home');
+    if (!$user) {
+        return redirect()->route('home');
+    }
 
-    if ($user->role === 'ADMIN') return redirect()->route('admin.dashboard');
+    if ($user->role === 'ADMIN') {
+        return redirect()->route('admin.dashboard');
+    }
 
     if ($user->role === 'VENDOR') {
         $vendor = $user->vendor;
@@ -349,7 +375,7 @@ Route::get('/dashboard', function () {
         return redirect()->route('vendor.dashboard');
     }
 
-    return redirect()->route('home');
+    return redirect()->route('customer.dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 /*

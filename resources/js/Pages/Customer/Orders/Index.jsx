@@ -1,5 +1,6 @@
 import React from "react";
 import { Link, router, Head, usePage } from "@inertiajs/react";
+import CustomerLayout from "@/Layouts/CustomerLayout";
 import {
     Zap,
     ClipboardCheck,
@@ -12,19 +13,16 @@ import {
 } from "lucide-react";
 
 export default function OrdersPage({ orders, currentStatus, summaryData }) {
+    const { auth } = usePage().props;
+
     const normalizeStatus = (status) => (status || "").toString().toUpperCase();
     const activeTab = currentStatus || "processed";
 
-    const { url } = usePage(); // untuk fallback logic (optional, tapi aman)
-
     const goBack = () => {
-        // kalau user punya history, balik ke halaman sebelumnya
         if (window.history.length > 1) {
             window.history.back();
             return;
         }
-
-        // fallback: ke dashboard customer
         router.get(route("customer.dashboard"));
     };
 
@@ -74,42 +72,36 @@ export default function OrdersPage({ orders, currentStatus, summaryData }) {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <CustomerLayout user={auth?.user}>
             <Head title="Pesanan Saya" />
 
             <div className="max-w-7xl mx-auto py-10 px-5 sm:px-6 lg:px-8">
-                {/* Top bar: Back */}
-                <div className="flex items-start justify-between gap-4 mb-6">
-                    <div>
-                        <button
-                            type="button"
-                            onClick={goBack}
-                            className="
-                inline-flex items-center gap-2
-                px-4 py-2 rounded-xl
-                bg-amber-50 text-amber-800
-                border border-amber-200
-                shadow-sm
-                hover:bg-amber-100 hover:border-amber-300
-                active:scale-[0.98]
-                transition
-            "
-                        >
-                            <ArrowLeft className="w-4 h-4" />
-                            <span className="text-sm font-semibold">Kembali</span>
-                        </button>
+                {/* Header: Back icon di kiri sejajar judul */}
+                <div className="flex items-start gap-4 mb-6">
+                    <button
+                        type="button"
+                        onClick={goBack}
+                        aria-label="Kembali"
+                        className={[
+                            "mt-1 inline-flex items-center justify-center",
+                            "w-10 h-10 rounded-xl",
+                            "border border-gray-200 bg-white",
+                            "text-gray-700 hover:bg-gray-50",
+                            "focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400",
+                            "active:scale-[0.98] transition",
+                        ].join(" ")}
+                    >
+                        <ArrowLeft size={18} />
+                    </button>
+
+                    <div className="min-w-0">
+                        <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
+                            Pesanan Saya
+                        </h1>
+                        <p className="text-sm text-gray-500 mt-1">
+                            Pantau pesanan yang sedang berjalan dan riwayat yang sudah selesai.
+                        </p>
                     </div>
-                </div>
-
-
-                {/* Header */}
-                <div className="flex flex-col gap-2 mb-6">
-                    <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
-                        Pesanan Saya
-                    </h1>
-                    <p className="text-sm text-gray-500">
-                        Pantau pesanan yang sedang berjalan dan riwayat yang sudah selesai.
-                    </p>
                 </div>
 
                 {/* Tab + Counter (gaya dashboard) */}
@@ -124,11 +116,12 @@ export default function OrdersPage({ orders, currentStatus, summaryData }) {
                             <button
                                 type="button"
                                 onClick={() => handleTabChange("processed")}
-                                className={`w-full text-left p-4 rounded-xl border transition-all
-                                    ${activeTab === "processed"
+                                className={[
+                                    "w-full text-left p-4 rounded-xl border transition-all",
+                                    activeTab === "processed"
                                         ? "border-amber-300 ring-1 ring-amber-200 bg-amber-50/30"
-                                        : "border-gray-200 bg-white hover:bg-gray-50"
-                                    }`}
+                                        : "border-gray-200 bg-white hover:bg-gray-50",
+                                ].join(" ")}
                             >
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
@@ -146,11 +139,12 @@ export default function OrdersPage({ orders, currentStatus, summaryData }) {
                                     </div>
 
                                     <span
-                                        className={`text-xs px-2.5 py-1 rounded-full font-semibold
-                                            ${activeTab === "processed"
+                                        className={[
+                                            "text-xs px-2.5 py-1 rounded-full font-semibold",
+                                            activeTab === "processed"
                                                 ? "bg-amber-100 text-amber-700"
-                                                : "bg-gray-100 text-gray-600"
-                                            }`}
+                                                : "bg-gray-100 text-gray-600",
+                                        ].join(" ")}
                                     >
                                         {processedCount}
                                     </span>
@@ -160,11 +154,12 @@ export default function OrdersPage({ orders, currentStatus, summaryData }) {
                             <button
                                 type="button"
                                 onClick={() => handleTabChange("completed")}
-                                className={`w-full text-left p-4 rounded-xl border transition-all
-                                    ${activeTab === "completed"
+                                className={[
+                                    "w-full text-left p-4 rounded-xl border transition-all",
+                                    activeTab === "completed"
                                         ? "border-amber-300 ring-1 ring-amber-200 bg-amber-50/30"
-                                        : "border-gray-200 bg-white hover:bg-gray-50"
-                                    }`}
+                                        : "border-gray-200 bg-white hover:bg-gray-50",
+                                ].join(" ")}
                             >
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
@@ -182,11 +177,12 @@ export default function OrdersPage({ orders, currentStatus, summaryData }) {
                                     </div>
 
                                     <span
-                                        className={`text-xs px-2.5 py-1 rounded-full font-semibold
-                                            ${activeTab === "completed"
+                                        className={[
+                                            "text-xs px-2.5 py-1 rounded-full font-semibold",
+                                            activeTab === "completed"
                                                 ? "bg-amber-100 text-amber-700"
-                                                : "bg-gray-100 text-gray-600"
-                                            }`}
+                                                : "bg-gray-100 text-gray-600",
+                                        ].join(" ")}
                                     >
                                         {completedCount}
                                     </span>
@@ -266,12 +262,11 @@ export default function OrdersPage({ orders, currentStatus, summaryData }) {
                                                 </div>
                                             </div>
 
-                                            {/* strip bawah */}
                                             <div
-                                                className={`h-1.5 w-full ${s === "COMPLETED"
-                                                    ? "bg-green-200"
-                                                    : "bg-amber-200"
-                                                    }`}
+                                                className={[
+                                                    "h-1.5 w-full",
+                                                    s === "COMPLETED" ? "bg-green-200" : "bg-amber-200",
+                                                ].join(" ")}
                                             />
                                         </div>
                                     );
@@ -281,6 +276,6 @@ export default function OrdersPage({ orders, currentStatus, summaryData }) {
                     </div>
                 </div>
             </div>
-        </div>
+        </CustomerLayout>
     );
 }

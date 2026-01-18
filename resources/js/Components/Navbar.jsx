@@ -96,7 +96,6 @@ export default function Navbar() {
                                 )}
                             </Link>
 
-                            <Link className="navLink" href="/#inspiration">Inspirasi</Link>
                             <Link className="navLink" href="/#about">Tentang</Link>
                         </div>
 
