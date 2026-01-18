@@ -5,23 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne; // Untuk relasi orderPayment
-
-// ===============================================
-// 🎯 Pastikan Import Model Relasi
-// ===============================================
-use App\Models\User;
-use App\Models\Package;
-use App\Models\WeddingOrganizer;
-use App\Models\OrderPayment;
-// ===============================================
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Order extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'customer_id', // Menggunakan customer_id sebagai penghubung dengan model User
+        'customer_id',
         'vendor_id',
         'package_id',
         'order_date',
@@ -29,18 +20,17 @@ class Order extends Model
         'payment_status',
         'total_price',
         'amount',
-        'snap_token',  // Kolom ini tetap dipertahankan
+        'snap_token',
     ];
 
     protected $casts = [
-        'order_date' => 'datetime',  // Mengubah kolom order_date ke datetime
-        'amount' => 'decimal:2',     // Mengatur amount agar menggunakan dua tempat desimal
+        'order_date' => 'date',
+        'amount' => 'decimal:2',
     ];
 
-    // --- RELASI UTAMA ---
     public function vendor(): BelongsTo
     {
-        return $this->belongsTo(WeddingOrganizer::class, 'vendor_id');
+        return $this->belongsTo(Vendor::class, 'vendor_id');
     }
 
     public function package(): BelongsTo
@@ -55,6 +45,6 @@ class Order extends Model
 
     public function orderPayment(): HasOne
     {
-        return $this->hasOne(OrderPayment::class)->latest();  // Ambil pembayaran terakhir
+        return $this->hasOne(OrderPayment::class);
     }
 }

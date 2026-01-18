@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import axios from "axios";
 import { Head, usePage, router } from "@inertiajs/react";
 import {
     AlertCircle,
@@ -11,7 +12,7 @@ import {
     CheckCircle,
 } from "lucide-react";
 
-const SelectDate = ({ vendor, package: packageData, auth }) => {
+const SelectDate = ({ vendor, package: packageData }) => {
     const { props } = usePage();
     const serverError = props.flash?.error;
 
@@ -32,7 +33,6 @@ const SelectDate = ({ vendor, package: packageData, auth }) => {
 
     const todayMin = new Date().toISOString().split("T")[0];
 
-    // Guard clause for error handling
     if (!vendor || !packageData || serverError) {
         const displayMessage =
             serverError ||
@@ -71,30 +71,57 @@ const SelectDate = ({ vendor, package: packageData, auth }) => {
         );
     }
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
+
         if (!orderDate) {
             setErrorMessage("Silakan pilih tanggal terlebih dahulu.");
             return;
         }
-        setErrorMessage("");
 
-        router.post(
-            route("order.store"),
-            {
+        setErrorMessage("");
+        setProcessing(true);
+
+        try {
+            const res = await axios.post(route("api.checkAvailability"), {
                 vendor_id: vendor.id,
                 package_id: packageData.id,
                 order_date: orderDate,
-            },
-            {
-                onStart: () => setProcessing(true),
-                onFinish: () => setProcessing(false),
-                onError: (errors) => {
-                    const firstError = Object.values(errors)[0];
-                    setErrorMessage(firstError || "Gagal membuat pemesanan.");
-                },
+            });
+
+            if (!res.data?.available) {
+                const max = res.data?.max ?? 3;
+                setErrorMessage(`Tanggal tersebut sudah penuh. Maksimal ${max} pemesanan untuk paket ini.`);
+                setProcessing(false);
+                return;
             }
-        );
+
+            router.post(
+                route("order.store"),
+                {
+                    vendor_id: vendor.id,
+                    package_id: packageData.id,
+                    order_date: orderDate,
+                },
+                {
+                    onFinish: () => setProcessing(false),
+                    onError: (errors) => {
+                        const firstError = Object.values(errors)[0];
+                        setErrorMessage(firstError || "Gagal membuat pemesanan.");
+                        setProcessing(false);
+                    },
+                }
+            );
+        } catch (err) {
+            // Jika backend mengembalikan 422, tampilkan pesan validasi jika ada
+            const message =
+                err?.response?.data?.message ||
+                "Terjadi kesalahan dalam pengecekan tanggal.";
+
+            setErrorMessage(message);
+            setProcessing(false);
+            console.error(err);
+        }
     };
 
     return (
@@ -103,7 +130,6 @@ const SelectDate = ({ vendor, package: packageData, auth }) => {
 
             <main className="py-10 px-5 sm:px-6 lg:px-8">
                 <div className="max-w-6xl mx-auto">
-                    {/* Top bar */}
                     <div className="flex items-center justify-between gap-4 mb-6">
                         <button
                             onClick={() => window.history.back()}
@@ -118,7 +144,6 @@ const SelectDate = ({ vendor, package: packageData, auth }) => {
                         </div>
                     </div>
 
-                    {/* Header */}
                     <div className="mb-6">
                         <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
                             Pilih Tanggal
@@ -129,7 +154,6 @@ const SelectDate = ({ vendor, package: packageData, auth }) => {
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                        {/* Left Side: Summary */}
                         <div className="lg:col-span-2">
                             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden sticky top-6">
                                 <div className="p-6">
@@ -179,7 +203,6 @@ const SelectDate = ({ vendor, package: packageData, auth }) => {
                             </div>
                         </div>
 
-                        {/* Right Side: Form */}
                         <div className="lg:col-span-3">
                             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
                                 <div className="p-6 sm:p-7">

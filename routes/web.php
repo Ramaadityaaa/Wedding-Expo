@@ -160,7 +160,8 @@ Route::get('/register/vendor', [HomeController::class, 'vendorRegister'])->name(
 Route::post('/register/vendor', [HomeController::class, 'vendorStore'])->name('vendor.store');
 
 /**
- * API Vendors
+ * API Vendors (PUBLIC)
+ * Catatan: grup ini tetap public seperti kode Anda sebelumnya.
  */
 Route::prefix('api')->group(function () {
     Route::get('/vendors', [VendorController::class, 'index'])->name('api.vendors.index');
@@ -173,6 +174,15 @@ Route::prefix('api')->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth'])->group(function () {
+
+    /**
+     * API Check Availability (AUTH)
+     * Ini yang Anda butuhkan agar POST /api/check-availability tidak 404.
+     */
+    Route::prefix('api')->group(function () {
+        Route::post('/check-availability', [BookingController::class, 'checkAvailability'])
+            ->name('api.checkAvailability');
+    });
 
     /**
      * CUSTOMER REVIEW (tulis/edit/hapus ulasan sendiri)
@@ -388,7 +398,6 @@ Route::prefix('admin')
         |--------------------------------------------------------------------------
         */
         Route::get('/notifications', [AdminNotificationController::class, 'index'])->name('notifications.index');
-
         Route::get('/notifications/latest', [AdminNotificationController::class, 'index'])->name('notifications.latest');
 
         Route::get('/notifications/unread-count', function (\Illuminate\Http\Request $request) {

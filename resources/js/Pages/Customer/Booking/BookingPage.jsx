@@ -19,7 +19,7 @@ const BookingPage = () => {
             .then(response => setPackages(response.data))
             .catch(error => setErrorMessage('Gagal memuat paket'));
     }, []);
-    
+
     const handleSubmit = (e) => {
         e.preventDefault();
 
@@ -46,7 +46,11 @@ const BookingPage = () => {
             setOrderDate('');
         })
         .catch(error => {
-            alert('Terjadi kesalahan!');
+            if (error.response && error.response.data.message) {
+                setErrorMessage(error.response.data.message); // Menampilkan error dari backend
+            } else {
+                setErrorMessage('Terjadi kesalahan!');
+            }
             console.error(error);
         });
     };
@@ -57,7 +61,7 @@ const BookingPage = () => {
 
             {/* Tampilkan pesan error jika ada */}
             {errorMessage && <div style={{ color: 'red' }}>{errorMessage}</div>}
-            
+
             <form onSubmit={handleSubmit}>
                 <div>
                     <label>Vendor</label>
