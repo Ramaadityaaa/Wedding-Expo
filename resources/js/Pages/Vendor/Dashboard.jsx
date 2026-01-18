@@ -8,7 +8,8 @@ import {
     UserCheck,
     ArrowRight,
     CheckCircle,
-    Eye
+    Eye,
+    Calendar,
 } from "lucide-react";
 
 // ======================================================================
@@ -16,7 +17,7 @@ import {
 // ======================================================================
 
 const formatRupiah = (number) => {
-    const num = number || 0;
+    const num = Number(number || 0);
     return new Intl.NumberFormat("id-ID", {
         style: "currency",
         currency: "IDR",
@@ -37,23 +38,26 @@ const SummaryCard = ({
     secondaryText,
     secondaryLink,
     subTitle,
+    className = "",
 }) => {
     return (
         <div
             className={[
                 "rounded-2xl p-6 h-full",
-                "transition-transform transform hover:scale-[1.02] duration-300",
+                "transition-transform transform hover:scale-[1.01] duration-300",
+                "shadow-sm",
                 colorClass,
+                className,
             ].join(" ")}
         >
-            {/* Header */}
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                     <h4 className="text-sm font-semibold uppercase text-white/85 tracking-wider">
                         {title}
                     </h4>
 
-                    <p className="mt-2 text-4xl font-extrabold text-white leading-tight">
+                    {/* Value dibuat sedikit lebih “aman” agar tidak kepotong */}
+                    <p className="mt-2 text-3xl sm:text-4xl font-extrabold text-white leading-snug break-words">
                         {value}
                     </p>
 
@@ -64,7 +68,6 @@ const SummaryCard = ({
                     )}
                 </div>
 
-                {/* Icon badge (biar rapi di semua gradien) */}
                 <div
                     className={[
                         "shrink-0",
@@ -79,10 +82,8 @@ const SummaryCard = ({
                 </div>
             </div>
 
-            {/* Divider */}
             <div className="mt-5 h-px w-full bg-white/25" />
 
-            {/* Footer */}
             <div className="mt-4">
                 {secondaryValue && (
                     <p className="text-sm font-semibold text-white/90">
@@ -104,10 +105,6 @@ const SummaryCard = ({
     );
 };
 
-// ======================================================================
-// Main Vendor Dashboard Component
-// ======================================================================
-
 export default function VendorDashboard({ vendor, stats }) {
     const { auth } = usePage().props;
 
@@ -120,7 +117,6 @@ export default function VendorDashboard({ vendor, stats }) {
         recent_reviews = [],
     } = stats || {};
 
-    // Tanggal hari ini (sudah termasuk nama hari)
     const today = new Date().toLocaleDateString("id-ID", {
         weekday: "long",
         day: "numeric",
@@ -128,98 +124,107 @@ export default function VendorDashboard({ vendor, stats }) {
         year: "numeric",
     });
 
-    const cardData = [
-        {
-            title: "Status Verifikasi",
-            value: vendor.isApproved,
-            icon: UserCheck,
-            colorClass: "bg-gradient-to-br from-amber-500 to-orange-600",
-            secondaryValue:
-                vendor.isApproved === "APPROVED"
-                    ? "Vendor Terverifikasi"
-                    : "Proses Sekarang",
-            secondaryText:
-                vendor.isApproved === "APPROVED"
-                    ? "Lihat Profil"
-                    : "Lengkapi Dokumen",
-            secondaryLink: "/vendor/profile",
-            subTitle: `Rating Anda: ${average_rating}/5.0`,
-        },
-        {
-            title: "Total Pendapatan",
-            value: formatRupiah(total_revenue),
-            icon: DollarSign,
-            colorClass: "bg-gradient-to-br from-green-500 to-teal-600",
-            secondaryText: "Lihat Transaksi",
-            secondaryLink: "/vendor/payments",
-            subTitle: `Total ${total_orders} Pesanan`,
-        },
-        {
-            title: "Total Review",
-            value: `${total_reviews} Ulasan`,
-            icon: Star,
-            colorClass: "bg-gradient-to-br from-indigo-500 to-purple-600",
-            secondaryText: "Lihat Semua Ulasan",
-            secondaryLink: "/vendor/reviews",
-            subTitle: `Rata-rata: ${average_rating} / 5.0`,
-        },
-        {
-            title: "Total Pesanan",
-            value: `${total_orders}`,
-            icon: ShoppingBag,
-            colorClass: "bg-gradient-to-br from-pink-500 to-red-600",
-            secondaryText: "Kelola Pesanan",
-            secondaryLink: "/vendor/orders",
-            subTitle: "Semua Status Pesanan",
-        },
-    ];
-
     return (
         <VendorLayout
             user={auth.user}
             vendor={vendor}
-            header={<h1 className="text-3xl font-bold text-gray-800">Dashboard Ringkasan</h1>}
+            header={
+                <div className="text-gray-800">
+                    <div className="text-3xl font-bold">Dashboard Ringkasan</div>
+                </div>
+            }
         >
             <Head title="Vendor Dashboard" />
 
             <div className="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
-                {/* Greeting */}
+                {/* Header Welcome */}
                 <div className="bg-white rounded-xl shadow-xl p-8 mb-8 border border-gray-100">
-                    <div className="flex justify-between items-start gap-4">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
                         <div className="min-w-0">
                             <h2 className="text-3xl font-extrabold text-gray-800">
                                 Selamat Datang,{" "}
-                                <b className="text-amber-600">{vendor.name}</b>!
+                                <b className="text-amber-600">{vendor?.name}</b>!
                             </h2>
                             <p className="text-base text-gray-600 mt-1">
                                 Berikut adalah ringkasan aktivitas bisnis Anda di Wedding Expo hari ini.
                             </p>
                         </div>
 
-                        <span className="shrink-0 text-sm font-medium text-gray-500 bg-amber-50 rounded-full px-4 py-1.5 shadow-sm">
+                        <span className="shrink-0 text-sm font-medium text-gray-500 bg-amber-50 rounded-full px-4 py-1.5 shadow-sm w-fit">
                             {today}
                         </span>
                     </div>
                 </div>
 
-                {/* Summary Cards */}
+                {/* =========================================================
+                    STAT CARDS
+                    Target: 2 atas + 2 bawah pada layar besar
+                    Bonus: Total Pendapatan dibuat lebih dominan (span 2 kolom)
+                ========================================================= */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    {cardData.map((item, index) => (
-                        <SummaryCard
-                            key={index}
-                            title={item.title}
-                            value={item.value}
-                            icon={item.icon}
-                            colorClass={item.colorClass}
-                            secondaryValue={item.secondaryValue}
-                            secondaryText={item.secondaryText}
-                            secondaryLink={item.secondaryLink}
-                            subTitle={item.subTitle}
-                        />
-                    ))}
+                    {/* Card 1: Status Verifikasi */}
+                    <SummaryCard
+                        title="Status Verifikasi"
+                        value={vendor?.isApproved}
+                        icon={UserCheck}
+                        colorClass="bg-gradient-to-br from-amber-500 to-orange-600"
+                        secondaryValue={
+                            vendor?.isApproved === "APPROVED"
+                                ? "Vendor Terverifikasi"
+                                : "Proses Sekarang"
+                        }
+                        secondaryText={
+                            vendor?.isApproved === "APPROVED"
+                                ? "Lihat Profil"
+                                : "Lengkapi Dokumen"
+                        }
+                        secondaryLink="/vendor/profile"
+                        subTitle={`Rating Anda: ${average_rating}/5.0`}
+                        // agar rapi di grid
+                        className="lg:col-span-2"
+                    />
+
+                    {/* Card 2: Total Pendapatan (Dominan) */}
+                    <SummaryCard
+                        title="Total Pendapatan"
+                        value={formatRupiah(total_revenue)}
+                        icon={DollarSign}
+                        colorClass="bg-gradient-to-br from-green-500 to-teal-600"
+                        secondaryText="Lihat Transaksi"
+                        secondaryLink="/vendor/payments"
+                        subTitle={`Total ${total_orders} Pesanan`}
+                        // dibuat span 2 kolom agar nilai Rupiah luas dan jelas
+                        className="lg:col-span-2"
+                    />
+
+                    {/* Card 3: Total Review */}
+                    <SummaryCard
+                        title="Total Review"
+                        value={`${total_reviews} Ulasan`}
+                        icon={Star}
+                        colorClass="bg-gradient-to-br from-indigo-500 to-purple-600"
+                        secondaryText="Lihat Semua Ulasan"
+                        secondaryLink="/vendor/reviews"
+                        subTitle={`Rata-rata: ${average_rating} / 5.0`}
+                        className="lg:col-span-2"
+                    />
+
+                    {/* Card 4: Total Pesanan */}
+                    <SummaryCard
+                        title="Total Pesanan"
+                        value={`${total_orders}`}
+                        icon={ShoppingBag}
+                        colorClass="bg-gradient-to-br from-pink-500 to-red-600"
+                        secondaryText="Kelola Pesanan"
+                        secondaryLink="/vendor/orders"
+                        subTitle="Semua Status Pesanan"
+                        className="lg:col-span-2"
+                    />
                 </div>
 
-                {/* Orders & Reviews */}
+                {/* =========================================================
+                    BOTTOM PANELS: Recent Orders & Recent Reviews
+                ========================================================= */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Recent Orders */}
                     <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
@@ -246,12 +251,19 @@ export default function VendorDashboard({ vendor, stats }) {
                                             <p className="font-semibold text-gray-800 truncate">
                                                 {order.customer_name}
                                             </p>
+
+                                            {order.created_date_human && (
+                                                <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                                                    <Calendar size={14} />
+                                                    {order.created_date_human}
+                                                </p>
+                                            )}
                                         </div>
 
                                         <span
                                             className={[
                                                 "text-xs font-medium px-2 py-1 rounded-full",
-                                                order.status === "PENDING"
+                                                String(order.status).toUpperCase() === "PENDING"
                                                     ? "bg-amber-100 text-amber-600"
                                                     : "bg-green-100 text-green-600",
                                             ].join(" ")}

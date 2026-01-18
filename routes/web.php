@@ -161,7 +161,6 @@ Route::post('/register/vendor', [HomeController::class, 'vendorStore'])->name('v
 
 /**
  * API Vendors (PUBLIC)
- * Catatan: grup ini tetap public seperti kode Anda sebelumnya.
  */
 Route::prefix('api')->group(function () {
     Route::get('/vendors', [VendorController::class, 'index'])->name('api.vendors.index');
@@ -177,7 +176,6 @@ Route::middleware(['auth'])->group(function () {
 
     /**
      * API Check Availability (AUTH)
-     * Ini yang Anda butuhkan agar POST /api/check-availability tidak 404.
      */
     Route::prefix('api')->group(function () {
         Route::post('/check-availability', [BookingController::class, 'checkAvailability'])
@@ -185,7 +183,7 @@ Route::middleware(['auth'])->group(function () {
     });
 
     /**
-     * CUSTOMER REVIEW (tulis/edit/hapus ulasan sendiri)
+     * CUSTOMER REVIEW
      */
     Route::post('/vendors/{vendor}/reviews', [CustomerReviewController::class, 'upsert'])
         ->name('customer.reviews.upsert');
@@ -226,7 +224,6 @@ Route::middleware(['auth'])->group(function () {
 
     /**
      * Customer Dashboard
-     * Perbaikan: pakai HomeController@index agar prop vendors ikut terkirim.
      */
     Route::get('/customer/dashboard', [HomeController::class, 'index'])->name('customer.dashboard');
 
@@ -299,9 +296,13 @@ Route::prefix('vendor')
 
         Route::get('/payment-proofs', [PaymentProofController::class, 'vendorIndex'])->name('paymentproof.index');
 
+        /**
+         * FIX: vendor payments index agar sesuai file yang ada
+         * resources/js/Pages/Vendor/pages/PaymentManagementPage.jsx
+         */
         Route::prefix('payments')->as('payment.')->group(function () {
             Route::get('/', function () {
-                return Inertia::render('Vendor/Payment/PaymentIndexPage');
+                return Inertia::render('Vendor/pages/PaymentManagementPage');
             })->name('index');
 
             Route::get('/loading', [VendorPaymentFlowController::class, 'paymentLoadingPage'])->name('loading');

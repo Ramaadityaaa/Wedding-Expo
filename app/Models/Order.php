@@ -19,13 +19,11 @@ class Order extends Model
         'status',
         'payment_status',
         'total_price',
-        'amount',
-        'snap_token',
     ];
 
     protected $casts = [
         'order_date' => 'date',
-        'amount' => 'decimal:2',
+        'total_price' => 'decimal:2',
     ];
 
     public function vendor(): BelongsTo
