@@ -16,7 +16,7 @@ class UserSeeder extends Seeder
         // Akun ADMIN utama
         User::updateOrCreate(
             [
-                'email' => 'rama@gmail.com', // email unik
+                'email' => 'ullulazmia.l@gmail.com', // email unik
             ],
             [
                 'name'              => 'Admin WeddingExpo',
@@ -27,16 +27,27 @@ class UserSeeder extends Seeder
             ]
         );
 
-        // (opsional) contoh akun VENDOR nanti
-        // User::updateOrCreate(
-        //     ['email' => 'vendor@weddingexpo.test'],
-        //     [
-        //         'name'              => 'Vendor Demo',
-        //         'password'          => Hash::make('password123'),
-        //         'role'              => 'VENDOR',
-        //         'phone'             => '081298765432',
-        //         'email_verified_at' => now(),
-        //     ]
-        // );
+
+        User::updateOrCreate(
+            ['email' => 'vendor@weddingexpo.com'],
+            [
+                'name'              => 'Vendor Demo',
+                'password'          => Hash::make('password'),
+                'role'              => 'VENDOR',
+                'phone'             => '081298765432',
+                'email_verified_at' => now(),
+            ]
+        );
+
+        User::updateOrCreate(
+            ['email' => 'customer@weddingexpo.com'],
+            [
+                'name'              => 'Customer Demo',
+                'password'          => Hash::make('password'),
+                'role'              => 'CUSTOMER',
+                'phone'             => '081298765431',
+                'email_verified_at' => now(),
+            ]
+        );
     }
 }
