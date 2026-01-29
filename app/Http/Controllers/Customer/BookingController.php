@@ -26,7 +26,7 @@ class BookingController extends Controller
         }
 
         return Inertia::render('Customer/Booking/SelectDate', [
-            'vendor' => $vendor,
+            'vendor'  => $vendor,
             'package' => $package,
         ]);
     }
@@ -34,12 +34,12 @@ class BookingController extends Controller
     public function checkAvailability(Request $request)
     {
         $validated = $request->validate([
-            'vendor_id' => 'required|exists:vendors,id',
+            'vendor_id'  => 'required|exists:vendors,id',
             'package_id' => 'required|exists:packages,id',
             'order_date' => 'required|date',
         ]);
 
-        $vendorId = (int) $validated['vendor_id'];
+        $vendorId  = (int) $validated['vendor_id'];
         $packageId = (int) $validated['package_id'];
         $orderDate = $validated['order_date'];
 
@@ -50,13 +50,13 @@ class BookingController extends Controller
         if (!$packageValid) {
             return response()->json([
                 'available' => false,
-                'message' => 'Paket tidak sesuai dengan vendor yang dipilih.',
+                'message'   => 'Paket tidak sesuai dengan vendor yang dipilih.',
             ], 422);
         }
 
-        $maxPerDate = 3;
+        $maxPerDate = 1;
 
-        // Pakai normalisasi: support data lama (pending/paid) + data baru (PENDING/PAID)
+        // Normalisasi: dukung data lama (pending/paid) + data baru (PENDING/PAID)
         $existingCount = Order::where('vendor_id', $vendorId)
             ->whereDate('order_date', $orderDate)
             ->whereIn('payment_status', ['PENDING', 'PAID', 'pending', 'paid'])
@@ -66,20 +66,20 @@ class BookingController extends Controller
 
         return response()->json([
             'available' => $available,
-            'count' => $existingCount,
-            'max' => $maxPerDate,
+            'count'     => $existingCount,
+            'max'       => $maxPerDate,
         ]);
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'vendor_id' => 'required|exists:vendors,id',
+            'vendor_id'  => 'required|exists:vendors,id',
             'package_id' => 'required|exists:packages,id',
             'order_date' => 'required|date',
         ]);
 
-        $vendorId = (int) $validated['vendor_id'];
+        $vendorId  = (int) $validated['vendor_id'];
         $packageId = (int) $validated['package_id'];
         $orderDate = $validated['order_date'];
 
@@ -91,7 +91,7 @@ class BookingController extends Controller
             return back()->with('error', 'Paket tidak sesuai dengan vendor yang dipilih.');
         }
 
-        $maxPerDate = 3;
+        $maxPerDate = 1;
 
         $existingCount = Order::where('vendor_id', $vendorId)
             ->whereDate('order_date', $orderDate)
@@ -99,41 +99,38 @@ class BookingController extends Controller
             ->count();
 
         if ($existingCount >= $maxPerDate) {
-            return back()->with('error', 'Vendor ini sudah terpesan 3 kali pada tanggal tersebut.');
+            return back()->with('error', 'Vendor ini sudah terpesan pada tanggal tersebut.');
         }
 
         $order = new Order();
-        $order->customer_id = Auth::id();
-        $order->vendor_id = $vendorId;
-        $order->package_id = $packageId;
-        $order->order_date = $orderDate;
+        $order->customer_id    = Auth::id();
+        $order->vendor_id      = $vendorId;
+        $order->package_id     = $packageId;
+        $order->order_date     = $orderDate;
 
         // Konsisten uppercase supaya filter VendorOrderController tidak pecah
-        $order->status = 'PENDING';
+        $order->status         = 'PENDING';
         $order->payment_status = 'PENDING';
 
         $order->save();
 
-        // ====== FIX PENTING: Kirim notifikasi ke user vendor ======
+        // Kirim notifikasi ke user vendor
         $vendor = Vendor::with('user')->find($vendorId);
-
-        // Pastikan relasi Vendor -> user ada. Jika nama relasinya beda, sesuaikan.
         $vendorUser = $vendor?->user;
 
         if ($vendorUser) {
             $payload = [
-                'title' => 'Pesanan baru masuk',
-                'message' => 'Ada order baru. Order ID #' . $order->id,
-                'url' => route('vendor.orders.index', ['status' => 'waiting']),
-                'order_id' => $order->id,
-                'vendor_id' => $vendorId,
-                'package_id' => $packageId,
+                'title'       => 'Pesanan baru masuk',
+                'message'     => 'Ada order baru. Order ID #' . $order->id,
+                'url'         => route('vendor.orders.index', ['status' => 'waiting']),
+                'order_id'    => $order->id,
+                'vendor_id'   => $vendorId,
+                'package_id'  => $packageId,
                 'customer_id' => $order->customer_id,
             ];
 
             $vendorUser->notify(new NewOrderNotification($payload));
         }
-        // =========================================================
 
         return Inertia::location(route('customer.payment.page', ['orderId' => $order->id]));
     }
