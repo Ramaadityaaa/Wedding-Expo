@@ -14,27 +14,44 @@ class Vendor extends Model
 {
     use HasFactory;
 
-    // sesuaikan fillable kamu kalau beda
+    protected $table = 'vendors'; // Pastikan nama tabel benar
+
     protected $fillable = [
         'user_id',
         'name',
-        'address',
-        'logo',
+        'slug',
         'description',
+        'address',
+        'city',
+        'province',
         'phone',
-        'contact',
+
+        'contact_name',
+        'contact_email',
+
+        'permit_number',
+        'permit_image_path',
         'isApproved',
         'rejection_reason',
+
+        'bank_name',
+        'account_number',
+        'account_holder_name',
+        'qris_path',
+
+        'logo',
+        'cover_photo',
+        'website',
+        'instagram',
     ];
 
     public function user()
     {
         return $this->belongsTo(User::class);
     }
-
     public function packages()
     {
-        return $this->hasMany(Package::class, 'vendor_id');
+        return $this->hasMany(Package::class);
     }
 
     public function portfolios()

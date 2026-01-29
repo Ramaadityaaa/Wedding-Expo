@@ -7,22 +7,33 @@ import {
     MessageSquare,
     Banknote,
     ShoppingBag,
-    Star, // ✅ icon Ulasan
+    Star,
 } from "lucide-react";
 
 export const vendorNavItems = [
+    // --- UTAMA ---
     {
         name: "dashboard",
         label: "Dashboard",
         route: "vendor.dashboard",
         icon: LayoutDashboard,
     },
+
+    // --- OPERASIONAL (Pesanan & Chat) ---
     {
         name: "orders",
         label: "Pesanan Masuk",
         route: "vendor.orders.index",
         icon: ShoppingBag,
     },
+    {
+        name: "chat",
+        label: "Pesan & Chat",
+        route: "vendor.chat.index",
+        icon: MessageSquare,
+    },
+
+    // --- MANAJEMEN PRODUK (Paket, Portofolio, Review) ---
     {
         name: "packages",
         label: "Paket Jasa",
@@ -35,15 +46,14 @@ export const vendorNavItems = [
         route: "vendor.portfolio.index",
         icon: ImageIcon,
     },
-
-    // ✅ MENU BARU: ULASAN
     {
         name: "reviews",
-        label: "Ulasan",
+        label: "Ulasan Klien",
         route: "vendor.reviews.index",
         icon: Star,
     },
 
+    // --- PENGATURAN & KEUANGAN ---
     {
         name: "profile",
         label: "Profil Bisnis",
@@ -61,11 +71,5 @@ export const vendorNavItems = [
         label: "Langganan",
         route: "vendor.membership.index",
         icon: CreditCard,
-    },
-    {
-        name: "chat",
-        label: "Pesan & Chat",
-        route: "vendor.chat.index",
-        icon: MessageSquare,
     },
 ];

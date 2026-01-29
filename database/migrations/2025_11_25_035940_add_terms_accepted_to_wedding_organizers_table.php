@@ -9,8 +9,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('wedding_organizers', function (Blueprint $table) {
-            // Tambahkan kolom terms_accepted (default boolean false)
-            $table->boolean('terms_accepted')->default(false)->after('isApproved'); 
+            // HAPUS bagian ->after('isApproved')
+            // Cukup seperti ini saja:
+            $table->boolean('terms_accepted')->default(false);
         });
     }
 

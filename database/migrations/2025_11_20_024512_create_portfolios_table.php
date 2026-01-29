@@ -17,17 +17,25 @@ return new class extends Migration
         Schema::create('portfolios', function (Blueprint $table) {
             $table->id();
 
-            // PERBAIKAN KONSISTENSI:
-            // Gunakan 'vendor_id' (bukan wedding_organizer_id)
-            // Tapi tetap arahkan ke tabel 'wedding_organizers'
+            // PERBAIKAN:
+            // 1. Arahkan constrained ke 'vendors'
+            // 2. Pastikan file ini sudah di-rename tanggalnya jadi lebih baru dari migrasi vendors
             $table->foreignId('vendor_id')
-                ->constrained('wedding_organizers')
+                ->constrained('vendors') // <--- GANTI INI
                 ->onDelete('cascade');
 
             $table->string('title')->nullable();
             $table->text('description')->nullable();
-            $table->string('imageUrl');
+
+            // Opsional: Tambahkan nullable pada imageUrl jika ada kasus upload gagal tapi record terbuat
+            // Tapi kalau wajib ada gambar, biarkan string saja.
+            $table->string('imageUrl')->nullable();
+
             $table->string('videoUrl')->nullable();
+
+            // Opsional: Tambahkan package_id jika portofolio terikat paket (sesuai controller kamu tadi)
+            $table->foreignId('package_id')->nullable()->constrained('packages')->onDelete('set null');
+
             $table->boolean('isPublished')->default(false);
             $table->timestamps();
         });

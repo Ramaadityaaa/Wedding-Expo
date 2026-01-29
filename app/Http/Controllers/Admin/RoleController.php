@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\WeddingOrganizer;
+use App\Models\Vendor; // <--- WAJIB GANTI KE MODEL VENDOR
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -16,14 +16,14 @@ class RoleController extends Controller
      */
     public function index(): Response
     {
-        // Hanya ambil vendor yang statusnya sudah APPROVED
-        $vendors = WeddingOrganizer::where('isApproved', 'APPROVED')
+        // Gunakan Model Vendor
+        $vendors = Vendor::where('isApproved', 'APPROVED')
             ->select(
                 'id',
                 'name',
-                'contact_email as email', // Alias untuk kompatibilitas frontend
-                'contact_phone as phone', // Alias untuk kompatibilitas frontend
-                'role' // Kolom Membership (Vendor atau Membership)
+                'contact_email as email', // Alias agar sesuai frontend
+                'phone',                  // Di tabel vendors namanya 'phone'
+                'role'
             )
             ->latest()
             ->get();
@@ -39,7 +39,7 @@ class RoleController extends Controller
     public function update(Request $request)
     {
         $request->validate([
-            'edits' => 'required|array', // Format: [ id_vendor => 'RoleBaru', ... ]
+            'edits' => 'required|array',
         ]);
 
         $edits = $request->input('edits');
@@ -47,10 +47,9 @@ class RoleController extends Controller
         DB::beginTransaction();
         try {
             foreach ($edits as $vendorId => $newRole) {
-                // Pastikan role valid (Vendor / Membership)
                 if (in_array($newRole, ['Vendor', 'Membership'])) {
-                    // Update kolom 'role' pada Vendor
-                    WeddingOrganizer::where('id', $vendorId)->update(['role' => $newRole]);
+                    // Update menggunakan Model Vendor
+                    Vendor::where('id', $vendorId)->update(['role' => $newRole]);
                 }
             }
 

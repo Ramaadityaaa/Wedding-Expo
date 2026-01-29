@@ -12,9 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('wedding_organizers', function (Blueprint $table) {
-            // Menambahkan kolom role dengan default 'Vendor'
-            // Kita letakkan setelah kolom 'isApproved' biar rapi
-            $table->string('role')->default('Vendor')->after('isApproved');
+            // HAPUS bagian ->after('isApproved')
+            // Biarkan kolom role masuk di urutan terakhir
+            $table->string('role')->default('Vendor');
         });
     }
 

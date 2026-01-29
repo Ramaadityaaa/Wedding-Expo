@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Models\WeddingOrganizer;
+use App\Models\Vendor; // <--- GANTI: Pakai Vendor, Jangan WeddingOrganizer
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 
 class HomeController extends Controller
@@ -20,23 +21,28 @@ class HomeController extends Controller
      */
     public function index()
     {
-        $vendors = WeddingOrganizer::where('isApproved', 'APPROVED')
+        // PERBAIKAN: Gunakan Vendor model dan cek string 'APPROVED'
+        $vendors = Vendor::where('isApproved', 'APPROVED')
             ->withAvg('reviews', 'rating')
             ->orderByDesc('reviews_avg_rating')
             ->orderByDesc('created_at')
             ->take(8)
             ->get()
             ->map(function ($vendor) {
+                // Ambil foto cover dari portofolio pertama (jika ada)
+                $coverPhoto = null;
+                if ($vendor->portfolios && $vendor->portfolios->isNotEmpty()) {
+                    $coverPhoto = asset('storage/' . $vendor->portfolios->first()->imageUrl); // Sesuaikan nama kolom path gambar di tabel portfolios
+                }
+
                 return [
                     'id' => $vendor->id,
                     'name' => $vendor->name,
                     'city' => $vendor->city ?? 'Indonesia',
                     'description' => $vendor->description,
-                    'coverPhoto' => $vendor->portfolios()->exists()
-                        ? asset('storage/' . $vendor->portfolios()->first()->imageUrl)
-                        : null,
+                    'coverPhoto' => $coverPhoto,
                     'rating' => $vendor->reviews_avg_rating ? number_format($vendor->reviews_avg_rating, 1) : 0,
-                    'reviewCount' => $vendor->reviews()->count(),
+                    'reviewCount' => $vendor->reviews->count(),
                     'isVerified' => true,
                 ];
             });
@@ -55,19 +61,20 @@ class HomeController extends Controller
     }
 
     /**
-     * Menyimpan data registrasi vendor baru (User + WeddingOrganizer).
+     * Menyimpan data registrasi vendor baru (User + VENDOR).
      */
     public function vendorStore(Request $request)
     {
         $rules = [
-            'name'           => 'required|string|max:255',
+            'name'           => 'required|string|max:255', // Nama Usaha
             'vendor_type'    => 'required|string|max:100',
             'city'           => 'required|string|max:255',
             'province'       => 'required|string|max:255',
             'address'        => 'required|string|max:1000',
-            'permit_number'  => 'required|string|max:255|unique:wedding_organizers,permit_number',
+            // Cek unik di tabel VENDORS, bukan wedding_organizers
+            'permit_number'  => 'required|string|max:255|unique:vendors,permit_number',
             'permit_image'   => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
-            'pic_name'       => 'required|string|max:255',
+            'pic_name'       => 'required|string|max:255', // Nama Kontak
             'email'          => 'required|email|max:255|unique:users,email',
             'whatsapp'       => 'required|string|max:25',
             'password'       => 'required|string|min:8|confirmed',
@@ -98,37 +105,55 @@ class HomeController extends Controller
 
         DB::beginTransaction();
         try {
+            // 1. Buat User Login
             $user = User::create([
-                'name'     => $request->pic_name,
+                'name'     => $request->pic_name, // Nama User adalah Nama PIC
                 'email'    => $request->email,
                 'password' => Hash::make($request->password),
                 'role'     => 'VENDOR',
+                'status'   => 'Active',
             ]);
 
-            WeddingOrganizer::create([
+            // 2. Buat Profil VENDOR (Tabel Baru)
+            $vendorData = [
                 'user_id'           => $user->id,
-                'name'              => $request->name,
-                'type'              => $request->vendor_type,
+                'name'              => $request->name, // Nama Perusahaan
+
+                // Masukkan tipe vendor ke deskripsi jika kolom 'type' tidak ada di tabel vendors
+                'description'       => "Jenis Vendor: " . $request->vendor_type,
+
                 'city'              => $request->city,
                 'province'          => $request->province,
                 'address'           => $request->address,
                 'permit_number'     => $request->permit_number,
                 'permit_image_path' => $permitImagePath,
+
+                // Mapping Kontak
                 'contact_name'      => $request->pic_name,
                 'contact_email'     => $request->email,
-                'contact_phone'     => $request->whatsapp,
+                'phone'             => $request->whatsapp, // Mapping WA ke Phone
+
+                // STATUS LANGSUNG APPROVED (STRING)
                 'isApproved'        => 'PENDING',
-                'terms_accepted'    => true,
-            ]);
+                'status'            => 'Active',
+            ];
+
+            // Cek jika kolom 'type' benar-benar ada di tabel vendors (opsional)
+            // Jika Anda yakin kolom 'type' tidak ada, hapus blok if ini.
+            if (Schema::hasColumn('vendors', 'type')) {
+                $vendorData['type'] = $request->vendor_type;
+            }
+
+            Vendor::create($vendorData);
 
             DB::commit();
 
             Auth::login($user);
 
+            // Redirect langsung ke Dashboard karena sudah Approved
             return redirect()
-                ->route('vendor.verification')
-                ->with('success', 'Pendaftaran berhasil! Akun Anda sedang menunggu verifikasi.');
-
+                ->route('vendor.dashboard')
+                ->with('success', 'Pendaftaran berhasil! Akun Anda telah aktif.');
         } catch (\Exception $e) {
             DB::rollBack();
             if ($permitImagePath) {

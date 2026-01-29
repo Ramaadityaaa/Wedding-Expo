@@ -51,7 +51,9 @@ export default function VendorLayout({ header, children }) {
     const isRouteActive = (routeName) => {
         if (!routeName) return false;
         try {
-            return route().current(routeName) || route().current(routeName + ".*");
+            return (
+                route().current(routeName) || route().current(routeName + ".*")
+            );
         } catch {
             return false;
         }
@@ -81,7 +83,10 @@ export default function VendorLayout({ header, children }) {
             >
                 <div className="px-6 py-5 border-b border-slate-800/60 bg-gradient-to-b from-[#0b1120] to-[#0f172a]">
                     <div className="flex items-center gap-4">
-                        <ElegantVendorAvatar logo={vendor?.logo} initials={initials} />
+                        <ElegantVendorAvatar
+                            logo={vendor?.logo}
+                            initials={initials}
+                        />
 
                         <div className="min-w-0">
                             <p className="text-base font-extrabold text-white truncate">
@@ -102,8 +107,14 @@ export default function VendorLayout({ header, children }) {
                                         }
                                     `}
                                 >
-                                    {isApproved ? <ShieldCheck size={11} /> : <Clock size={11} />}
-                                    {isApproved ? "TERVERIFIKASI" : "MENUNGGU APPROVAL"}
+                                    {isApproved ? (
+                                        <ShieldCheck size={11} />
+                                    ) : (
+                                        <Clock size={11} />
+                                    )}
+                                    {isApproved
+                                        ? "TERVERIFIKASI"
+                                        : "MENUNGGU APPROVAL"}
                                 </span>
 
                                 <span
@@ -116,7 +127,9 @@ export default function VendorLayout({ header, children }) {
                                     `}
                                 >
                                     <Crown size={11} />
-                                    {isMember ? "MEMBER PREMIUM" : "FREE VENDOR"}
+                                    {isMember
+                                        ? "MEMBER PREMIUM"
+                                        : "FREE VENDOR"}
                                 </span>
                             </div>
                         </div>
@@ -148,7 +161,9 @@ export default function VendorLayout({ header, children }) {
                                 onClick={(e) => {
                                     if (isLocked) {
                                         e.preventDefault();
-                                        alert("Fitur ini khusus Membership. Silakan berlangganan di menu 'Langganan'.");
+                                        alert(
+                                            "Fitur ini khusus Membership. Silakan berlangganan di menu 'Langganan'.",
+                                        );
                                         return;
                                     }
                                     setIsSidebarOpen(false);
@@ -159,8 +174,8 @@ export default function VendorLayout({ header, children }) {
                                         isLocked
                                             ? "text-slate-600 bg-slate-900/30 cursor-not-allowed opacity-80"
                                             : isActive
-                                            ? "text-white shadow-lg shadow-orange-500/20"
-                                            : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                                              ? "text-white shadow-lg shadow-orange-500/20"
+                                              : "text-slate-400 hover:text-white hover:bg-slate-800/50"
                                     }
                                 `}
                             >
@@ -173,14 +188,19 @@ export default function VendorLayout({ header, children }) {
                                         isLocked
                                             ? "text-slate-600"
                                             : isActive
-                                            ? "scale-110 text-white"
-                                            : "group-hover:scale-110 group-hover:text-orange-400"
+                                              ? "scale-110 text-white"
+                                              : "group-hover:scale-110 group-hover:text-orange-400"
                                     }`}
                                 >
-                                    <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                                    <Icon
+                                        size={20}
+                                        strokeWidth={isActive ? 2.5 : 2}
+                                    />
                                 </div>
 
-                                <span className="relative z-10 flex-1">{item.label}</span>
+                                <span className="relative z-10 flex-1">
+                                    {item.label}
+                                </span>
 
                                 {isLocked && (
                                     <span className="relative z-10 ml-auto text-[9px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded border border-slate-700">
@@ -212,7 +232,10 @@ export default function VendorLayout({ header, children }) {
                                             className="w-full h-full object-cover"
                                         />
                                     ) : (
-                                        <User size={18} className="text-slate-200" />
+                                        <User
+                                            size={18}
+                                            className="text-slate-200"
+                                        />
                                     )}
                                 </div>
                             </div>
@@ -254,7 +277,11 @@ export default function VendorLayout({ header, children }) {
                             className="p-2 -ml-2 rounded-lg text-slate-600 hover:bg-slate-100 md:hidden transition-colors"
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                         >
-                            {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
+                            {isSidebarOpen ? (
+                                <X size={24} />
+                            ) : (
+                                <Menu size={24} />
+                            )}
                         </button>
 
                         <div>

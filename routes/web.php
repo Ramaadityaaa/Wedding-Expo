@@ -53,6 +53,7 @@ use App\Models\Favorite;
 | PUBLIC ROUTES
 |--------------------------------------------------------------------------
 */
+
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
 /**
@@ -201,7 +202,7 @@ Route::middleware(['auth'])->group(function () {
 
         /**
          * CUSTOMER PROFILE (EDIT + UPDATE)
-         * Halaman: resources/js/Pages/Customer/Profile/Edit.jsx
+         * Menggunakan Controller Utama yang sama
          */
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -270,7 +271,10 @@ Route::middleware(['auth'])->group(function () {
 */
 Route::middleware(['auth'])->group(function () {
     Route::get('/vendor/verification-status', function () {
-        $vendor = auth()->user()->vendor;
+        // --- PERBAIKAN PENTING UNTUK POLLING ---
+        // Gunakan vendor()->first() untuk memaksa query baru ke database.
+        // Jangan gunakan $user->vendor, karena bisa jadi data cache lama.
+        $vendor = auth()->user()->vendor()->first();
 
         return Inertia::render('Auth/Vendor/VerificationStatus', [
             'status' => $vendor ? $vendor->isApproved : 'PENDING',
@@ -286,11 +290,13 @@ Route::prefix('vendor')
 
         Route::get('/dashboard', [VendorDashboard::class, 'index'])->name('dashboard');
 
-        /**
-         * VENDOR PROFILE (EDIT + UPDATE)
-         */
+        // --- VENDOR PROFILE (USER LOGIN + BISNIS) ---
+        // Menggunakan ProfileController yang sama, tapi nama route berbeda (vendor.profile.*)
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+
+        // Route baru untuk Update Data Bisnis (Form Atas)
+        Route::patch('/business-profile', [ProfileController::class, 'updateBusiness'])->name('business.update');
 
         Route::put('/password', [PasswordController::class, 'update'])->name('password.update');
 
@@ -368,7 +374,10 @@ Route::get('/dashboard', function () {
     }
 
     if ($user->role === 'VENDOR') {
-        $vendor = $user->vendor;
+        // --- AMBIL DATA FRESH DARI DB ---
+        $vendor = $user->vendor()->first();
+
+        // Cek STRING 'APPROVED'
         if (!$vendor || $vendor->isApproved !== 'APPROVED') {
             return redirect()->route('vendor.verification');
         }

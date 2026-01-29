@@ -4,39 +4,41 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\WeddingOrganizer;
+use App\Models\Vendor; // <--- GANTI: Pakai Vendor, Jangan WeddingOrganizer
 use Inertia\Inertia;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Storage;
 
 class AdminVendorController extends Controller
 {
     /**
      * Halaman manajemen vendor (Admin).
-     * Mengirim data vendor + URL publik untuk permit_image_path ke React.
      */
     public function index()
     {
-        $vendors = WeddingOrganizer::select(
+        // Gunakan Model Vendor
+        $vendors = Vendor::select(
             'id',
             'user_id',
             'isApproved',
             'created_at',
 
-            // data tampilan
+            // Data Tampilan
             'name',
-            'contact_email as email',
-            'contact_phone as phone',
+            'contact_email as email', // Pastikan kolom ini ada di tabel vendors
+            'phone',                  // Di tabel vendors namanya 'phone', bukan 'contact_phone'
             'address',
             'city',
 
-            // permit
+            // Permit / Izin Usaha
             'permit_number',
             'permit_image_path'
         )
+            ->with('user') // Eager load user agar bisa ambil nama PIC jika perlu
             ->latest()
             ->get()
             ->map(function ($v) {
-                // Kirim URL publik ke React (tanpa Storage::url untuk menghindari warning editor)
+                // Generate URL publik
                 $v->permit_image_url = $v->permit_image_path
                     ? asset('storage/' . ltrim($v->permit_image_path, '/'))
                     : null;
@@ -58,10 +60,13 @@ class AdminVendorController extends Controller
             'status' => ['required', Rule::in(['APPROVED', 'REJECTED', 'PENDING'])],
         ]);
 
-        $vendor = WeddingOrganizer::findOrFail($id);
+        // Gunakan Model Vendor
+        $vendor = Vendor::findOrFail($id);
 
         $vendor->update([
             'isApproved' => $request->status,
+            // Jika status APPROVED, pastikan status aktif juga
+            'status'     => $request->status === 'APPROVED' ? 'Active' : $vendor->status,
         ]);
 
         return redirect()->back()->with(
@@ -75,20 +80,27 @@ class AdminVendorController extends Controller
      */
     public function destroy($id)
     {
-        $vendor = WeddingOrganizer::findOrFail($id);
+        // Gunakan Model Vendor
+        $vendor = Vendor::findOrFail($id);
+
+        // Hapus file permit jika ada (bersih-bersih file)
+        if ($vendor->permit_image_path && Storage::disk('public')->exists($vendor->permit_image_path)) {
+            Storage::disk('public')->delete($vendor->permit_image_path);
+        }
+
         $vendor->delete();
 
         return redirect()->back()->with('success', 'Vendor berhasil dihapus.');
     }
 
     /**
-     * Detail vendor (jika halaman terpisah digunakan).
+     * Detail vendor.
      */
     public function show($id)
     {
-        $vendor = WeddingOrganizer::with('user')->findOrFail($id);
+        // Gunakan Model Vendor
+        $vendor = Vendor::with('user')->findOrFail($id);
 
-        // Tambahkan URL gambar untuk permit
         $vendor->permit_image_url = $vendor->permit_image_path
             ? asset('storage/' . ltrim($vendor->permit_image_path, '/'))
             : null;

@@ -16,21 +16,15 @@ return new class extends Migration
             // Relasi ke Customer (User)
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
 
-            // PERBAIKAN FATAL DI SINI:
-            // Jangan constrained('vendors'), tapi constrained('wedding_organizers')
+            // PERBAIKAN: Harus ke 'vendors'
             $table->foreignId('vendor_id')
-                ->constrained('wedding_organizers')
+                ->constrained('vendors') // <--- INI WAJIB 'vendors'
                 ->onDelete('cascade');
 
-            // Konten Review
             $table->integer('rating'); // 1 sampai 5
             $table->text('comment')->nullable();
-
-            // Kolom Balasan Vendor
             $table->text('reply')->nullable();
-
-            // Tambahan kolom status (agar Admin Dashboard tidak error saat menghitung pending reviews)
-            $table->string('status')->default('PENDING'); // PENDING, APPROVED, REJECTED
+            $table->string('status')->default('PENDING');
 
             $table->timestamps();
         });

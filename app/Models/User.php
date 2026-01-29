@@ -8,7 +8,8 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-use App\Models\WeddingOrganizer;
+// --- GANTI INI: Pakai Model Vendor, bukan WeddingOrganizer ---
+use App\Models\Vendor;
 use App\Models\Review;
 use App\Models\Favorite;
 
@@ -23,6 +24,7 @@ class User extends Authenticatable
         'role',
         'phone',
         'status',
+        'profile_photo_path', // Saya tambahkan ini jaga-jaga jika dipakai profile
     ];
 
     protected $hidden = [
@@ -43,15 +45,18 @@ class User extends Authenticatable
         ];
     }
 
+    /**
+     * Relasi Utama ke Vendor (Tabel Baru)
+     */
     public function vendor(): HasOne
     {
-        return $this->hasOne(WeddingOrganizer::class, 'user_id');
+        // PERBAIKAN: Hubungkan ke Model Vendor
+        return $this->hasOne(Vendor::class, 'user_id');
     }
 
-    public function weddingOrganizer(): HasOne
-    {
-        return $this->hasOne(WeddingOrganizer::class, 'user_id');
-    }
+    // Fungsi weddingOrganizer() SAYA HAPUS karena tabelnya sudah tidak dipakai.
+    // Jika masih ada kodingan lama yang memanggil $user->weddingOrganizer, 
+    // silakan ganti kodingan tersebut menjadi $user->vendor
 
     public function reviews(): HasMany
     {

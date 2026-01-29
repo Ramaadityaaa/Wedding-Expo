@@ -68,13 +68,13 @@ class PaymentProofController extends Controller
             ],
         ]);
 
-        $normalizedStatus = ucfirst(strtolower((string) $request->status)); // Approved / Rejected / Pending
+        // FIX: Gunakan UPPERCASE agar konsisten dengan logika frontend dan database vendor
+        $normalizedStatus = strtoupper((string) $request->status); // APPROVED / REJECTED / PENDING
 
         try {
             DB::beginTransaction();
 
             // 1) Cari payment proof dengan id.
-            // Kalau frontend salah kirim invoice_id, fallback ke invoice_id.
             $payment = PaymentProof::query()->lockForUpdate()->find($id);
 
             if (!$payment) {
@@ -88,12 +88,12 @@ class PaymentProofController extends Controller
             // 2) Update payment_proofs.status
             $payment->update(['status' => $normalizedStatus]);
 
-            // 3) Update invoice + aktivasi vendor saat Approved
+            // 3) Update invoice + aktivasi vendor saat APPROVED
             if ($payment->invoice_id) {
                 $invoice = Invoice::query()->lockForUpdate()->find($payment->invoice_id);
 
                 if ($invoice) {
-                    if ($normalizedStatus === 'Approved') {
+                    if ($normalizedStatus === 'APPROVED') {
                         $invoice->update(['status' => 'PAID']);
 
                         if ($payment->vendor_id) {
@@ -102,17 +102,14 @@ class PaymentProofController extends Controller
                             if ($vendor) {
                                 $updateVendor = [];
 
-                                // Sesuaikan dengan kolom yang benar-benar ada di tabel vendors kamu
                                 if (Schema::hasColumn('vendors', 'status')) {
-                                    $updateVendor['status'] = 'active';
+                                    $updateVendor['status'] = 'Active'; // Sesuaikan jika DB vendor pakai uppercase 'ACTIVE'
                                 }
 
                                 if (Schema::hasColumn('vendors', 'isApproved')) {
                                     $updateVendor['isApproved'] = 'APPROVED';
                                 }
 
-                                // Banyak project menyimpan paket aktif vendor dengan kolom-kolom ini.
-                                // Kalau ada, kita isi. Kalau tidak ada, aman karena dicek dulu.
                                 if (Schema::hasColumn('vendors', 'membership_status')) {
                                     $updateVendor['membership_status'] = 'ACTIVE';
                                 }
@@ -134,11 +131,11 @@ class PaymentProofController extends Controller
                         }
                     }
 
-                    if ($normalizedStatus === 'Rejected') {
+                    if ($normalizedStatus === 'REJECTED') {
                         $invoice->update(['status' => 'REJECTED']);
                     }
 
-                    if ($normalizedStatus === 'Pending') {
+                    if ($normalizedStatus === 'PENDING') {
                         $invoice->update(['status' => 'PENDING']);
                     }
                 }
@@ -147,12 +144,11 @@ class PaymentProofController extends Controller
             DB::commit();
 
             $message = match ($normalizedStatus) {
-                'Approved' => 'Pembayaran disetujui. Sistem mengaktifkan paket vendor.',
-                'Rejected' => 'Pembayaran ditolak.',
+                'APPROVED' => 'Pembayaran disetujui. Sistem mengaktifkan paket vendor.',
+                'REJECTED' => 'Pembayaran ditolak.',
                 default => 'Status pembayaran diubah ke Pending.',
             };
 
-            // Jika request dari axios dan butuh json
             if ($request->expectsJson()) {
                 return response()->json([
                     'ok' => true,

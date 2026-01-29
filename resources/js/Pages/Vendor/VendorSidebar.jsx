@@ -1,7 +1,15 @@
 import * as React from "react";
 import { Link, usePage } from "@inertiajs/react";
 import { vendorNavItems } from "./navItems";
-import { ChevronRight, LogOut, Crown, ShieldCheck, Clock, User } from "lucide-react";
+import {
+    ChevronRight,
+    LogOut,
+    Crown,
+    ShieldCheck,
+    Clock,
+    User,
+    Settings, // Import icon setting jika diperlukan visual tambahan
+} from "lucide-react";
 
 function ElegantVendorAvatar({ logo, initials }) {
     return (
@@ -51,7 +59,9 @@ export default function VendorSidebar() {
 
     const isCurrentRoute = (routeName) => {
         try {
-            return route().current(routeName) || route().current(routeName + ".*");
+            return (
+                route().current(routeName) || route().current(routeName + ".*")
+            );
         } catch (e) {
             return false;
         }
@@ -62,7 +72,10 @@ export default function VendorSidebar() {
             {/* HEADER VENDOR */}
             <div className="px-6 py-5 border-b border-slate-800/60 bg-gradient-to-b from-[#0b1120] to-[#0f172a]">
                 <div className="flex items-center gap-4">
-                    <ElegantVendorAvatar logo={vendor?.logo} initials={initials} />
+                    <ElegantVendorAvatar
+                        logo={vendor?.logo}
+                        initials={initials}
+                    />
 
                     <div className="min-w-0">
                         <p className="text-base font-extrabold text-white truncate">
@@ -83,8 +96,14 @@ export default function VendorSidebar() {
                                     }
                                 `}
                             >
-                                {isApproved ? <ShieldCheck size={11} /> : <Clock size={11} />}
-                                {isApproved ? "TERVERIFIKASI" : "MENUNGGU APPROVAL"}
+                                {isApproved ? (
+                                    <ShieldCheck size={11} />
+                                ) : (
+                                    <Clock size={11} />
+                                )}
+                                {isApproved
+                                    ? "TERVERIFIKASI"
+                                    : "MENUNGGU APPROVAL"}
                             </span>
 
                             <span
@@ -116,6 +135,8 @@ export default function VendorSidebar() {
                     const isActive = isCurrentRoute(item.route);
                     const Icon = item.icon;
 
+                    // Logic Locking Menu jika belum membership
+                    // Kecuali dashboard, profile, membership, reviews
                     const isLocked =
                         !isMember &&
                         item.name !== "dashboard" &&
@@ -130,7 +151,9 @@ export default function VendorSidebar() {
                             onClick={(e) => {
                                 if (!isLocked) return;
                                 e.preventDefault();
-                                alert("Fitur ini khusus Membership. Silakan berlangganan di menu 'Langganan'.");
+                                alert(
+                                    "Fitur ini khusus Membership. Silakan berlangganan di menu 'Langganan'.",
+                                );
                             }}
                             className={`
                                 group relative flex items-center px-4 py-3.5 rounded-xl font-medium text-sm transition-all duration-300
@@ -138,8 +161,8 @@ export default function VendorSidebar() {
                                     isLocked
                                         ? "text-slate-600 bg-slate-900/30 cursor-not-allowed opacity-80"
                                         : isActive
-                                        ? "text-white shadow-lg shadow-orange-500/20"
-                                        : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                                          ? "text-white shadow-lg shadow-orange-500/20"
+                                          : "text-slate-400 hover:text-white hover:bg-slate-800/50"
                                 }
                             `}
                         >
@@ -152,14 +175,19 @@ export default function VendorSidebar() {
                                     isLocked
                                         ? "text-slate-600"
                                         : isActive
-                                        ? "scale-110 text-white"
-                                        : "group-hover:scale-110 group-hover:text-orange-400"
+                                          ? "scale-110 text-white"
+                                          : "group-hover:scale-110 group-hover:text-orange-400"
                                 }`}
                             >
-                                <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                                <Icon
+                                    size={20}
+                                    strokeWidth={isActive ? 2.5 : 2}
+                                />
                             </div>
 
-                            <span className="relative z-10 flex-1">{item.label}</span>
+                            <span className="relative z-10 flex-1">
+                                {item.label}
+                            </span>
 
                             {isLocked && (
                                 <span className="relative z-10 ml-auto text-[9px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded border border-slate-700">
@@ -178,12 +206,20 @@ export default function VendorSidebar() {
                 })}
             </nav>
 
-            {/* FOOTER */}
+            {/* FOOTER - USER PROFILE SECTION */}
             <div className="p-4 border-t border-slate-800 bg-[#0b1120]">
-                <div className="flex items-center gap-3 mb-4 px-2">
+                {/* PERUBAHAN DISINI: 
+                    Membungkus info user dengan Link ke route('profile.edit')
+                    Menambahkan class 'group' untuk efek hover.
+                */}
+                <Link
+                    href={route("profile.edit")}
+                    className="flex items-center gap-3 mb-4 px-2 py-2 rounded-lg hover:bg-slate-800/50 transition-colors group cursor-pointer"
+                    title="Edit Profil Login"
+                >
                     <div className="relative h-10 w-10">
-                        <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-amber-400 to-orange-600 opacity-25 blur-md" />
-                        <div className="relative h-10 w-10 rounded-full p-[2px] bg-gradient-to-tr from-amber-400 to-orange-600">
+                        <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-amber-400 to-orange-600 opacity-0 group-hover:opacity-25 blur-md transition-opacity duration-500" />
+                        <div className="relative h-10 w-10 rounded-full p-[2px] bg-gradient-to-tr from-slate-700 to-slate-600 group-hover:from-amber-400 group-hover:to-orange-600 transition-colors duration-300">
                             <div className="h-full w-full rounded-full bg-slate-950/70 border border-white/5 backdrop-blur flex items-center justify-center overflow-hidden">
                                 {user?.profile_photo_url ? (
                                     <img
@@ -192,27 +228,31 @@ export default function VendorSidebar() {
                                         className="w-full h-full object-cover"
                                     />
                                 ) : (
-                                    <User size={18} className="text-slate-200" />
+                                    <User
+                                        size={18}
+                                        className="text-slate-400 group-hover:text-white transition-colors"
+                                    />
                                 )}
                             </div>
                         </div>
                     </div>
 
                     <div className="overflow-hidden">
-                        <p className="text-sm font-bold text-white truncate w-40">
+                        <p className="text-sm font-bold text-white truncate w-40 group-hover:text-amber-400 transition-colors">
                             {user?.name || "Vendor"}
                         </p>
-                        <p className="text-xs text-slate-400 truncate w-40">
-                            {vendor?.name ? "Vendor" : "Account"}
+                        <p className="text-xs text-slate-500 truncate w-40 flex items-center gap-1 group-hover:text-slate-300 transition-colors">
+                            <Settings size={10} />
+                            Pengaturan Akun
                         </p>
                     </div>
-                </div>
+                </Link>
 
                 <Link
                     href={route("logout")}
                     method="post"
                     as="button"
-                    className="flex items-center justify-center w-full py-2.5 px-4 rounded-lg bg-slate-800 text-red-400 text-sm font-semibold hover:bg-red-500/10 hover:text-red-400 transition-colors border border-transparent hover:border-red-500/20"
+                    className="flex items-center justify-center w-full py-2.5 px-4 rounded-lg bg-slate-800/50 text-red-400 text-sm font-semibold hover:bg-red-500/10 hover:text-red-400 transition-colors border border-transparent hover:border-red-500/20"
                 >
                     <LogOut size={16} className="mr-2" />
                     Keluar

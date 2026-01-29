@@ -15,29 +15,27 @@ class ProfileController extends Controller
 {
     /**
      * Display the user's profile form.
-     * Role aware:
-     * - Customer: resources/js/Pages/Customer/Profile/Edit.jsx
-     * - Vendor: resources/js/Pages/Vendor/pages/ProfilePage.jsx (atau sesuaikan)
      */
     public function edit(Request $request): Response
     {
         $user = $request->user();
 
-        // Pilih komponen Inertia berdasarkan role
-        // Sesuaikan nilai role jika di database Anda memakai "USER" atau "CUSTOMER"
-        $component = ($user && $user->role === 'VENDOR')
-            ? 'Vendor/pages/ProfilePage'
+        // LOGIKA PEMISAHAN VIEW:
+        // 1. Vendor   -> Pakai 'Profile/Edit' (Yang ada Sidebar & Smart Layout tadi)
+        // 2. Customer -> Pakai 'Customer/Profile/Edit' (Yang pakai Navbar & Footer)
+
+        $component = ($user->role === 'VENDOR')
+            ? 'Profile/Edit'
             : 'Customer/Profile/Edit';
 
         return Inertia::render($component, [
-            'user' => $user,
             'mustVerifyEmail' => $user instanceof MustVerifyEmail,
             'status' => session('status'),
         ]);
     }
 
     /**
-     * Update the user's profile information.
+     * Update the user's profile information (Login Info: Name & Email).
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
@@ -51,12 +49,40 @@ class ProfileController extends Controller
 
         $user->save();
 
-        // Redirect sesuai role
+        // Redirect Cerdas: Tetap di route profil masing-masing role agar sidebar tidak hilang
         if ($user->role === 'VENDOR') {
             return Redirect::route('vendor.profile.edit')->with('status', 'profile-updated');
         }
 
-        return Redirect::route('customer.profile.edit')->with('status', 'profile-updated');
+        return Redirect::route('profile.edit')->with('status', 'profile-updated');
+    }
+
+    /**
+     * Update Data Bisnis Vendor (Khusus Vendor).
+     */
+    public function updateBusiness(Request $request)
+    {
+        // Pastikan user punya relasi vendor
+        $vendor = $request->user()->vendor;
+
+        if (!$vendor) {
+            return back()->with('error', 'Data vendor tidak ditemukan.');
+        }
+
+        $validated = $request->validate([
+            'name'          => 'required|string|max:255',
+            'vendor_type'   => 'required|string',
+            'whatsapp'      => 'required|string|max:20',
+            'city'          => 'required|string|max:255',
+            'province'      => 'required|string|max:255',
+            'address'       => 'required|string',
+            'pic_name'      => 'required|string|max:255',
+            // Tambahkan validasi lain jika perlu (permit number, dll)
+        ]);
+
+        $vendor->update($validated);
+
+        return back()->with('success', 'Informasi bisnis berhasil diperbarui.');
     }
 
     /**

@@ -8,37 +8,22 @@ use Illuminate\Support\Facades\Hash;
 
 class UserSeeder extends Seeder
 {
-    /**
-     * Jalankan seeder.
-     */
     public function run(): void
     {
-        // Akun ADMIN utama
+        // 1. Akun ADMIN
         User::updateOrCreate(
-            [
-                'email' => 'ullulazmia.l@gmail.com', // email unik
-            ],
+            ['email' => 'ullulazmia.l@gmail.com'],
             [
                 'name'              => 'Admin WeddingExpo',
-                'password'          => Hash::make('password'), 
-                'role'              => 'ADMIN', 
-                'phone'             => '081234567890', 
-                'email_verified_at' => now(), 
-            ]
-        );
-
-
-        User::updateOrCreate(
-            ['email' => 'vendor@weddingexpo.com'],
-            [
-                'name'              => 'Vendor Demo',
                 'password'          => Hash::make('password'),
-                'role'              => 'VENDOR',
-                'phone'             => '081298765432',
+                'role'              => 'ADMIN',
+                'phone'             => '081234567890',
                 'email_verified_at' => now(),
+                'status'            => 'Active',
             ]
         );
 
+        // 2. Akun CUSTOMER
         User::updateOrCreate(
             ['email' => 'customer@weddingexpo.com'],
             [
@@ -47,6 +32,7 @@ class UserSeeder extends Seeder
                 'role'              => 'CUSTOMER',
                 'phone'             => '081298765431',
                 'email_verified_at' => now(),
+                'status'            => 'Active',
             ]
         );
     }
