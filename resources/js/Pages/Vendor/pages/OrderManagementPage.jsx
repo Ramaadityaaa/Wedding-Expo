@@ -509,7 +509,7 @@ export default function OrderManagementPage({
                                         Verifikasi Pembayaran
                                     </h3>
                                     <p className="text-xs text-gray-500">
-                                        Order ID: #{selectedOrder.id}
+                                        Order ID: {selectedOrder.id}
                                     </p>
 
                                     {/* ✅ TANGGAL ORDER DI POPUP */}
@@ -527,7 +527,9 @@ export default function OrderManagementPage({
                                     <p className="text-xs text-gray-500 mt-1">
                                         Dibuat:{" "}
                                         <span className="font-semibold text-gray-700">
-                                            {formatDate(selectedOrder.created_at)}
+                                            {formatDate(
+                                                selectedOrder.created_at
+                                            )}
                                         </span>
                                     </p>
                                 </div>
@@ -574,14 +576,17 @@ export default function OrderManagementPage({
                                                 </div>
 
                                                 <div className="text-right">
-                                                    <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">
-                                                        Nominal
-                                                    </p>
-                                                    <span className="text-amber-600 font-bold text-lg">
-                                                        {formatCurrency(
-                                                            displayPrice
-                                                        )}
-                                                    </span>
+                                                    <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider"></p>
+
+                                                    {/* ✅ PERBAIKAN: kalau displayPrice 0/kosong, teks nominal tidak ditampilkan */}
+                                                    {Number(displayPrice) >
+                                                        0 && (
+                                                        <span className="text-amber-600 font-bold text-lg">
+                                                            {formatCurrency(
+                                                                displayPrice
+                                                            )}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
 

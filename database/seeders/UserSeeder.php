@@ -20,10 +20,10 @@ class UserSeeder extends Seeder
             ],
             [
                 'name'              => 'Admin WeddingExpo',
-                'password'          => Hash::make('password'), // password login
-                'role'              => 'ADMIN', // SESUAI ENUM DI MIGRASI
-                'phone'             => '081234567890', // opsional
-                'email_verified_at' => now(), // supaya lolos middleware "verified"
+                'password'          => Hash::make('password'), 
+                'role'              => 'ADMIN', 
+                'phone'             => '081234567890', 
+                'email_verified_at' => now(), 
             ]
         );
 
