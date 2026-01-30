@@ -35,8 +35,8 @@ export default function Dashboard({ auth, vendors = [] }) {
                         </h1>
 
                         <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
-                            Jelajahi ribuan vendor profesional terpercaya di Indonesia. Mulai dari
-                            katering lezat, dekorasi memukau, hingga dokumentasi abadi.
+                            Jelajahi ribuan vendor profesional terpercaya. Mulai dari
+                            catering lezat, dekorasi memukau, hingga dokumentasi abadi.
                         </p>
 
                         {/* Spacer agar jarak tetap “rasa desainnya” seperti saat ada search */}

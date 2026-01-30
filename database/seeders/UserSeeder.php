@@ -12,7 +12,7 @@ class UserSeeder extends Seeder
     {
         // 1. Akun ADMIN
         User::updateOrCreate(
-            ['email' => 'ullulazmia.l@gmail.com'],
+            ['email' => 'rama@gmail.com'],
             [
                 'name'              => 'Admin WeddingExpo',
                 'password'          => Hash::make('password'),

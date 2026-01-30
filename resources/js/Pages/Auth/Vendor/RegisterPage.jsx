@@ -258,26 +258,10 @@ export default function RegisterPage() {
                                             className="mt-1 block w-full px-4 py-3 rounded-lg border-gray-300 shadow-sm focus:ring-orange-500 focus:border-orange-500 bg-gray-50 focus:bg-white"
                                         >
                                             <option value="">
-                                                -- Pilih Kategori --
+                                                Pilih Kategori
                                             </option>
                                             <option value="Wedding Organizer">
                                                 Wedding Organizer
-                                            </option>
-                                            <option value="Catering">
-                                                Catering
-                                            </option>
-                                            <option value="Decoration">
-                                                Dekorasi
-                                            </option>
-                                            <option value="Photography">
-                                                Fotografi & Videografi
-                                            </option>
-                                            <option value="MUA">
-                                                MUA & Attire
-                                            </option>
-                                            <option value="Venue">Venue</option>
-                                            <option value="Entertainment">
-                                                Hiburan / Musik
                                             </option>
                                         </select>
                                         <FieldError field="vendor_type" />
