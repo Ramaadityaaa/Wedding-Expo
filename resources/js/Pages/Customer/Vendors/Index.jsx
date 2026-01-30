@@ -7,8 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 
 export default function VendorsIndex({ auth, vendors, filters }) {
-    const user = auth?.user ?? null;
-
     const [q, setQ] = useState(filters?.q || "");
     const [sort, setSort] = useState(filters?.sort || "rating");
 
@@ -33,7 +31,7 @@ export default function VendorsIndex({ auth, vendors, filters }) {
         <div className="min-h-screen bg-gray-50 font-sans">
             <Head title="Semua Vendor" />
 
-            <Navbar auth={auth} user={user} />
+            <Navbar />
 
             <main className="pt-20">
                 <section className="py-10 px-4">
@@ -43,7 +41,7 @@ export default function VendorsIndex({ auth, vendors, filters }) {
                                 Semua Vendor
                             </h1>
                             <p className="mt-3 text-gray-600">
-                                Cari vendor berdasarkan nama atau kota.
+                                Cari vendor yang anda inginkan.
                             </p>
                         </div>
 
@@ -56,12 +54,10 @@ export default function VendorsIndex({ auth, vendors, filters }) {
                                 <input
                                     value={q}
                                     onChange={(e) => setQ(e.target.value)}
-                                    placeholder="Cari vendor atau kota..."
+                                    placeholder="Cari vendor"
                                     className="w-full bg-transparent border-none focus:ring-0 px-3 py-3 text-gray-700"
                                 />
                             </div>
-
-                           
 
                             <Button
                                 type="submit"
@@ -119,7 +115,9 @@ export default function VendorsIndex({ auth, vendors, filters }) {
                                             }}
                                             className={[
                                                 "px-4 py-2 rounded-xl border text-sm font-semibold",
-                                                isActive ? "bg-amber-600 text-white border-amber-600" : "bg-white text-gray-700 border-gray-200",
+                                                isActive
+                                                    ? "bg-amber-600 text-white border-amber-600"
+                                                    : "bg-white text-gray-700 border-gray-200",
                                                 isDisabled ? "opacity-50 cursor-not-allowed" : "hover:border-amber-300",
                                             ].join(" ")}
                                         >

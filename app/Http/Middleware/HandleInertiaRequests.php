@@ -12,41 +12,40 @@ class HandleInertiaRequests extends Middleware
 {
     protected $rootView = 'app';
 
-    public function version(Request $request): string|null
+    public function version(Request $request): ?string
     {
         return parent::version($request);
     }
 
     public function share(Request $request): array
     {
+        $user = $request->user();
+
         return array_merge(parent::share($request), [
 
             'auth' => [
-                'user' => $request->user() ? [
-                    'id' => $request->user()->id,
-                    'name' => $request->user()->name,
-                    'email' => $request->user()->email,
-                    'role' => $request->user()->role,
+                'user' => $user ? [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                    'profile_photo_url' => $user->profile_photo_url ?? null,
 
-                    'profile_photo_url' => $request->user()->profile_photo_url ?? null,
-
-                    'vendor' => $request->user()->vendor ? [
-                        'id' => $request->user()->vendor->id,
-                        'user_id' => $request->user()->vendor->user_id,
-                        'name' => $request->user()->vendor->name,
-                        'status' => $request->user()->vendor->isApproved,
-                        'logo' => $request->user()->vendor->logo,
-                        'role' => $request->user()->vendor->role,
+                    'vendor' => $user->vendor ? [
+                        'id' => $user->vendor->id,
+                        'user_id' => $user->vendor->user_id,
+                        'name' => $user->vendor->name,
+                        'isApproved' => $user->vendor->isApproved, // sumber kebenaran approval kamu
+                        'logo' => $user->vendor->logo,
+                        'role' => $user->vendor->role,
                     ] : null,
                 ] : null,
             ],
 
-            // badge favorit untuk navbar
-            'favoritesCount' => fn () => $request->user()
-                ? Favorite::where('user_id', $request->user()->id)->count()
+            'favoritesCount' => fn () => $user
+                ? Favorite::where('user_id', $user->id)->count()
                 : 0,
 
-            // >>> INI YANG BARU: Share static content untuk semua page (Footer, dsb.)
             'staticContent' => fn () => StaticContent::query()
                 ->pluck('content', 'key')
                 ->toArray(),

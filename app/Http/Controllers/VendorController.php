@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\WeddingOrganizer;
+use App\Models\Vendor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class VendorController extends Controller
@@ -18,17 +20,14 @@ class VendorController extends Controller
             $q = trim((string) $request->query('q', ''));
             $sort = (string) $request->query('sort', 'rating');
 
-            // Batasi nilai sort
             if (!in_array($sort, ['rating', 'newest', 'name'], true)) {
                 $sort = 'rating';
             }
 
-            $query = WeddingOrganizer::query()
+            $query = Vendor::query()
                 ->where('isApproved', 'APPROVED')
-                // agregasi rating dan jumlah review (tanpa filter status_verifikasi)
                 ->withAvg('reviews', 'rating')
                 ->withCount('reviews')
-                // eager load portfolios untuk cover photo (hindari N+1)
                 ->with(['portfolios' => function ($q) {
                     $q->latest();
                 }]);
@@ -40,7 +39,6 @@ class VendorController extends Controller
                 });
             }
 
-            // Sorting deterministik
             switch ($sort) {
                 case 'newest':
                     $query->reorder()->orderByDesc('created_at');
@@ -58,31 +56,40 @@ class VendorController extends Controller
                     break;
             }
 
-            /** @var \Illuminate\Pagination\LengthAwarePaginator $vendorsPaginator */
-            $vendorsPaginator = $query->paginate(12);
+            $vendorsPaginator = $query->paginate(12)->withQueryString();
 
-            // Bawa query string untuk pagination
-            if (method_exists($vendorsPaginator, 'withQueryString')) {
-                $vendorsPaginator->withQueryString();
-            } else {
-                $vendorsPaginator->appends($request->except('page'));
-            }
-
-            // Transform untuk kebutuhan frontend (tanpa query tambahan)
             $vendorsPaginator->setCollection(
                 $vendorsPaginator->getCollection()->map(function ($vendor) {
                     $portfolio = $vendor->relationLoaded('portfolios')
                         ? $vendor->portfolios->first()
                         : null;
 
+                    $portfolioPath = null;
+                    if ($portfolio) {
+                        $portfolioPath =
+                            $portfolio->imageUrl
+                            ?? $portfolio->image_path
+                            ?? $portfolio->image_url
+                            ?? $portfolio->path
+                            ?? $portfolio->image
+                            ?? null;
+                    }
+
+                    $coverPhoto = null;
+                    if (!empty($portfolioPath)) {
+                        if (Str::startsWith($portfolioPath, ['http://', 'https://'])) {
+                            $coverPhoto = $portfolioPath;
+                        } else {
+                            $coverPhoto = Storage::url($portfolioPath);
+                        }
+                    }
+
                     return [
                         'id' => $vendor->id,
                         'name' => $vendor->name,
                         'city' => $vendor->city ?? 'Indonesia',
                         'description' => $vendor->description,
-                        'coverPhoto' => $portfolio && !empty($portfolio->imageUrl)
-                            ? asset('storage/' . $portfolio->imageUrl)
-                            : null,
+                        'coverPhoto' => $coverPhoto,
                         'rating' => $vendor->reviews_avg_rating
                             ? number_format((float) $vendor->reviews_avg_rating, 1)
                             : 0,
@@ -99,9 +106,12 @@ class VendorController extends Controller
                     'sort' => $sort,
                 ],
             ]);
-        } catch (\Exception $e) {
-            Log::error('Error rendering public vendors page:', ['error' => $e->getMessage()]);
-            return abort(500, 'Gagal memuat halaman vendor.');
+        } catch (\Throwable $e) {
+            Log::error('Error rendering public vendors page:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            abort(500, 'Gagal memuat halaman vendor.');
         }
     }
 
@@ -111,7 +121,7 @@ class VendorController extends Controller
     public function index(Request $request)
     {
         try {
-            $vendors = WeddingOrganizer::query()
+            $vendors = Vendor::query()
                 ->where('isApproved', 'APPROVED')
                 ->withAvg('reviews', 'rating')
                 ->withCount('reviews')
@@ -126,44 +136,50 @@ class VendorController extends Controller
                     'per_page' => $vendors->perPage(),
                     'current_page' => $vendors->currentPage(),
                     'last_page' => $vendors->lastPage(),
-                ]
+                ],
             ], 200);
-        } catch (\Exception $e) {
-            Log::error('Error fetching public vendor index:', ['error' => $e->getMessage()]);
+        } catch (\Throwable $e) {
+            Log::error('Error fetching public vendor index:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return response()->json(['message' => 'Internal server error. Gagal memuat data.'], 500);
         }
     }
 
     /**
      * Menampilkan detail satu vendor (GET /api/vendors/{vendor}).
+     * Route model binding harus Vendor, bukan WeddingOrganizer.
      */
-    public function show(WeddingOrganizer $vendor)
+    public function show(Vendor $vendor)
     {
         try {
             if ($vendor->isApproved !== 'APPROVED') {
                 return response()->json(['message' => 'Vendor tidak ditemukan atau belum diverifikasi.'], 404);
             }
 
-            // Load relasi tanpa filter status_verifikasi (karena kolom itu tidak ada)
             $vendor->load(['packages', 'reviews']);
 
             return response()->json([
                 'message' => 'Detail Vendor berhasil diambil',
-                'data' => $vendor
+                'data' => $vendor,
             ], 200);
-        } catch (\Exception $e) {
-            Log::error('Error fetching public vendor details:', ['error' => $e->getMessage()]);
+        } catch (\Throwable $e) {
+            Log::error('Error fetching public vendor details:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return response()->json(['message' => 'Internal server error. Gagal memuat detail vendor.'], 500);
         }
     }
 
     /**
-     * Menampilkan detail paket tertentu untuk vendor tertentu
+     * Menampilkan detail paket tertentu untuk vendor tertentu (opsional, jika dipakai).
      */
     public function showPackageDetail($vendorId, $packageId)
     {
         try {
-            $vendor = WeddingOrganizer::query()
+            $vendor = Vendor::query()
                 ->where('isApproved', 'APPROVED')
                 ->findOrFail($vendorId);
 
@@ -175,10 +191,13 @@ class VendorController extends Controller
 
             return response()->json([
                 'message' => 'Detail Paket berhasil diambil',
-                'data' => $package
+                'data' => $package,
             ], 200);
-        } catch (\Exception $e) {
-            Log::error('Error fetching package details:', ['error' => $e->getMessage()]);
+        } catch (\Throwable $e) {
+            Log::error('Error fetching package details:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return response()->json(['message' => 'Internal server error. Gagal memuat detail paket.'], 500);
         }
     }
