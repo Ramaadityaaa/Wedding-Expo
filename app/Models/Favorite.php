@@ -17,18 +17,21 @@ class Favorite extends Model
     ];
 
     /**
-     * Biar controller tetap enak dibaca (weddingOrganizer),
-     * tapi FK-nya tetap vendor_id sesuai tabel favorites.
+     * Relasi yang benar: favorite -> vendor (tabel vendors)
+     */
+    public function vendor(): BelongsTo
+    {
+        return $this->belongsTo(Vendor::class, 'vendor_id');
+    }
+
+    /**
+     * Backward compatibility:
+     * Kalau masih ada kode lama yang memanggil $favorite->weddingOrganizer,
+     * tetap jalan tapi isinya Vendor.
      */
     public function weddingOrganizer(): BelongsTo
     {
-        return $this->belongsTo(WeddingOrganizer::class, 'vendor_id');
-    }
-
-    // optional: kalau masih ada kode lama manggil $favorite->vendor
-    public function vendor(): BelongsTo
-    {
-        return $this->belongsTo(WeddingOrganizer::class, 'vendor_id');
+        return $this->belongsTo(Vendor::class, 'vendor_id');
     }
 
     public function user(): BelongsTo

@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Customer;
 
 use App\Http\Controllers\Controller;
 use App\Models\Favorite;
-use App\Models\WeddingOrganizer;
+use App\Models\Vendor;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -19,38 +19,56 @@ class FavoriteController extends Controller
             $favorites = Favorite::query()
                 ->where('user_id', $user->id)
                 ->with([
-                    'weddingOrganizer' => function ($q) {
+                    'vendor' => function ($q) {
+                        // sesuaikan relasi yang memang ada di model Vendor kamu
                         $q->withCount(['reviews', 'packages'])
-                          ->with(['reviews' => function ($r) {
-                              $r->select('id', 'vendor_id', 'rating');
+                          ->withAvg('reviews', 'rating')
+                          ->with(['portfolios' => function ($p) {
+                              $p->latest();
                           }]);
                     }
                 ])
                 ->latest()
                 ->get()
                 ->map(function (Favorite $fav) {
-                    $vendor = $fav->weddingOrganizer;
+                    $vendor = $fav->vendor;
                     if (!$vendor) return null;
 
-                    $avgRating = 0;
-                    if ($vendor->reviews_count > 0) {
-                        $sum = $vendor->reviews->sum('rating');
-                        $avgRating = round($sum / $vendor->reviews_count, 1);
+                    $portfolio = $vendor->relationLoaded('portfolios')
+                        ? $vendor->portfolios->first()
+                        : null;
+
+                    // cover photo: coba beberapa kemungkinan nama field supaya tidak error
+                    $portfolioPath = null;
+                    if ($portfolio) {
+                        $portfolioPath =
+                            $portfolio->imageUrl
+                            ?? $portfolio->image_path
+                            ?? $portfolio->image_url
+                            ?? $portfolio->path
+                            ?? $portfolio->image
+                            ?? null;
                     }
+
+                    $coverPhoto = $portfolioPath
+                        ? (str_starts_with($portfolioPath, 'http') ? $portfolioPath : \Storage::url($portfolioPath))
+                        : null;
 
                     return [
                         'favorite_id' => $fav->id,
                         'id' => $vendor->id,
                         'name' => $vendor->name,
-                        'type' => $vendor->type,
+                        'type' => $vendor->role ?? 'Vendor', // dulu kamu pakai $vendor->type, di tabel vendors tidak ada kolom type
                         'city' => $vendor->city,
                         'province' => $vendor->province,
                         'address' => $vendor->address,
                         'logo' => $vendor->logo,
-                        'coverPhoto' => $vendor->coverPhoto,
-                        'packages_count' => $vendor->packages_count,
-                        'reviews_count' => $vendor->reviews_count,
-                        'avg_rating' => $avgRating,
+                        'coverPhoto' => $coverPhoto,
+                        'packages_count' => (int) ($vendor->packages_count ?? 0),
+                        'reviews_count' => (int) ($vendor->reviews_count ?? 0),
+                        'avg_rating' => $vendor->reviews_avg_rating
+                            ? round((float) $vendor->reviews_avg_rating, 1)
+                            : 0,
                     ];
                 })
                 ->filter()
@@ -63,19 +81,25 @@ class FavoriteController extends Controller
         ]);
     }
 
-    public function toggle(Request $request, $vendor)
+    /**
+     * Toggle favorit: POST /favorites/{vendor}/toggle
+     * FIX UTAMA: pakai Vendor model binding, bukan WeddingOrganizer
+     */
+    public function toggle(Request $request, Vendor $vendor)
     {
         $user = $request->user();
         if (!$user) {
             abort(403, 'Unauthorized');
         }
 
-        $vendorModel = WeddingOrganizer::findOrFail($vendor);
+        // opsional: batasi hanya vendor approved bisa difavoritkan
+        if ($vendor->isApproved !== 'APPROVED') {
+            return back()->with('error', 'Vendor belum terverifikasi.');
+        }
 
-        // FIX: pakai vendor_id (sesuai struktur tabel favorites)
         $existing = Favorite::query()
             ->where('user_id', $user->id)
-            ->where('vendor_id', $vendorModel->id)
+            ->where('vendor_id', $vendor->id)
             ->first();
 
         if ($existing) {
@@ -85,23 +109,25 @@ class FavoriteController extends Controller
 
         Favorite::create([
             'user_id' => $user->id,
-            'vendor_id' => $vendorModel->id,
+            'vendor_id' => $vendor->id,
         ]);
 
         return back()->with('success', 'Vendor ditambahkan ke favorit.');
     }
 
-    public function destroy(Request $request, $vendor)
+    /**
+     * Delete favorit: DELETE /favorites/{vendor}
+     */
+    public function destroy(Request $request, Vendor $vendor)
     {
         $user = $request->user();
         if (!$user) {
             abort(403, 'Unauthorized');
         }
 
-        // FIX: pakai vendor_id
         Favorite::query()
             ->where('user_id', $user->id)
-            ->where('vendor_id', $vendor)
+            ->where('vendor_id', $vendor->id)
             ->delete();
 
         return back()->with('success', 'Vendor dihapus dari favorit.');

@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Head, Link, router, usePage } from "@inertiajs/react";
 import Navbar from "@/Components/Navbar";
 import Footer from "@/Components/Footer";
-import { HeartOff, MapPin, Star } from "lucide-react";
+import { HeartOff, MapPin, Star, ArrowRight } from "lucide-react";
 
 export default function FavoritePage({ favorites = [] }) {
     const { auth } = usePage().props || {};
@@ -33,18 +33,18 @@ export default function FavoritePage({ favorites = [] }) {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen flex flex-col bg-gray-50">
             <Head title="Favorit Saya" />
             <Navbar />
 
-            <div className="pt-24">
+            <main className="flex-1 pt-24">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
                     <header className="mb-10 text-center">
                         <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-yellow-400 to-yellow-600 text-transparent bg-clip-text tracking-wide font-montserrat">
                             Favorit Saya
                         </h1>
                         <p className="text-gray-600 mt-4 text-base md:text-lg max-w-3xl mx-auto">
-                            Daftar vendor yang kamu simpan. Sekali klik di detail vendor, lalu tap ikon hati — masuk ke sini.
+                            Daftar vendor yang kamu simpan. Buka detail vendor lalu tap ikon hati untuk menambahkannya ke sini.
                         </p>
                     </header>
 
@@ -64,76 +64,129 @@ export default function FavoritePage({ favorites = [] }) {
                         )}
 
                         {list.length > 0 ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {list.map((v) => (
-                                    <div
-                                        key={v.id}
-                                        className="flex flex-col justify-between bg-gradient-to-r from-yellow-50 to-yellow-100 p-6 rounded-3xl shadow-md hover:shadow-lg transition"
-                                    >
-                                        <div className="flex-grow">
-                                            <div className="flex items-start justify-between gap-3">
-                                                <h2 className="text-xl font-semibold text-gray-900 leading-snug">
-                                                    {v.name}
-                                                </h2>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                                {list.map((v) => {
+                                    const rating = Number(v.avg_rating ?? 0);
+                                    const reviewCount = Number(v.reviews_count ?? 0);
+                                    const packagesCount = Number(v.packages_count ?? 0);
+                                    const locationText = `${v.city || "—"}${v.province ? `, ${v.province}` : ""}`;
+
+                                    return (
+                                        <div
+                                            key={v.id}
+                                            className="
+                                                group relative overflow-hidden rounded-3xl
+                                                bg-white border border-gray-100
+                                                shadow-sm hover:shadow-xl transition-all duration-300
+                                            "
+                                        >
+                                            <div className="relative h-40">
+                                                {v.coverPhoto ? (
+                                                    <img
+                                                        src={v.coverPhoto}
+                                                        alt={v.name}
+                                                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                                                        loading="lazy"
+                                                    />
+                                                ) : (
+                                                    <div className="h-full w-full bg-gradient-to-br from-yellow-50 via-white to-yellow-100" />
+                                                )}
+
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
+
+                                                <div className="absolute left-4 bottom-4 right-4">
+                                                    <div className="flex items-end justify-between gap-3">
+                                                        <div className="min-w-0">
+                                                            <h2 className="text-lg font-semibold text-white leading-snug truncate">
+                                                                {v.name}
+                                                            </h2>
+                                                            <div className="mt-1 flex items-center gap-2 text-xs text-white/90">
+                                                                <MapPin className="w-4 h-4" />
+                                                                <span className="truncate">{locationText}</span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="shrink-0">
+                                                            <div className="inline-flex items-center gap-1 rounded-full bg-white/15 backdrop-blur px-3 py-1 text-xs font-semibold text-white border border-white/20">
+                                                                <Star className="w-4 h-4 text-yellow-300 fill-current" />
+                                                                <span>{rating.toFixed(1)}</span>
+                                                                <span className="text-white/75">({reviewCount})</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
 
-                                            <p className="text-sm text-gray-600 mt-2 flex items-center gap-2">
-                                                <MapPin className="w-4 h-4 text-amber-600" />
-                                                <span className="truncate">
-                                                    {v.city || "—"}{v.province ? `, ${v.province}` : ""}
-                                                </span>
-                                            </p>
+                                            <div className="p-5">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-50 text-yellow-800 border border-yellow-100">
+                                                        {v.type || "Vendor"}
+                                                    </span>
 
-                                            <div className="mt-3 flex flex-wrap items-center gap-2">
-                                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-white/70 text-yellow-800 border border-yellow-200">
-                                                    {v.type || "Vendor"}
-                                                </span>
+                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-50 text-gray-700 border border-gray-100">
+                                                        Paket: {packagesCount}
+                                                    </span>
 
-                                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-white/70 text-gray-700 border border-yellow-200">
-                                                    Paket: {v.packages_count ?? 0}
-                                                </span>
+                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-50 text-gray-700 border border-gray-100">
+                                                        Rating: {rating.toFixed(1)}
+                                                    </span>
+                                                </div>
 
-                                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-white/70 text-gray-700 border border-yellow-200">
-                                                    <Star className="w-3.5 h-3.5 mr-1 text-yellow-500 fill-current" />
-                                                    {v.avg_rating ?? 0} ({v.reviews_count ?? 0})
-                                                </span>
+                                                <div className="mt-5 flex gap-3">
+                                                    <Link
+                                                        href={`/vendors/${v.id}`}
+                                                        className="
+                                                            flex-1 inline-flex items-center justify-center gap-2
+                                                            px-4 py-2.5 rounded-2xl
+                                                            bg-gradient-to-r from-yellow-500 to-amber-600
+                                                            text-white text-sm font-semibold
+                                                            shadow-sm hover:shadow-md
+                                                            transition
+                                                        "
+                                                    >
+                                                        Lihat Detail
+                                                        <ArrowRight className="w-4 h-4" />
+                                                    </Link>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRemove(v.id)}
+                                                        disabled={processingId === v.id}
+                                                        className={[
+                                                            "inline-flex items-center justify-center gap-2",
+                                                            "px-4 py-2.5 rounded-2xl text-sm font-semibold",
+                                                            "border transition",
+                                                            processingId === v.id
+                                                                ? "border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed"
+                                                                : "border-red-200 text-red-600 bg-white hover:bg-red-50 hover:border-red-300",
+                                                        ].join(" ")}
+                                                        aria-label="Hapus dari favorit"
+                                                    >
+                                                        <HeartOff className="w-4 h-4" />
+                                                        Hapus
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                                <div className="absolute -top-20 -right-20 h-40 w-40 rounded-full bg-yellow-300/15 blur-2xl" />
+                                                <div className="absolute -bottom-20 -left-20 h-40 w-40 rounded-full bg-amber-400/15 blur-2xl" />
                                             </div>
                                         </div>
-
-                                        <div className="flex gap-3 mt-6">
-                                            <Link
-                                                href={`/vendors/${v.id}`}
-                                                className="flex-1 text-center px-4 py-2 text-sm bg-yellow-500 text-white rounded-xl hover:bg-yellow-600 transition-colors font-semibold"
-                                            >
-                                                Lihat Detail
-                                            </Link>
-
-                                            <button
-                                                type="button"
-                                                onClick={() => handleRemove(v.id)}
-                                                disabled={processingId === v.id}
-                                                className={`px-4 py-2 text-sm rounded-xl border font-semibold transition-colors inline-flex items-center gap-2
-                                                    ${processingId === v.id
-                                                        ? "border-gray-300 text-gray-400 bg-white cursor-not-allowed"
-                                                        : "border-red-300 text-red-600 bg-white hover:bg-red-50"
-                                                    }`}
-                                            >
-                                                <HeartOff className="w-4 h-4" />
-                                                Hapus
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         ) : (
                             <div className="text-center p-12 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                                <h3 className="text-2xl font-semibold text-gray-700">Daftar favorit masih kosong</h3>
+                                <h3 className="text-2xl font-semibold text-gray-700">
+                                    Daftar favorit masih kosong
+                                </h3>
                                 <p className="mt-3 text-gray-500">
                                     Jelajahi vendor, lalu tekan ikon hati di halaman detail vendor.
                                 </p>
                                 <div className="mt-6">
                                     <Link
-                                        href="/#vendors"
+                                        href={route("vendors.index")}
                                         className="inline-flex items-center px-6 py-3 rounded-xl bg-yellow-500 text-white font-semibold hover:bg-yellow-600 transition"
                                     >
                                         Cari Vendor
@@ -143,7 +196,7 @@ export default function FavoritePage({ favorites = [] }) {
                         )}
                     </section>
                 </div>
-            </div>
+            </main>
 
             <Footer />
         </div>

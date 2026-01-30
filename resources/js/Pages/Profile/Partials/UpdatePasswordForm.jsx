@@ -1,154 +1,233 @@
 // resources/js/Pages/Profile/Partials/UpdatePasswordForm.jsx
 
-import { useRef, useState } from 'react'; // <-- Tambahkan useState
-import { useForm } from '@inertiajs/react';
-import { Transition } from '@headlessui/react';
-// Import Icon (Pastikan Anda sudah menginstal library icon, contoh: Lucide React)
-import { Eye, EyeOff } from 'lucide-react'; // <-- Asumsi menggunakan Lucide React
+import React, { useRef, useState } from "react";
+import { useForm, usePage } from "@inertiajs/react";
+import { Transition } from "@headlessui/react";
+import { Eye, EyeOff, Shield, CheckCircle2, KeyRound } from "lucide-react";
 
-// --- KOMPONEN MOCK/KUSTOM (dianggap sudah benar & sinkron) ---
-// ... (Kode komponen mock Label, Input, Button, InputError, Card, dsb. TIDAK BERUBAH) ...
-const Label = ({ children, htmlFor }) => <label htmlFor={htmlFor} className="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-70">{children}</label>;
-const Input = ({ className = '', type = 'text', ...props }) => <input type={type} className={`flex h-10 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm ring-offset-white placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-200 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition duration-150 ease-in-out ${className}`} {...props} />;
-const Button = ({ children, disabled, type, className = '', ...props }) => <button disabled={disabled} type={type} className={`inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-6 py-2 ${disabled ? 'bg-gray-300 text-gray-600' : 'bg-gradient-to-r from-amber-500 to-yellow-600 text-white shadow-lg shadow-amber-500/50 hover:from-amber-600 hover:to-yellow-700 active:from-amber-700 active:to-yellow-800'} ${className}`} {...props}>{children}</button>;
-const InputError = ({ message, className = '' }) => (message ? <p className={`text-sm font-medium text-red-600 mt-1 ${className}`}>{message}</p> : null);
-const Card = ({ children, className = '' }) => <div className={`rounded-3xl border border-gray-100 bg-white text-gray-800 shadow-2xl shadow-gray-200/50 ${className}`}>{children}</div>;
-const CardHeader = ({ children, className = '' }) => <div className={`flex flex-col space-y-1.5 p-6 rounded-t-3xl bg-gradient-to-r from-amber-50 to-yellow-50 border-b border-gray-100 ${className}`}>{children}</div>;
-const CardTitle = ({ children }) => <h3 className="text-2xl md:text-3xl font-bold leading-none tracking-tight text-amber-700">{children}</h3>;
-const CardDescription = ({ children }) => <p className="text-base text-gray-500 mt-1">{children}</p>;
-const CardContent = ({ children }) => <div className="p-6">{children}</div>;
-// --- END KOMPONEN MOCK/KUSTOM ---
+const Label = ({ children, htmlFor }) => (
+    <label
+        htmlFor={htmlFor}
+        className="text-sm font-semibold text-gray-700"
+    >
+        {children}
+    </label>
+);
 
+const Input = ({ className = "", type = "text", ...props }) => (
+    <input
+        type={type}
+        className={[
+            "h-11 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm text-gray-800",
+            "placeholder:text-gray-400",
+            "outline-none transition",
+            "focus:border-amber-300 focus:ring-4 focus:ring-amber-200/60",
+            "disabled:cursor-not-allowed disabled:opacity-60",
+            className,
+        ].join(" ")}
+        {...props}
+    />
+);
 
-// --- KOMPONEN INPUT BARU DENGAN TOMBOL MATA (TOGGLE) ---
-const ToggleablePasswordInput = ({ label, id, value, onChange, error, inputRef, autoComplete }) => {
+const Button = ({ children, disabled, type, className = "", ...props }) => (
+    <button
+        disabled={disabled}
+        type={type}
+        className={[
+            "inline-flex items-center justify-center gap-2",
+            "h-11 px-6 rounded-2xl text-sm font-semibold",
+            "transition",
+            "focus:outline-none focus:ring-4 focus:ring-amber-200/70",
+            disabled
+                ? "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed"
+                : "bg-gradient-to-r from-amber-500 to-yellow-600 text-white shadow-sm hover:shadow-md hover:from-amber-600 hover:to-yellow-700 active:from-amber-700 active:to-yellow-800",
+            className,
+        ].join(" ")}
+        {...props}
+    >
+        {children}
+    </button>
+);
+
+const InputError = ({ message, className = "" }) =>
+    message ? <p className={`text-sm font-semibold text-red-600 mt-2 ${className}`}>{message}</p> : null;
+
+const CardShell = ({ children, className = "" }) => (
+    <div
+        className={[
+            "w-full rounded-3xl bg-white",
+            "border border-gray-100",
+            "shadow-sm hover:shadow-xl transition-shadow duration-300",
+            "overflow-hidden",
+            className,
+        ].join(" ")}
+    >
+        {children}
+    </div>
+);
+
+const CardHeader = ({ title, description, icon: Icon }) => (
+    <div className="p-6 sm:p-7 bg-gradient-to-r from-amber-50 via-white to-yellow-50 border-b border-gray-100">
+        <div className="flex items-start gap-4">
+            <div className="h-12 w-12 rounded-2xl bg-amber-100/60 border border-amber-100 flex items-center justify-center shadow-sm">
+                <Icon className="h-6 w-6 text-amber-700" />
+            </div>
+
+            <div className="min-w-0">
+                <h3 className="text-xl sm:text-2xl font-bold text-gray-900">
+                    {title}
+                </h3>
+                <p className="mt-1 text-sm text-gray-600 leading-relaxed">
+                    {description}
+                </p>
+            </div>
+        </div>
+    </div>
+);
+
+const ToggleablePasswordInput = ({
+    label,
+    id,
+    value,
+    onChange,
+    error,
+    inputRef,
+    autoComplete,
+}) => {
     const [showPassword, setShowPassword] = useState(false);
-    
-    // Tentukan tipe input berdasarkan state showPassword
-    const inputType = showPassword ? 'text' : 'password';
+    const inputType = showPassword ? "text" : "password";
 
     return (
-        <div className="space-y-1">
+        <div className="space-y-2">
             <Label htmlFor={id}>{label}</Label>
+
             <div className="relative">
                 <Input
                     id={id}
                     ref={inputRef}
                     value={value}
                     onChange={onChange}
-                    type={inputType} // Menggunakan tipe dinamis
-                    className="block w-full pr-12" // Tambahkan padding kanan untuk tombol
+                    type={inputType}
+                    className="pr-12 pl-11"
                     autoComplete={autoComplete}
                 />
+
+                <div className="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400">
+                    <KeyRound className="h-5 w-5" />
+                </div>
+
                 <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 focus:outline-none"
-                    aria-label={showPassword ? 'Sembunyikan password' : 'Lihat password'}
+                    onClick={() => setShowPassword((s) => !s)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-400 hover:text-gray-600 transition focus:outline-none"
+                    aria-label={showPassword ? "Sembunyikan password" : "Lihat password"}
                 >
-                    {/* Mengganti icon mata */}
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />} 
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
             </div>
+
             <InputError message={error} />
         </div>
     );
 };
-// --- END KOMPONEN INPUT BARU DENGAN TOMBOL MATA (TOGGLE) ---
 
+export default function UpdatePasswordForm({ className = "" }) {
+    const page = usePage().props || {};
+    const user = page?.auth?.user;
 
-export default function UpdatePasswordForm({ className = '' }) {
-    const passwordInput = useRef();
-    const currentPasswordInput = useRef();
+    const passwordInput = useRef(null);
+    const currentPasswordInput = useRef(null);
 
     const { data, setData, errors, put, reset, processing, recentlySuccessful } = useForm({
-        current_password: '',
-        password: '',
-        password_confirmation: '',
+        current_password: "",
+        password: "",
+        password_confirmation: "",
     });
 
     const updatePassword = (e) => {
         e.preventDefault();
-        
-        // --- PERBAIKAN Wajib: Ubah rute menjadi 'vendor.password.update' ---
-        put(route('vendor.password.update'), {
+
+        const isVendor = user?.role === "VENDOR";
+        const routeName = isVendor ? "vendor.password.update" : "password.update";
+
+        put(route(routeName), {
             preserveScroll: true,
-            onSuccess: () => reset(), 
-            onError: (errors) => {
-                // Logika fokus tetap sama
-                if (errors.password) {
-                    reset('password', 'password_confirmation');
-                    passwordInput.current.focus();
+            onSuccess: () => reset(),
+            onError: (errs) => {
+                if (errs?.password) {
+                    reset("password", "password_confirmation");
+                    passwordInput.current?.focus();
                 }
 
-                if (errors.current_password) {
-                    reset('current_password');
-                    currentPasswordInput.current.focus();
+                if (errs?.current_password) {
+                    reset("current_password");
+                    currentPasswordInput.current?.focus();
                 }
             },
         });
     };
 
     return (
-        <Card className={`w-full ${className}`}>
-            <CardHeader>
-                <CardTitle>Update Password</CardTitle>
-                <CardDescription>
-                    Ensure your account is using a long, random password to stay secure.
-                </CardDescription>
-            </CardHeader>
-            
-            <CardContent>
+        <CardShell className={className}>
+            <CardHeader
+                title="Keamanan Password"
+                description="Gunakan password yang panjang dan unik. Hindari menggunakan password yang sama di banyak akun."
+                icon={Shield}
+            />
+
+            <div className="p-6 sm:p-7">
                 <form onSubmit={updatePassword} className="space-y-6">
-                    {/* Current Password (Menggunakan komponen baru) */}
                     <ToggleablePasswordInput
-                        label="Current Password"
+                        label="Password Saat Ini"
                         id="current_password"
                         value={data.current_password}
-                        onChange={(e) => setData('current_password', e.target.value)}
+                        onChange={(e) => setData("current_password", e.target.value)}
                         error={errors.current_password}
                         inputRef={currentPasswordInput}
                         autoComplete="current-password"
                     />
 
-                    {/* New Password (Menggunakan komponen baru) */}
                     <ToggleablePasswordInput
-                        label="New Password"
+                        label="Password Baru"
                         id="password"
                         value={data.password}
-                        onChange={(e) => setData('password', e.target.value)}
+                        onChange={(e) => setData("password", e.target.value)}
                         error={errors.password}
                         inputRef={passwordInput}
                         autoComplete="new-password"
                     />
 
-                    {/* Confirm Password (Menggunakan komponen baru) */}
                     <ToggleablePasswordInput
-                        label="Confirm Password"
+                        label="Konfirmasi Password Baru"
                         id="password_confirmation"
                         value={data.password_confirmation}
-                        onChange={(e) => setData('password_confirmation', e.target.value)}
+                        onChange={(e) => setData("password_confirmation", e.target.value)}
                         error={errors.password_confirmation}
                         autoComplete="new-password"
                     />
 
-                    <div className="flex items-center gap-4 pt-2">
+                    <div className="flex flex-wrap items-center gap-4 pt-2">
                         <Button type="submit" disabled={processing}>
-                            {processing ? 'Menyimpan...' : 'Simpan Perubahan'}
+                            {processing ? "Menyimpan..." : "Simpan Perubahan"}
                         </Button>
 
                         <Transition
                             show={recentlySuccessful}
-                            enter="transition ease-in-out"
-                            enterFrom="opacity-0"
-                            leave="transition ease-in-out"
-                            leaveTo="opacity-0"
+                            enter="transition ease-out duration-200"
+                            enterFrom="opacity-0 translate-y-1"
+                            enterTo="opacity-100 translate-y-0"
+                            leave="transition ease-in duration-150"
+                            leaveFrom="opacity-100 translate-y-0"
+                            leaveTo="opacity-0 translate-y-1"
                         >
-                            <p className="text-sm text-green-700 font-semibold">Password berhasil diperbarui!</p>
+                            <div className="inline-flex items-center gap-2 rounded-2xl bg-green-50 border border-green-200 px-3 py-2">
+                                <CheckCircle2 className="h-4 w-4 text-green-700" />
+                                <p className="text-sm font-semibold text-green-800">Password berhasil diperbarui</p>
+                            </div>
                         </Transition>
                     </div>
                 </form>
-            </CardContent>
-        </Card>
+            </div>
+        </CardShell>
     );
 }
