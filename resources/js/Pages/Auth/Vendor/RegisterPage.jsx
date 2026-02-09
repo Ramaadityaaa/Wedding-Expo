@@ -90,7 +90,7 @@ export default function RegisterPage() {
         if (!file) {
             setData("permit_image", null);
             setPreviewUrl("");
-            setFileNameDisplay(""); // Clear display name
+            setFileNameDisplay("");
             setPreviewType("");
             return;
         }
@@ -130,7 +130,7 @@ export default function RegisterPage() {
             setPreviewUrl("");
             setPreviewType("pdf");
         }
-        setClientErrors((prev) => ({ ...prev, permit_image: null })); // Clear client error if file is valid
+        setClientErrors((prev) => ({ ...prev, permit_image: null }));
     };
 
     const handleSubmit = (e) => {
@@ -139,12 +139,7 @@ export default function RegisterPage() {
         setClientErrors({});
 
         // Validasi sederhana di client sebelum kirim
-        if (
-            !data.name ||
-            !data.email ||
-            !data.password ||
-            !data.terms_accepted
-        ) {
+        if (!data.name || !data.email || !data.password || !data.terms_accepted) {
             setInfoMessage("Lengkapi field wajib yang bertanda merah.");
             window.scrollTo({ top: 0, behavior: "smooth" });
             return;
@@ -160,7 +155,6 @@ export default function RegisterPage() {
             forceFormData: true,
             onSuccess: () => {
                 setStatusModalOpen(true);
-                // Clean up file objects
                 if (data.permit_image) {
                     URL.revokeObjectURL(previewUrl);
                 }
@@ -257,9 +251,7 @@ export default function RegisterPage() {
                                             onChange={handleInputChange}
                                             className="mt-1 block w-full px-4 py-3 rounded-lg border-gray-300 shadow-sm focus:ring-orange-500 focus:border-orange-500 bg-gray-50 focus:bg-white"
                                         >
-                                            <option value="">
-                                                Pilih Kategori
-                                            </option>
+                                            <option value="">Pilih Kategori</option>
                                             <option value="Wedding Organizer">
                                                 Wedding Organizer
                                             </option>
@@ -341,6 +333,7 @@ export default function RegisterPage() {
                                     </span>
                                     Dokumen Legalitas
                                 </h3>
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700">
@@ -356,23 +349,44 @@ export default function RegisterPage() {
                                         <FieldError field="permit_number" />
                                     </div>
 
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    {/* ✅ Upload area + preview terpisah (gambar pasti kelihatan) */}
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
                                             Upload Dokumen (Max 5MB)
                                         </label>
-                                        <div className="flex items-center justify-center w-full">
-                                            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition">
-                                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                                    <UploadCloud className="w-8 h-8 mb-3 text-gray-400" />
-                                                    <p className="text-sm text-gray-500">
-                                                        <span className="font-semibold">
-                                                            Klik untuk upload
-                                                        </span>
-                                                    </p>
-                                                    <p className="text-xs text-gray-500">
-                                                        JPG, PNG, atau PDF
-                                                    </p>
+
+                                        <div className="w-full">
+                                            {/* BOX UPLOAD (klik untuk pilih file) */}
+                                            <label className="group w-full flex items-center justify-between gap-4 p-4 md:p-5 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-white hover:bg-gray-50 transition shadow-sm">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100">
+                                                        <UploadCloud className="w-6 h-6 text-orange-500" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-semibold text-gray-800">
+                                                            {fileNameDisplay
+                                                                ? "File sudah dipilih"
+                                                                : "Klik untuk upload dokumen"}
+                                                        </p>
+                                                        <p className="text-xs text-gray-500 mt-0.5">
+                                                            JPG, PNG, atau PDF (maks. 5MB)
+                                                        </p>
+                                                    </div>
                                                 </div>
+
+                                                <div className="flex items-center gap-2">
+                                                    {fileNameDisplay ? (
+                                                        <span className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl bg-green-50 text-green-700 border border-green-200">
+                                                            <CheckCircle size={16} />
+                                                            Dipilih
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl bg-gray-100 text-gray-700 border border-gray-200 group-hover:bg-gray-200 transition">
+                                                            Pilih File
+                                                        </span>
+                                                    )}
+                                                </div>
+
                                                 <input
                                                     type="file"
                                                     name="permit_image"
@@ -381,25 +395,56 @@ export default function RegisterPage() {
                                                     onChange={handleFileChange}
                                                 />
                                             </label>
-                                        </div>
-                                        {fileNameDisplay && (
-                                            <div className="mt-2 text-sm text-green-600 flex items-center">
-                                                <CheckCircle
-                                                    size={14}
-                                                    className="mr-1"
-                                                />{" "}
-                                                {fileNameDisplay}
-                                            </div>
-                                        )}
-                                        {previewUrl &&
-                                            previewType === "image" && (
-                                                <img
-                                                    src={previewUrl}
-                                                    alt="Preview"
-                                                    className="mt-2 h-20 rounded border object-cover"
-                                                />
+
+                                            {/* Nama file */}
+                                            {fileNameDisplay && (
+                                                <div className="mt-3 text-sm text-green-700 flex items-center gap-2">
+                                                    <CheckCircle size={16} />
+                                                    <span className="font-medium">
+                                                        {fileNameDisplay}
+                                                    </span>
+                                                </div>
                                             )}
-                                        <FieldError field="permit_image" />
+
+                                            {/* PREVIEW GAMBAR (tampil nyata, bukan background) */}
+                                            {previewType === "image" && previewUrl && (
+                                                <div className="mt-4 border border-gray-200 rounded-2xl overflow-hidden bg-gray-50 shadow-sm">
+                                                    <div className="px-4 py-3 border-b border-gray-200 bg-white flex items-center justify-between">
+                                                        <p className="text-sm font-semibold text-gray-800">
+                                                            Preview Gambar
+                                                        </p>
+                                                        <p className="text-xs text-gray-500">
+                                                            Pastikan foto jelas & terbaca
+                                                        </p>
+                                                    </div>
+                                                    <div className="p-3">
+                                                        <img
+                                                            src={previewUrl}
+                                                            alt="Preview Upload"
+                                                            className="w-full max-h-[460px] object-contain rounded-xl bg-white"
+                                                            draggable={false}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* PREVIEW PDF (informasi aja) */}
+                                            {previewType === "pdf" && fileNameDisplay && (
+                                                <div className="mt-4 border border-gray-200 rounded-2xl bg-white shadow-sm p-4">
+                                                    <p className="text-sm font-semibold text-gray-800">
+                                                        Preview PDF
+                                                    </p>
+                                                    <p className="text-xs text-gray-500 mt-1">
+                                                        PDF dipilih:{" "}
+                                                        <span className="font-medium text-gray-700">
+                                                            {fileNameDisplay}
+                                                        </span>
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            <FieldError field="permit_image" />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -448,11 +493,7 @@ export default function RegisterPage() {
                                         </label>
                                         <div className="relative mt-1">
                                             <input
-                                                type={
-                                                    passwordVisible
-                                                        ? "text"
-                                                        : "password"
-                                                }
+                                                type={passwordVisible ? "text" : "password"}
                                                 name="password"
                                                 value={data.password}
                                                 onChange={handleInputChange}
@@ -461,9 +502,7 @@ export default function RegisterPage() {
                                             <button
                                                 type="button"
                                                 onClick={() =>
-                                                    setPasswordVisible(
-                                                        !passwordVisible
-                                                    )
+                                                    setPasswordVisible(!passwordVisible)
                                                 }
                                                 className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
                                             >
@@ -484,14 +523,10 @@ export default function RegisterPage() {
                                         <div className="relative mt-1">
                                             <input
                                                 type={
-                                                    confirmPasswordVisible
-                                                        ? "text"
-                                                        : "password"
+                                                    confirmPasswordVisible ? "text" : "password"
                                                 }
                                                 name="password_confirmation"
-                                                value={
-                                                    data.password_confirmation
-                                                }
+                                                value={data.password_confirmation}
                                                 onChange={handleInputChange}
                                                 className="block w-full px-4 py-3 rounded-lg border-gray-300 shadow-sm focus:ring-orange-500 focus:border-orange-500 bg-gray-50"
                                             />
