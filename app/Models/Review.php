@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 use App\Models\User;
-use App\Models\WeddingOrganizer;
+use App\Models\Vendor;
 
 class Review extends Model
 {
@@ -35,18 +35,20 @@ class Review extends Model
     }
 
     /**
-     * Relasi ke vendor (konsisten dengan sistem vendor kamu: WeddingOrganizer)
+     * Relasi ke vendor (TABEL: vendors)
      */
     public function vendor()
     {
-        return $this->belongsTo(WeddingOrganizer::class, 'vendor_id');
+        return $this->belongsTo(Vendor::class, 'vendor_id');
     }
 
     /**
-     * Alias biar kode lama yang masih pake weddingOrganizer ga error.
+     * Alias untuk backward compatibility:
+     * Jika masih ada kode lama yang memanggil weddingOrganizer(),
+     * tetap akan mengembalikan Vendor dari tabel vendors.
      */
     public function weddingOrganizer()
     {
-        return $this->belongsTo(WeddingOrganizer::class, 'vendor_id');
+        return $this->belongsTo(Vendor::class, 'vendor_id');
     }
 }
